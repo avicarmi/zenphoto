@@ -4927,23 +4927,33 @@ function checkAlbumimagesort($val, $type = 'albumimagesort') {
  * @param obj $obj Object of any item type
  */
 function printLastChangeInfo($obj) {
+	?>
+	<hr>
+	<ul>
+	<?php
 	if(isAlbumClass($obj) && $obj->getUpdatedDate()) {
 		?>
-		<hr>
-		<p><?php printf(gettext('Last updated: %s'), $obj->getUpdatedDate()); ?></p>
+		<li><?php printf(gettext('Last updated: %s'), $obj->getUpdatedDate()); ?></li>
+		<?php
+	}
+	if(get_class($obj) == 'Zenphoto_Administrator') {
+		?>
+		<li><?php printf(gettext('Account created: %s'), $obj->getDateTime()); ?></li>
+		<li><?php printf(gettext('Last login: %s'), $obj->getLastLogon()); ?></li>
+		<li><?php printf(gettext('Last password update: %s'), $obj->get('passupdate')); ?></li>
+		<li><?php printf(gettext('Last visit: %s'), $obj->getLastVisit()); ?></li>
 		<?php
 	}
 	?>
-	<hr>
-	<p><?php printf(gettext('Last change: %s'), $obj->getLastchange()); ?><br>
+	<li><?php printf(gettext('Last change: %s'), $obj->getLastchange()); ?></li>
 	<?php
 	$lastchangeuser = $obj->getLastchangeUser();
 	if (empty($lastchangeuser)) {
-			$lastchangeuser = gettext('ZenphotoCMS internal request');
+		$lastchangeuser = gettext('ZenphotoCMS internal request');
 	}
-	printf(gettext('Last changed by: %s'), $lastchangeuser);
 	?>
-	</p>
+	<li><?php printf(gettext('Last changed by: %s'), $lastchangeuser); ?></li>
+	</ul>
 	<?php
 }
 
@@ -5194,4 +5204,31 @@ function printExpired($obj) {
 	} else if ($obj->hasExpiration()) {
 		echo ' <span class="expiredate">' . $date . "</span>";
 	}
+}
+/**
+ * Checks plugin and theme definition for $plugin_disable / $theme_description['disable'] so plugins/themes are deaktivated respectively cannot be activated
+ * if they don't match conditions/requirements. See the plugin/theme documentation for info how to define these.
+ * 
+ * Returns either the message why incompatible or false if not.
+ * 
+ * @since Zenphoto 1.5.8
+ * 
+ * @param string|array $disable One string or serveral as an array. Not false means incompatible 
+ * @return boolean|string
+ */
+function isIncompatibleExtension($disable) {
+	if ($disable) {
+		if(is_array($disable)) {
+			$check = false;
+			foreach ($disable as $incompatible) {
+				if ($incompatible) {
+					$check .= $incompatible . '<br>';
+				}
+			}
+			return $check;
+		} else {
+			return $disable;
+		}
+	}
+	return false;
 }

@@ -158,74 +158,66 @@ $subtab = printSubtabs();
 				$third_party_plugin = strpos($paths[$extension], ZENFOLDER) === false;
 				$pluginStream = file_get_contents($paths[$extension]);
 				$parserr = 0;
+				$plugin_description = '';
 				if ($str = isolate('$plugin_description', $pluginStream)) {
 					if (false === eval($str)) {
 						$parserr = $parserr | 1;
 						$plugin_description = gettext('<strong>Error parsing <em>plugin_description</em> string!</strong>');
 					}
-				} else {
-					$plugin_description = '';
-				}
+				} 
+				$plugin_deprecated = '';
 				if ($str = isolate('$plugin_deprecated', $pluginStream)) {
 					if (false === eval($str)) {
-						$parserr = $parserr | 1;
+						$parserr = $parserr | 2;
 						$plugin_deprecated = gettext('<strong>Error parsing <em>plugin_deprecated</em> string!</strong>');
 					}
-				} else {
-					$plugin_deprecated = '';
-				}
+				} 
+				$plugin_notice = '';
 				if ($str = isolate('$plugin_notice', $pluginStream)) {
 					if (false === eval($str)) {
-						$parserr = $parserr | 1;
+						$parserr = $parserr | 3;
 						$plugin_notice = gettext('<strong>Error parsing <em>plugin_notice</em> string!</strong>');
 					}
-				} else {
-					$plugin_notice = '';
-				}
+				} 
+				$plugin_author = '';
 				if ($str = isolate('$plugin_author', $pluginStream)) {
 					if (false === eval($str)) {
-						$parserr = $parserr | 2;
+						$parserr = $parserr | 4;
 						$plugin_author = gettext('<strong>Error parsing <em>plugin_author</em> string!</strong>');
 					}
-				} else {
-					$plugin_author = '';
-				}
+				} 
+				$plugin_version = '';
 				if ($str = isolate('$plugin_version', $pluginStream)) {
 					if (false === eval($str)) {
-						$parserr = $parserr | 4;
+						$parserr = $parserr | 5;
 						$plugin_version = ' ' . gettext('<strong>Error parsing <em>plugin_version</em> string!</strong>');
 					}
-				} else {
-					$plugin_version = '';
-				}
+				} 
+				$plugin_disable = false;
 				if ($str = isolate('$plugin_disable', $pluginStream)) {
 					if (false === eval($str)) {
-						$parserr = $parserr | 8;
+						$parserr = $parserr | 6;
 						$plugin_disable = gettext('<strong>Error parsing <em>plugin_disable</em> string!</strong>');
-					} else {
-						if ($plugin_disable) {
-							setOption($opt, 0);
-						}
-					}
-				} else {
-					$plugin_disable = false;
+					} 
+				} 
+				$plugin_disable = isIncompatibleExtension($plugin_disable);
+				if ($plugin_disable) {
+					disableExtension($extension);
 				}
+				$plugin_site = '';
 				if ($str = isolate('$plugin_siteurl', $pluginStream)) {
 					if (false === eval($str)) {
-						$parserr = $parserr | 9;
+						$parserr = $parserr | 10;
 						$plugin_siteurl = gettext('<strong>Error parsing <em>plugin_siteurl</em> string!</strong>');
 					}
-				} else {
-					$plugin_site = '';
-				}
+				} 
+				$plugin_date = '';
 				if ($str = isolate('$plugin_date', $pluginStream)) {
 					if (false === eval($str)) {
-						$parserr = $parserr | 10;
+						$parserr = $parserr | 11;
 						$plugin_date = gettext('<strong>Error parsing <em>plugin_date</em> string!</strong>');
 					}
-				} else {
-					$plugin_date = '';
-				}
+				} 
 				$plugin_URL = FULLWEBPATH . '/' . ZENFOLDER . '/pluginDoc.php?extension=' . $extension;
 				if ($third_party_plugin) {
 					$plugin_URL .= '&amp;thirdparty';
@@ -261,6 +253,8 @@ $subtab = printSubtabs();
 						}
 					}
 				}
+				
+				
 				$selected_style = '';
 				if ($currentsetting > THEME_PLUGIN) {
 					$selected_style = ' class="currentselection"';
@@ -324,9 +318,7 @@ $subtab = printSubtabs();
 							if ($plugin_disable) {
 								?>
 								<span class="icons" id="<?php echo $extension; ?>_checkbox">
-									<a href="javascript:toggle('showdisable_<?php echo $extension; ?>');" title="<?php echo gettext('This plugin is disabled. Click for details.'); ?>">
-										<img src="images/action.png" alt="" class="zp_logoicon" />
-									</a>
+									<img src="images/action.png" alt="" class="zp_logoicon" />
 									<input type="hidden" name="<?php echo $opt; ?>" id="<?php echo $opt; ?>" value="0" />
 								</span>
 								<?php
@@ -359,11 +351,6 @@ $subtab = printSubtabs();
 							<span class="icons"><a href="<?php echo $optionlink; ?>" title="<?php printf(gettext("Change %s options"), $extension); ?>"><img class="icon-position-top3" src="images/options.png" alt="" /></a></span>
 							<?php
 						}
-						if ($plugin_notice) {
-							?>
-							<span class="icons"><a href="javascript:toggle('show_<?php echo $extension; ?>');" title ="<?php echo gettext('Plugin warnings'); ?>" ><img class="icon-position-top3" src="images/warn.png" alt="" /></a></span>
-							<?php
-						}
 						?>
 					</td>
 					<td colspan="2">
@@ -375,28 +362,19 @@ $subtab = printSubtabs();
 						}
 						if ($plugin_disable) {
 							?>
-							<div id="showdisable_<?php echo $extension; ?>" style="display: none" class="warningbox">
+							<div id="showdisable_<?php echo $extension; ?>" class="warningbox">
 								<?php
 								if ($plugin_disable) {
-									preg_match('/\<a href="#(.*)">/', $plugin_disable, $matches);
-									if ($matches) {
-										$plugin_disable = str_replace($matches[0], '<a href="javascript:gotoPlugin(\'' . $matches[1] . '\');">', $plugin_disable);
-									}
 									echo $plugin_disable;
 								}
 								?>
 							</div>
-
 							<?php
 						}
 						if ($plugin_notice) {
 							?>
-							<div id="show_<?php echo $extension; ?>" style="display:none" class="notebox">
-								<?php
-								if ($plugin_notice) {
-									echo $plugin_notice;
-								}
-								?>
+							<div class="notebox">
+								<?php echo $plugin_notice;?>
 							</div>
 							<?php
 						}
