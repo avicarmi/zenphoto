@@ -152,9 +152,15 @@ class TextObject extends Image {
 	 */
 	function getThumb($type = 'image') {
 		$ts = getOption('thumb_size');
-		$sw = getOption('thumb_crop_width');
-		$sh = getOption('thumb_crop_height');
-		list($custom, $cw, $ch, $cx, $cy) = $this->getThumbCropping($ts, $sw, $sh);
+		if (getOption('thumb_crop')) {
+			$crop = true;
+			$sw = getOption('thumb_crop_width');
+			$sh = getOption('thumb_crop_height');
+			list($custom, $cw, $ch, $cx, $cy) = $this->getThumbCropping($ts, $sw, $sh);
+		} else {
+			$crop = false;
+			$sw = $sh = $cw = $ch = $cx = $cy = null;
+		}
 		$wmt = $this->watermark;
 		if (empty($wmt)) {
 			$wmt = getWatermarkParam($this, WATERMARK_THUMB);
@@ -172,6 +178,27 @@ class TextObject extends Image {
 		$args = getImageParameters(array($ts, $sw, $sh, $cw, $ch, $cx, $cy, NULL, true, true, true, $wmt, NULL, NULL), $this->album->name);
 		$cachefilename = getImageCacheFilename($alb = $this->album->name, $this->filename, $args);
 		return getImageURI($args, $alb, $filename, $mtime);
+	}
+	
+	/**
+	 * Returns an array with widht and height the sidecar thumb image
+	 * 
+	 * @since ZephotoCMS 1.5.8
+	 * 
+	 * @return array
+	 */
+	function getThumbDimensions() {
+		if (!is_null($this->thumbdimensions)) {
+			return $this->thumbdimensions;
+		}
+		$imgfile = $this->getThumbImageFile();
+		$image = zp_imageGet($imgfile);
+		$width = zp_imageWidth($image);
+		$height = zp_imageHeight($image);
+		return $this->thumbdimensions = array(
+				'width' => $width,
+				'height' => $height
+		);
 	}
 
 	/**

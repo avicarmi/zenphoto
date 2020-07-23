@@ -234,17 +234,12 @@ function printAlbumStatisticItem($album, $option, $showtitle = false, $showdate 
 	$albumthumb = $tempalbum->getAlbumThumbImage();
 	switch ($crop) {
 		case 0:
-			$sizes = getSizeCustomImage($width, NULL, NULL, NULL, NULL, NULL, NULL, $albumthumb);
+			$sizes = getSizeCustomImage($width, NULL, NULL, NULL, NULL, NULL, NULL, $albumthumb, 'thumb');
 			$html = '<img src="' . html_encode(pathurlencode($albumthumb->getCustomImage($width, NULL, NULL, NULL, NULL, NULL, NULL, TRUE))) . '" width="' . $sizes[0] . '" height="' . $sizes[1] . '" alt="' . html_encode($albumthumb->getTitle()) . '" /></a>' . "\n";
 			echo zp_apply_filter('custom_image_html', $html);
 			break;
 		case 1;
-			if(isImagePhoto($albumthumb)) {
-				$sizes = getSizeCustomImage(NULL, $width, $height, $width, $height, NULL, NULL, $albumthumb);
-			} else {
-				$sizes[0] = $width;
-				$sizes[1] = $height;
-			}
+			$sizes = getSizeCustomImage(NULL, $width, $height, $width, $height, NULL, NULL, $albumthumb, 'thumb');
 			$html = '<img src="' . html_encode(pathurlencode($albumthumb->getCustomImage(NULL, $width, $height, $width, $height, NULL, NULL, TRUE))) . '" width="' . $sizes[0] . '" height="' . $sizes[1] . '" alt="' . html_encode($albumthumb->getTitle()) . '" /></a>' . "\n";
 			echo zp_apply_filter('custom_image_html', $html);
 			break;
@@ -466,7 +461,7 @@ function printImageStatistic($number, $option, $albumfolder = '', $showtitle = f
 		echo '<li><a href="' . html_encode($imagelink) . '" title="' . html_encode($image->getTitle()) . "\">\n";
 		switch ($crop) {
 			case 0:
-				$sizes = getSizeCustomImage($width, NULL, NULL, NULL, NULL, NULL, NULL, $image);
+				$sizes = getSizeCustomImage($width, NULL, NULL, NULL, NULL, NULL, NULL, $image, 'thumb');
 				$html = '<img src="' . html_encode(pathurlencode($image->getCustomImage($width, NULL, NULL, NULL, NULL, NULL, NULL, TRUE))) . '" width="' . $sizes[0] . '" height="' . $sizes[1] . '" alt="' . html_encode($image->getTitle()) . "\" /></a>\n";
 				echo zp_apply_filter('custom_image_html', $html);
 				break;
@@ -560,4 +555,36 @@ function getNumAllSubalbums($albumobj, $pre = '') {
 	} else {
 		return false;
 	}
+}
+
+/**
+ * Returns an randomly selected image objecet from the gallery per day.
+ * Returns null on failure
+ * 
+ * @since Zenphoto 1.5.8
+ * 
+ * @param string $albumfolder foldername of an specific album. If not set from all images in the gallery
+ * @param bool $collection only if $albumfolder is set: true if you want to get statistics from this album and all of its subalbums
+ * 
+ * @return object|nill
+ */
+function getPictureOfTheDay($albumfolder = '', $collection = false) {
+	global $_zp_gallery;
+	$potd = getSerializedArray(getOption('picture_of_the_day'));
+	if (date('Y-m-d', $potd['day']) == date('Y-m-d')) {
+		$album = newAlbum($potd['folder'], true, true);
+		if ($album->exists) {
+			$image = newImage($album, $potd['filename'], true);
+			if ($image->exists) {
+				return $image;
+			}
+		}
+	}
+	$randomimage = getImageStatistic(1, 'random', $albumfolder, $collection);
+	if ($randomimage) {
+		$potd = array('day' => time(), 'folder' => $randomimage[0]->getAlbumName(), 'filename' => $randomimage[0]->getFileName());
+		setThemeOption('picture_of_the_day', serialize($potd), NULL, $_zp_gallery->getCurrentTheme());
+		return $randomimage[0];
+	}
+	return NULL;
 }

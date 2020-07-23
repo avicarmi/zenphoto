@@ -1892,7 +1892,7 @@ function printCustomAlbumThumbImage($alt, $size, $width = NULL, $height = NULL, 
 	}
 	$class = trim($class);
 	/* set the HTML image width and height parameters in case this image was "imageDefault.png" substituted for no thumbnail then the thumb layout is preserved */
-	$sizes = getSizeCustomImage($size, $width, $height, $cropw, $croph, $cropx, $cropy, $_zp_current_album->getAlbumThumbImage());
+	$sizes = getSizeCustomImage($size, $width, $height, $cropw, $croph, $cropx, $cropy, $_zp_current_album->getAlbumThumbImage(), 'thumb');
 	$sizing = ' width="' . $sizes[0] . '" height="' . $sizes[1] . '"';
 	if($class) {
 		$class = ' class="' . $class . '"';
@@ -1925,11 +1925,9 @@ function getMaxSpaceContainer(&$width, &$height, $image, $thumb = false) {
 	global $_zp_gallery;
 	$upscale = getOption('image_allow_upscale');
 	$imagename = $image->filename;
-	if (!isImagePhoto($image) & $thumb) {
-		$imgfile = $image->getThumbImageFile();
-		$image = zp_imageGet($imgfile);
-		$s_width = zp_imageWidth($image);
-		$s_height = zp_imageHeight($image);
+	if ($thumb) {
+		$s_width = $image->getThumbWidth();
+		$s_height = $image->getThumbHeight();
 	} else {
 		$s_width = $image->get('width');
 		if ($s_width == 0)
@@ -2660,29 +2658,41 @@ function printImageMetadata($title = NULL, $toggle = true, $id = 'imagemetadata'
  * @param int $ch crop height
  * @param int $cx crop x axis
  * @param int $cy crop y axis
- * @param $image object the image for which the size is desired. NULL means the current image
+ * @param obj $image The image object for which the size is desired. NULL means the current image
+ * @param string $type "image" (sizedimage) (default), "thumb" (thumbnail) required for using option settings for uncropped images
  * @return array
  */
-function getSizeCustomImage($size, $width = NULL, $height = NULL, $cw = NULL, $ch = NULL, $cx = NULL, $cy = NULL, $image = NULL) {
+function getSizeCustomImage($size, $width = NULL, $height = NULL, $cw = NULL, $ch = NULL, $cx = NULL, $cy = NULL, $image = NULL, $type = 'image') {
   global $_zp_current_image;
   if (is_null($image))
     $image = $_zp_current_image;
   if (is_null($image))
     return false;
-
-  $h = $image->getHeight();
-  $w = $image->getWidth();
-
+	
   //if we set width/height we are cropping and those are the sizes already
   if (!is_null($width) && !is_null($height)) {
     return array($width, $height);
   }
-	if (isImageVideo($image)) { // size is determined by the player
-    return array($w, $h);
-  }
-  $side = getOption('image_use_side');
-  $us = getOption('image_allow_upscale');
-  $args = getImageParameters(array($size, $width, $height, $cw, $ch, $cx, $cy, NULL, NULL, NULL, NULL, NULL, NULL, NULL), $image->album->name);
+	switch ($type) {
+		case 'thumb':
+			$h = $image->getThumbHeight();
+			$w = $image->getThumbWidth();
+			$thumb = true;
+			$side = getOption('thumb_use_side');
+			break;
+		default:
+		case 'image':
+			$h = $image->getHeight();
+			$w = $image->getWidth();
+			$thumb = false;
+			if (isImageVideo($image)) { // size is determined by the player
+				return array($w, $h);
+			}
+			$side = getOption('image_use_side');
+			break;
+	}
+	$us = getOption('image_allow_upscale');
+  $args = getImageParameters(array($size, $width, $height, $cw, $ch, $cx, $cy, NULL, $thumb, NULL, $thumb, NULL, NULL, NULL), $image->album->name);
   @list($size, $width, $height, $cw, $ch, $cx, $cy, $quality, $thumb, $crop, $thumbstandin, $passedWM, $adminrequest, $effects) = $args;
   if (!empty($size)) {
     $dim = $size;
@@ -2707,7 +2717,6 @@ function getSizeCustomImage($size, $width = NULL, $height = NULL, $cw = NULL, $c
   } else {
     $wprop = round(($w / $h) * $dim);
   }
-
   if (($size && ($side == 'longest' && $h > $w) || ($side == 'height') || ($side == 'shortest' && $h < $w)) || $height) {
 // Scale the height
     $newh = $dim;
@@ -2716,7 +2725,7 @@ function getSizeCustomImage($size, $width = NULL, $height = NULL, $cw = NULL, $c
 // Scale the width
     $neww = $dim;
     $newh = $hprop;
-  }
+  } 
   if (!$us && $newh >= $h && $neww >= $w) {
     return array($w, $h);
   } else {
@@ -2949,11 +2958,10 @@ function getSizeDefaultThumb($image = NULL) {
 	if (getOption('thumb_crop')) {
 		$w = getOption('thumb_crop_width');
 		$h = getOption('thumb_crop_height');
-		$sizes = getSizeCustomImage($s, $w, $h, $w, $h, null, null, $image);
+		$sizes = getSizeCustomImage($s, $w, $h, $w, $h, null, null, $image, 'thumb');
 	} else {
 		$w = $h = $s;
-		getMaxSpaceContainer($w, $h, $image, true);
-		$sizes = array($w, $h);
+		$sizes = getSizeCustomImage($s, NULL, NULL, NULL, NULL, NULL, NULL, $image, 'thumb');
 	}
 	return $sizes;
 }
@@ -3154,8 +3162,9 @@ function getCustomImageURL($size, $width = NULL, $height = NULL, $cropw = NULL, 
  * @param bool $thumbStandin set to true to treat as thumbnail
  * @param bool $effects image effects (e.g. set gray to force grayscale)
  * @param string $title title attribute	
+ * @param string $type "image" (sizedimage) (default), "thumb" (thumbnail) required for using option settings for uncropped images
  * */
-function printCustomSizedImage($alt, $size, $width = NULL, $height = NULL, $cropw = NULL, $croph = NULL, $cropx = NULL, $cropy = NULL, $class = NULL, $id = NULL, $thumbStandin = false, $effects = NULL, $title = null) {
+function printCustomSizedImage($alt, $size, $width = NULL, $height = NULL, $cropw = NULL, $croph = NULL, $cropx = NULL, $cropy = NULL, $class = NULL, $id = NULL, $thumbStandin = false, $effects = NULL, $title = null, $type = 'image') {
 	global $_zp_current_image;
 	if (is_null($_zp_current_image))
 		return;
@@ -3168,7 +3177,11 @@ function printCustomSizedImage($alt, $size, $width = NULL, $height = NULL, $crop
 		$class .= " password_protected";
 	}
 	if ($size) {
-		$dims = getSizeCustomImage($size);
+		$type = 'image';
+		if($thumbStandin) {
+			$type = 'thumb';
+		}
+		$dims = getSizeCustomImage($size, null, null, null, null, null, null, null, $type);
 		$sizing = ' width="' . $dims[0] . '" height="' . $dims[1] . '"';
 	} else {
 		$sizing = '';
@@ -3276,228 +3289,6 @@ function printCustomSizedImageMaxSpace($alt, $width, $height, $class = NULL, $id
  */
 function printSizedImageURL($size, $text, $title, $class = NULL, $id = NULL) {
 	printLinkHTML(getSizedImageURL($size), $text, $title, $class, $id);
-}
-
-/**
- *
- * performs a query and then filters out "illegal" images returning the first "good" image
- * used by the random image functions.
- *
- * @param object $result query result
- * @param string $source album object if this is search within the album
- */
-function filterImageQuery($result, $source) {
-	if ($result) {
-		while ($row = db_fetch_assoc($result)) {
-			$image = newImage(null, $row);
-   $album = $image->album;
-   if ($album->name == $source || $album->checkAccess()) {
-				if (isImagePhoto($image)) {
-					if ($image->checkAccess()) {
-						return $image;
-					}
-				}
-			}
-		}
-		db_free_result($result);
-	}
-	return NULL;
-}
-
-/**
- * Returns a randomly selected image from the gallery. (May be NULL if none exists)
- * @param bool $daily set to true and the picture changes only once a day.
- *
- * @return object
- */
-function getRandomImages($daily = false) {
-	global $_zp_gallery;
-	if ($daily) {
-		$potd = getSerializedArray(getOption('picture_of_the_day'));
-		if (date('Y-m-d', $potd['day']) == date('Y-m-d')) {
-			$album = newAlbum($potd['folder'], true, true);
-			if ($album->exists) {
-				$image = newImage($album, $potd['filename'], true);
-				if ($image->exists) {
-					return $image;
-				}
-			}
-		}
-	}
-	if (zp_loggedin()) {
-		$imageWhere = '';
-	} else {
-		$imageWhere = " AND " . prefix('images') . ".show=1";
-	}
-	$result = query('SELECT `folder`, `filename` ' .
-					' FROM ' . prefix('images') .
-					' INNER JOIN ' . prefix('albums') . ' ON ' . prefix('images') . '.albumid = ' . prefix('albums') . '.id ' .
-					' INNER JOIN (SELECT CEIL(RAND() * (SELECT MAX(id) FROM ' . prefix('images') . ')) AS id) AS r2 ON ' . prefix('images') . '.id >= r2.id ' . 
-					' WHERE ' . prefix('albums') . '.folder!="" ' . $imageWhere . ' ORDER BY ' . prefix('images') . '.id LIMIT 1');
-
-	$image = filterImageQuery($result, NULL);
-	if ($image) {
-		if ($daily) {
-			$potd = array('day' => time(), 'folder' => $image->getAlbumName(), 'filename' => $image->getFileName());
-			setThemeOption('picture_of_the_day', serialize($potd), NULL, $_zp_gallery->getCurrentTheme());
-		}
-		return $image;
-	}
-	return NULL;
-}
-
-/**
- * Returns  a randomly selected image from the album or its subalbums. (May be NULL if none exists)
- *
- * @param mixed $rootAlbum optional album object/folder from which to get the image.
- * @param bool $daily set to true to change picture only once a day.
- *
- * @return object
- */
-function getRandomImagesAlbum($rootAlbum = NULL, $daily = false) {
-	global $_zp_current_album, $_zp_gallery;
-	if (empty($rootAlbum) && !in_context(ZP_ALBUM)) {
-		return null;
-	}
-	if (empty($rootAlbum)) {
-		$album = $_zp_current_album;
-	} else {
-		if (is_object($rootAlbum)) {
-			$album = $rootAlbum;
-		} else {
-			$album = newAlbum($rootAlbum);
-		}
-	}
-	if ($daily && ($potd = getOption('picture_of_the_day:' . $album->name))) {
-		$potd = getSerializedArray($potd);
-		if (date('Y-m-d', $potd['day']) == date('Y-m-d')) {
-			$rndalbum = newAlbum($potd['folder']);
-			$image = newImage($rndalbum, $potd['filename']);
-			if ($image->exists)
-				return $image;
-		}
-	}
-	$image = NULL;
-	if ($album->isDynamic()) {
-		$images = $album->getImages(0);
-		shuffle($images);
-		while (count($images) > 0) {
-			$result = array_pop($images);
-			if (Gallery::validImage($result['filename'])) {
-				$image = newImage(newAlbum($result['folder']), $result['filename']);
-			}
-		}
-	} else {
-		$albumfolder = $album->getFileName();
-		if ($album->isMyItem(LIST_RIGHTS)) {
-			$imageWhere = '';
-			$albumInWhere = '';
-		} else {
-			$imageWhere = " AND " . prefix('images') . ".show=1";
-			$albumInWhere = prefix('albums') . ".show=1";
-		}
-		$query = "SELECT id FROM " . prefix('albums') . " WHERE ";
-		if ($albumInWhere) {
-			$query .= $albumInWhere . ' AND ';
-		}
-		$query .= "folder LIKE " . db_quote(db_LIKE_escape($albumfolder) . '%');
-		$result = query($query);
-		if ($result) {
-			$albumids = array();
-			while ($row = db_fetch_assoc($result)) {
-				$albumids[] = $row['id'];
-			}
-			if (empty($albumids)) {
-				$albumInWhere = ' AND ' . $albumInWhere;
-			} else {
-				$albumInWhere = ' AND ' . prefix('albums') . ".id IN (" . implode(',', $albumids) . ')';
-			}
-			db_free_result($result);
-			$sql = 'SELECT `folder`, `filename` ' .
-							' FROM ' . prefix('images') . ', ' . prefix('albums') .
-							' WHERE ' . prefix('albums') . '.folder!="" AND ' . prefix('images') . '.albumid = ' .
-							prefix('albums') . '.id ' . $albumInWhere . $imageWhere . ' ORDER BY RAND()';
-			$result = query($sql);
-			$image = filterImageQuery($result, $album->name);
-		}
-	}
-	if ($image) {
-		if ($daily) {
-			$potd = array('day' => time(), 'folder' => $image->getAlbumName(), 'filename' => $image->getFileName());
-			setThemeOption('picture_of_the_day:' . $album->name, serialize($potd), NULL, $_zp_gallery->getCurrentTheme());
-		}
-	}
-	return $image;
-}
-
-/**
- * Puts up random image thumbs from the gallery
- *
- * @param int $number how many images
- * @param string $class optional class
- * @param string $option what you want selected: all for all images, album for selected ones from an album
- * @param mixed $rootAlbum optional album object/folder from which to get the image.
- * @param integer $width the width/cropwidth of the thumb if crop=true else $width is longest size.
- * @param integer $height the height/cropheight of the thumb if crop=true else not used
- * @param bool $crop 'true' (default) if the thumb should be cropped, 'false' if not
- * @param bool $fullimagelink 'false' (default) for the image page link , 'true' for the unprotected full image link (to use Colorbox for example)
- */
-function printRandomImages($number = 5, $class = null, $option = 'all', $rootAlbum = '', $width = NULL, $height = NULL, $crop = NULL, $fullimagelink = false) {
-	if (is_null($crop) && is_null($width) && is_null($height)) {
-		$crop = 2;
-	} else {
-		if (is_null($width))
-			$width = 85;
-		if (is_null($height))
-			$height = 85;
-		if (is_null($crop)) {
-			$crop = 1;
-		} else {
-			$crop = (int) $crop && true;
-		}
-	}
-	if (!empty($class))
-		$class = ' class="' . $class . '"';
-	echo "<ul" . $class . ">";
-	for ($i = 1; $i <= $number; $i++) {
-		switch ($option) {
-			case "all":
-				$randomImage = getRandomImages();
-				break;
-			case "album":
-				$randomImage = getRandomImagesAlbum($rootAlbum);
-				break;
-		}
-		if (is_object($randomImage) && $randomImage->exists) {
-			echo "<li>\n";
-			if ($fullimagelink) {
-				$randomImageURL = $randomImage->getFullimageURL();
-			} else {
-				$randomImageURL = $randomImage->getLink();
-			}
-			echo '<a href="' . html_encode($randomImageURL) . '" title="' . sprintf(gettext('View image: %s'), html_encode($randomImage->getTitle())) . '">';
-			switch ($crop) {
-				case 0:
-					$sizes = getSizeCustomImage($width, NULL, NULL, NULL, NULL, NULL, NULL, $randomImage);
-					$html = '<img src="' . html_encode(pathurlencode($randomImage->getCustomImage($width, NULL, NULL, NULL, NULL, NULL, NULL, TRUE))) . '" width="' . $sizes[0] . '" height="' . $sizes[1] . '" alt="' . html_encode($randomImage->getTitle()) . '" />' . "\n";
-					break;
-				case 1:
-					$sizes = getSizeCustomImage(NULL, $width, $height, $width, $height, NULL, NULL, $randomImage);
-					$html = '<img src="' . html_encode(pathurlencode($randomImage->getCustomImage(NULL, $width, $height, $width, $height, NULL, NULL, TRUE))) . '" width="' . $sizes[0] . '" height="' . $sizes[1] . '" alt="' . html_encode($randomImage->getTitle()) . '" />' . "\n";
-					break;
-				case 2:
-					$sizes = getSizeDefaultThumb($randomImage);
-					$html = '<img src="' . html_encode(pathurlencode($randomImage->getThumb())) . '" width="' . $sizes[0] . '" height="' . $sizes[1] . '" alt="' . html_encode($randomImage->getTitle()) . '" />' . "\n";
-					break;
-			}
-			echo zp_apply_filter('custom_image_html', $html, false);
-			echo "</a>";
-			echo "</li>\n";
-		} else {
-			break;
-		}
-	}
-	echo "</ul>";
 }
 
 /**

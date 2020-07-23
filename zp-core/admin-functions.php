@@ -925,6 +925,7 @@ function printAdminHeader($tab, $subtab = NULL) {
 		setThemeOption('images_per_row', 5, $album, $theme, true);
 		setThemeOption('image_size', 595, $album, $theme, true);
 		setThemeOption('image_use_side', 'longest', $album, $theme, true);
+		setThemeOption('thumb_use_side', 'longest', $album, $theme, true);
 		setThemeOption('thumb_size', 100, $album, $theme, true);
 		setThemeOption('thumb_crop_width', 100, $album, $theme, true);
 		setThemeOption('thumb_crop_height', 100, $album, $theme, true);
@@ -4623,8 +4624,33 @@ function getAdminThumb($image, $size) {
 	switch ($size) {
 		case 'large':
 			return $image->getCustomImage(80, NULL, NULL, 80, 80, NULL, NULL, -1);
+		case 'small':
 		default:
 			return $image->getCustomImage(40, NULL, NULL, 40, 40, NULL, NULL, -1);
+		case 'large-uncropped':
+		case 'small-uncropped':
+			$thumbsize = $width = $height = null;
+			switch ($size) {
+				case 'large-uncropped':
+					if ($image->getThumbWidth() == $image->getThumbHeight()) {
+						$thumbsize = 135;
+					} else if ($image->getThumbWidth() > $image->getThumbHeight()) {
+						$width = 135;
+					} else if ($image->getThumbWidth() < $image->getThumbHeight()) {
+						$height = 135;
+					}
+					return $image->getCustomImage($thumbsize, $width, $height, NULL, NULL, NULL, NULL, -1);
+				case 'small-uncropped':
+					if ($image->getThumbWidth() == $image->getThumbHeight()) {
+						$thumbsize = 110;
+					} else if ($image->getThumbWidth() > $image->getThumbHeight()) {
+						$width = 110;
+					} else if ($image->getThumbWidth() < $image->getThumbHeight()) {
+						$height = 110;
+					}
+					return $image->getCustomImage($thumbsize, $width, $height, NULL, NULL, NULL, NULL, -1);
+			}
+			break;
 	}
 }
 
@@ -4936,10 +4962,11 @@ function printLastChangeInfo($obj) {
 		<li><?php printf(gettext('Last updated: %s'), $obj->getUpdatedDate()); ?></li>
 		<?php
 	}
-	if(get_class($obj) == 'Zenphoto_Administrator') {
+	if(get_class($obj) == 'Zenphoto_Administrator') { 
 		?>
 		<li><?php printf(gettext('Account created: %s'), $obj->getDateTime()); ?></li>
-		<li><?php printf(gettext('Last login: %s'), $obj->getLastLogon()); ?></li>
+		<li><?php printf(gettext('Current login: %s'), $obj->get('loggedin')); ?></li>
+		<li><?php printf(gettext('Last previous login: %s'), $obj->getLastLogon()); ?></li>
 		<li><?php printf(gettext('Last password update: %s'), $obj->get('passupdate')); ?></li>
 		<li><?php printf(gettext('Last visit: %s'), $obj->getLastVisit()); ?></li>
 		<?php
