@@ -177,7 +177,7 @@ echo "\n</head>";
 						</p>
 						<br class="clearall" /><br />
 						<p><?php echo gettext("Set the image order by dragging them to the positions you desire."); ?></p>
-
+<div style="width:700px;">
 						<ul id="images">
 							<?php
 							$images = $album->getImages();
@@ -209,6 +209,7 @@ echo "\n</head>";
 								?>
 							</li>
 						</ul>
+</div>
 						<br class="clearall" />
 
 						<div>
