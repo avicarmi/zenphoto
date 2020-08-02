@@ -484,42 +484,6 @@ function printAdminHeader($tab, $subtab = NULL) {
 			echo ' checked="checked"';
 	}
 	
-	/**
-	 * Populatest $list with an one dimensional list with album name and title of all albums or the subalbums of a specific album
-	 * @global obj $_zp_gallery
-	 * @param array $list The array to fill with the album list
-	 * @param obj $curAlbum Optional object of the album to start with
-	 * @param int $rights Rights constant to filter album access by.
-	 */
-	function genAlbumList(&$list, $curAlbum = NULL, $rights = UPLOAD_RIGHTS) {
-		global $_zp_gallery;
-		if (is_null($curAlbum)) {
-			$albums = array();
-			$albumsprime = $_zp_gallery->getAlbums(0);
-			foreach ($albumsprime as $album) { // check for rights
-				$albumobj = newAlbum($album);
-				if ($albumobj->isMyItem($rights)) {
-					$albums[] = $album;
-				}
-			}
-		} else {
-			$albums = $curAlbum->getAlbums(0);
-		}
-		if (is_array($albums)) {
-			foreach ($albums as $folder) {
-				$album = newAlbum($folder);
-				if ($album->isDynamic()) {
-					if ($rights == ALL_ALBUMS_RIGHTS) {
-						$list[$album->getFileName()] = $album->getTitle();
-					}
-				} else {
-					$list[$album->getFileName()] = $album->getTitle();
-					genAlbumList($list, $album, $rights); /* generate for subalbums */
-				}
-			}
-		}
-	}
-
 	define('CUSTOM_OPTION_PREFIX', '_ZP_CUSTOM_');
 	/**
 	 * Generates the HTML for custom options (e.g. theme options, plugin options, etc.)
@@ -1729,7 +1693,6 @@ function printAdminHeader($tab, $subtab = NULL) {
 						</tr>
 					</table>
 				</td>
-				<?php $bglevels = array('#fff', '#f8f8f8', '#efefef', '#e8e8e8', '#dfdfdf', '#d8d8d8', '#cfcfcf', '#c8c8c8'); ?>
 				<td class="rightcolumn" valign="top">
 					<h2 class="h2_bordered_edit"><?php echo gettext("General"); ?></h2>
 						<div class="box-edit">
@@ -1915,15 +1878,11 @@ function printAdminHeader($tab, $subtab = NULL) {
 									// Get rid of the slashes in the subalbum, while also making a subalbum prefix for the menu.
 									$singlefolder = $fullfolder;
 									$saprefix = '';
-									$salevel = 0;
-
 									while (strstr($singlefolder, '/') !== false) {
 										$singlefolder = substr(strstr($singlefolder, '/'), 1);
 										$saprefix = "&nbsp; &nbsp;&nbsp;" . $saprefix;
-										$salevel = ($salevel + 1) % 8;
 									}
-									echo '<option value="' . $fullfolder . '"' . ($salevel > 0 ? ' style="background-color: ' . $bglevels[$salevel] . ';"' : '')
-									. "$disabled>" . $saprefix . $singlefolder . "</option>\n";
+									echo '<option value="' . $fullfolder . '"' . "$disabled>" . $saprefix . $singlefolder . "</option>\n";
 								}
 								?>
 							</select>
@@ -3916,7 +3875,6 @@ function printBulkActions($checkarray, $checkAll = false) {
 	}
 	if ($movecopy) {
 		global $mcr_albumlist, $album;
-		$bglevels = array('#fff', '#f8f8f8', '#efefef', '#e8e8e8', '#dfdfdf', '#d8d8d8', '#cfcfcf', '#c8c8c8');
 		?>
 		<div id="mass_movecopy_copy" style="display:none;">
 			<div id="mass_movecopy_data">
@@ -3929,7 +3887,6 @@ function printBulkActions($checkarray, $checkAll = false) {
 					foreach ($mcr_albumlist as $fullfolder => $albumtitle) {
 						$singlefolder = $fullfolder;
 						$saprefix = "";
-						$salevel = 0;
 						$selected = "";
 						if ($album->name == $fullfolder) {
 							$selected = " selected=\"selected\" ";
@@ -3937,11 +3894,9 @@ function printBulkActions($checkarray, $checkAll = false) {
 						// Get rid of the slashes in the subalbum, while also making a subalbum prefix for the menu.
 						while (strstr($singlefolder, '/') !== false) {
 							$singlefolder = substr(strstr($singlefolder, '/'), 1);
-							$saprefix = "&nbsp; &nbsp;&nbsp;" . $saprefix;
-							$salevel++;
+							$saprefix = "–&nbsp;" . $saprefix;
 						}
-						echo '<option value="' . $fullfolder . '"' . ($salevel > 0 ? ' style="background-color: ' . $bglevels[$salevel] . ';"' : '')
-						. "$selected>" . $saprefix . $singlefolder . "</option>\n";
+						echo '<option value="' . $fullfolder . '"' . "$selected>" . $saprefix . $singlefolder . "</option>\n";
 					}
 					?>
 				</select>
