@@ -4008,7 +4008,7 @@ function processAlbumBulkActions() {
 						$albumobj->setOwner($newowner);
 						break;
 					default:
-						$action = call_user_func($action, $albumobj);
+						call_user_func($action, $albumobj);
 						break;
 				}
 				$albumobj->setLastchangeUser($_zp_current_admin_obj->getUser());
@@ -4090,7 +4090,7 @@ function processImageBulkActions($album) {
 						$imageobj->setOwner($newowner);
 						break;
 					default:
-						$action = call_user_func($action, $imageobj);
+						call_user_func($action, $imageobj);
 						break;
 				}
 				$imageobj->setLastchangeUser($_zp_current_admin_obj->getUser());
@@ -4761,7 +4761,12 @@ function consolidatedEditMessages($subtab) {
 				$messagebox[] = gettext('Tags cleared for images of selected items');
 				break;
 			default:
-				$messagebox[] = $action;
+				$message = zp_apply_filter('bulk_actions_message', $action);
+				if(empty($message)) {
+					$messagebox[] = $action;
+				} else {
+					$messagebox[] = $message;
+				}
 				break;
 		}
 	}
@@ -5110,28 +5115,28 @@ function printPublishIconLinkGallery($obj, $enableedit = false, $owner = null) {
 			$title = $title_skipscheduledpublishing;
 			$alt = gettext("Scheduled for publishing");
 			$action = '?action=publish&amp;value=1';
-			$icon = 'images/clock_futuredate.png';
+			$icon = WEBPATH . '/' . ZENFOLDER . '/images/clock_futuredate.png';
 		} else if ($obj->hasExpiration()) {
 			$title = $title_skipscheduledexpiration;
 			$alt = gettext("Scheduled for expiration");
 			$action = '?action=publish&amp;value=1';
-			$icon = 'images/clock_expiredate.png';
+			$icon = WEBPATH . '/' . ZENFOLDER . '/images/clock_expiredate.png';
 		} else if ($obj->getShow()) {
 			$title = $title_unpublish;
 			$alt = gettext("Published");
 			$action = '?action=publish&amp;value=0';
-			$icon = 'images/pass.png';
+			$icon = WEBPATH . '/' . ZENFOLDER . '/images/pass.png';
 		} else if (!$obj->getShow()) {
 			if ($obj->hasExpired()) {
 				$title = $title_skipexiration;
 				$alt = gettext("Un-published because expired");
 				$action = '?action=publish&amp;value=1';
-				$icon = 'images/clock_expired.png';
+				$icon = WEBPATH . '/' . ZENFOLDER . '/images/clock_expired.png';
 			} else {
 				$title = $title_publish;
 				$alt = gettext("Un-published");
 				$action = '?action=publish&amp;value=1';
-				$icon = 'images/action.png';
+				$icon = WEBPATH . '/' . ZENFOLDER . '/images/action.png';
 			}
 		}
 		if ($enableedit) {

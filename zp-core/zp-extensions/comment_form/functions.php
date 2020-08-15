@@ -163,15 +163,15 @@ function printCommentErrors() {
 		$s = trim($_zp_comment_error);
 	}
 	if ($s) {
-		$lines = explode('.', $s);
+		$lines = explode('. ', $s);
 		foreach ($lines as $key => $line) {
-			if (empty($line) || $line == gettext('Mail send failed')) {
+			if (empty($line) || $line == gettext('Mail send failed') || strpos($line, 'github')) {
 				unset($lines[$key]);
 			}
 		}
 		?>
 		<div class="errorbox">
-			<h2><?php echo ngettext('Error posting comment:', 'Errors posting comment:', count($lines)); ?></h2>
+			<strong><?php echo ngettext('Error posting comment:', 'Errors posting comment:', count($lines)); ?></strong>
 			<ul class="errorlist">
 				<?php
 				foreach ($lines as $line) {
@@ -276,7 +276,7 @@ function comment_form_addComment($name, $email, $website, $comment, $code, $code
 	$commentobj->setInModeration(0);
 	$commentobj->setCustomData($customdata);
 	$commentobj->dataconfirmation = $dataconfirmation;
-	if (($whattocheck & COMMENT_EMAIL_REQUIRED) && (empty($email) || !is_valid_email_zp($email))) {
+	if (($whattocheck & COMMENT_EMAIL_REQUIRED) && (empty($email) || !isValidEmail($email))) {
 		$commentobj->setInModeration(-2);
 		$commentobj->comment_error_text .= ' ' . gettext("You must supply an e-mail address.");
 		$goodMessage = false;
@@ -300,7 +300,7 @@ function comment_form_addComment($name, $email, $website, $comment, $code, $code
 	}
 	if (($whattocheck & COMMENT_BODY_REQUIRED) && empty($comment)) {
 		$commentobj->setInModeration(-6);
-		$commentobj->comment_error_text .= ' ' . gettext("You must enter something in the comment text.");
+		$commentobj->comment_error_text .= ' ' . gettext("You must enter some text in the comment field.");
 		$goodMessage = false;
 	}
 	if (($whattocheck & COMMENT_DATACONFIRMATION) && empty($dataconfirmation)) {
@@ -501,7 +501,7 @@ function comment_form_handle_comment() {
 			}
 			if (isset($_POST['email'])) {
 				$p_email = sanitize($_POST['email'], 3);
-				if (!is_valid_email_zp($p_email)) {
+				if (!isValidEmail($p_email)) {
 					$p_email = NULL;
 				}
 			} else {
