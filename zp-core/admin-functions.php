@@ -4578,7 +4578,7 @@ function getPluginTabs() {
 function getAdminThumb($image, $size) {
 	switch ($size) {
 		case 'large':
-			return $image->getCustomImage(80, NULL, NULL, 80, 80, NULL, NULL, -1);
+			return $image->getCustomImage(120, NULL, NULL, NULL, NULL, NULL, NULL, -1);
 		case 'small':
 		default:
 			return $image->getCustomImage(40, NULL, NULL, 40, 40, NULL, NULL, -1);

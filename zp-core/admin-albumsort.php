@@ -177,7 +177,7 @@ echo "\n</head>";
 						</p>
 						<br class="clearall" /><br />
 						<p><?php echo gettext("Set the image order by dragging them to the positions you desire."); ?></p>
-
+<div style="width:800px;">
 						<ul id="images">
 							<?php
 							$images = $album->getImages();
@@ -187,7 +187,7 @@ echo "\n</head>";
 								<li id="id_<?php echo $image->getID(); ?>">
 									<div class="imagethumb_wrapper">
 									<img class="imagethumb"
-											 src="<?php echo getAdminThumb($image, 'small-uncropped'); ?>"
+											 src="<?php echo getAdminThumb($image, 'large-uncropped'); ?>"
 											 alt="<?php echo html_encode($image->getTitle()); ?>"
 											 title="<?php echo html_encode($image->getTitle()) . ' (' . html_encode($image->getFileName()) . ')'; ?>"
 										   loading="lazy" />
@@ -209,6 +209,7 @@ echo "\n</head>";
 							}
 							?>
 						</ul>
+</div>
 						<br class="clearall" />
 
 						<div>
