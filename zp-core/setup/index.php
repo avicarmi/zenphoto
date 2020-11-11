@@ -174,7 +174,6 @@ if (isset($_POST['db'])) { //try to update the zp-config file
 	}
 }
 
-define('ACK_REGISTER_GLOBALS', 1);
 define('ACK_DISPLAY_ERRORS', 2);
 
 if (isset($_GET['security_ack'])) {
@@ -390,14 +389,14 @@ if ($newconfig || isset($_GET['copyhtaccess'])) {
 if ($setup_checked) {
 	if (!isset($_GET['protect_files'])) {
 		setup::log(gettext("Completed system check"), true);
-		if (isset($_COOKIE['setup_test_cookie'])) {
-			$setup_cookie = $_COOKIE['setup_test_cookie'];
+		if (isset($_COOKIE['zpcms_setup_testcookie'])) {
+			$setup_cookie = $_COOKIE['zpcms_setup_testcookie'];
 		} else {
 			$setup_cookie = '';
 		}
 		if ($setup_cookie == ZENPHOTO_VERSION) {
 			setup::log(gettext('Setup cookie test successful'));
-			setcookie('setup_test_cookie', '', time() - 368000, '/');
+			setcookie('zpcms_setup_testcookie', '', time() - 368000, '/');
 		} else {
 			setup::log(gettext('Setup cookie test unsuccessful'), true);
 		}
@@ -427,7 +426,7 @@ if ($setup_checked) {
 			setup::log(sprintf(gettext("Query error: %s"), $connectDBErr), true);
 		}
 	}
-	setcookie('setup_test_cookie', ZENPHOTO_VERSION, time() + 3600, '/');
+	setcookie('zpcms_setup_testcookie', ZENPHOTO_VERSION, time() + 3600, '/');
 }
 
 if (!isset($_zp_setupCurrentLocale_result) || empty($_zp_setupCurrentLocale_result)) {
@@ -620,7 +619,7 @@ if ($c <= 0) {
 								}
 							}
 							setup::checkMark($p, sprintf(gettext('<em>%s</em> security'), DATA_FOLDER), sprintf(gettext('<em>%s</em> security [is compromised]'), DATA_FOLDER), sprintf(gettext('Zenphoto suggests you make the sensitive files in the %1$s folder accessable by <em>owner</em> only (permissions = 0600). The file permissions for <em>%2$s</em> are %3$04o which may allow unauthorized access.'), DATA_FOLDER, $file, $permission));
-							
+						
 							if(setup::checkServerSoftware()) {
 								setup::checkMark(true, $_SERVER['SERVER_SOFTWARE'], '', '');
 							} else {
@@ -635,20 +634,6 @@ if ($c <= 0) {
 							} else {
 								setup::checkmark(0, '', gettext('PHP <code>Sessions</code> [appear to not be working].'), gettext('PHP Sessions are required for Zenphoto administrative functions.'), true);
 							}
-
-							if (preg_match('#(1|ON)#i', @ini_get('register_globals'))) {
-								if ((isset($_zp_conf_vars['security_ack']) ? $_zp_conf_vars['security_ack'] : NULL) & ACK_REGISTER_GLOBALS) {
-									$register_globals = -1;
-									$aux = '';
-								} else {
-									$register_globals = false;
-									$aux = ' ' . setup::acknowledge(ACK_REGISTER_GLOBALS);
-								}
-							} else {
-								$register_globals = true;
-								$aux = '';
-							}
-							$good = setup::checkMark($register_globals, gettext('PHP <code>Register Globals</code>'), gettext('PHP <code>Register Globals</code> [is set]'), gettext('PHP Register globals presents a security risk to any PHP application. See <a href="http://php.net/manual/en/security.globals.php"><em>Using Register Globals</em></a>. Change your PHP.ini settings to <code>register_globals = off</code>.') . $aux) && $good;
 
 							if (!extension_loaded('suhosin')) {
 								$blacklist = @ini_get("suhosin.executor.func.blacklist");
@@ -700,7 +685,8 @@ if ($c <= 0) {
 							
 							setup::checkmark(class_exists('ZipArchive') ? 1 : -1, gettext('PHP <code>ZipArchive</code> support'), gettext('PHP <code>ZipArchive</code> support [is not present]'), gettext('<code>ZipArchive</code> support is not critical and only required if you intend  to upload zip archives with supported file types to the gallery.'));
 
-							
+							setup::checkmark(function_exists('json_encode') ? 1 : -1, gettext('PHP <code>JSON</code> support'), gettext('PHP <code>JSON</code> support [is not present]'), gettext('<code>JSON</code> support is not yet critical but may become so in the future.'));
+
 							
 							if ($_zp_setupCurrentLocale_result === false) {
 								setup::checkMark(-1, gettext('PHP <code>setlocale()</code>'), ' ' . gettext('PHP <code>setlocale()</code> failed'), gettext("Locale functionality is not implemented on your platform or the specified locale does not exist. Language translation may not work.") . '<br />' . gettext('See the <a  href="http://www.zenphoto.org/news/problems-with-languages">user guide</a> on zenphoto.org for details.'));

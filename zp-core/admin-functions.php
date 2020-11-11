@@ -3720,27 +3720,27 @@ function processEditSelection($subtab) {
 		switch ($subtab) {
 			case '':
 				$album_nesting = max(1, sanitize_numeric($_GET['selection']));
-				zp_setCookie('gallery_nesting', $album_nesting);
+				zp_setCookie('zpcms_admin_gallery_nesting', $album_nesting);
 				break;
 			case 'subalbuminfo':
 				$subalbum_nesting = max(1, sanitize_numeric($_GET['selection']));
-				zp_setCookie('subalbum_nesting', $subalbum_nesting);
+				zp_setCookie('zpcms_admin_subalbum_nesting', $subalbum_nesting);
 				break;
 			case 'imageinfo':
 				$imagesTab_imageCount = max(ADMIN_IMAGES_STEP, sanitize_numeric($_GET['selection']));
-				zp_setCookie('imagesTab_imageCount', $imagesTab_imageCount);
+				zp_setCookie('zpcms_admin_imagestab_imagecount', $imagesTab_imageCount);
 				break;
 		}
 	} else {
 		switch ($subtab) {
 			case '':
-				$album_nesting = zp_getCookie('gallery_nesting');
+				$album_nesting = zp_getCookie('zpcms_admin_gallery_nesting');
 				break;
 			case 'subalbuminfo':
-				$subalbum_nesting = zp_getCookie('subalbum_nesting');
+				$subalbum_nesting = zp_getCookie('zpcms_admin_subalbum_nesting');
 				break;
 			case 'imageinfo':
-				$count = zp_getCookie('imagesTab_imageCount');
+				$count = zp_getCookie('zpcms_admin_imagestab_imagecount');
 				if ($count)
 					$imagesTab_imageCount = $count;
 				break;
@@ -5247,6 +5247,7 @@ function printExpired($obj) {
 		echo ' <span class="expiredate">' . $date . "</span>";
 	}
 }
+
 /**
  * Checks plugin and theme definition for $plugin_disable / $theme_description['disable'] so plugins/themes are deaktivated respectively cannot be activated
  * if they don't match conditions/requirements. See the plugin/theme documentation for info how to define these.
@@ -5259,18 +5260,37 @@ function printExpired($obj) {
  * @return boolean|string
  */
 function isIncompatibleExtension($disable) {
-	if ($disable) {
-		if(is_array($disable)) {
-			$check = false;
-			foreach ($disable as $incompatible) {
-				if ($incompatible) {
-					$check .= $incompatible . '<br>';
-				}
-			}
-			return $check;
-		} else {
-			return $disable;
-		}
+	$check = processExtensionVariable($disable);
+	if($check) {
+		return $check;
 	}
 	return false;
+}
+
+/**
+ * Processes a plugin or theme definition variable. 
+ * 
+ * If a string or boolean it is returned as it is.  If it is an array each entry is enclosed 
+ * with an HTML paragraph and returned as a string
+ * 
+ * @since 1.5.8
+ * 
+ * @param string|array $var  A plugin or theme definition variable 
+ * @return string|bool
+ */
+function processExtensionVariable($var) {
+	if ($var) {
+		if (is_array($var)) {
+			$text = '';
+			foreach ($var as $entry) {
+				if ($entry) {
+					$text .= '<p>' . $entry . '</p>';
+				}
+			}
+			return $text;
+		} else {
+			return $var;
+		}
+	}
+	return $var;
 }

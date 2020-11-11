@@ -71,7 +71,7 @@ if (isset($_GET['action'])) {
 				if (!empty($newloc) && getOption('disallow_' . $newloc)) {
 					$notify = '?local_failed=' . $newloc;
 				} else {
-					zp_clearCookie('dynamic_locale'); // clear the language cookie
+					zp_clearCookie('zpcms_locale'); // clear the language cookie
 					$result = i18nSetLocale($newloc);
 					if (!empty($newloc) && ($result === false)) {
 						$notify = '?local_failed=' . $newloc;
@@ -97,7 +97,7 @@ if (isset($_GET['action'])) {
 			if (isset($_POST['zenphoto_cookie_path'])) {
 				$p = sanitize($_POST['zenphoto_cookie_path']);
 				if (empty($p)) {
-					zp_clearCookie('zenphoto_cookie_path');
+					zp_clearCookie('zpcms_cookie_path');
 				} else {
 					$p = '/' . trim($p, '/') . '/';
 					if ($p == '//') {
@@ -105,7 +105,7 @@ if (isset($_GET['action'])) {
 					}
 					//	save a cookie to see if change works
 					$returntab .= '&cookiepath';
-					zp_setCookie('zenphoto_cookie_path', $p, NULL, $p);
+					zp_setCookie('zpcms_cookie_path', $p, NULL, $p);
 				}
 				setOption('zenphoto_cookie_path', $p);
 				if (isset($_POST['cookie_persistence'])) {
@@ -464,7 +464,7 @@ if (isset($_GET['action'])) {
 
 			$_zp_gallery->setUserLogonField(isset($_POST['login_user_field']));
 			if ($protocol == 'http') {
-				zp_clearCookie("zenphoto_ssl");
+				zp_clearCookie("zpcms_ssl");
 			}
 			setOption('IP_tied_cookies', (int) isset($_POST['IP_tied_cookies']));
 			setOption('obfuscate_cache', (int) isset($_POST['obfuscate_cache']));
@@ -587,7 +587,7 @@ Zenphoto_Authority::printPasswordFormJS();
 					echo '</div>';
 				}
 
-				if (isset($_GET['cookiepath']) && @$_COOKIE['zenphoto_cookie_path'] != getOption('zenphoto_cookie_path')) {
+				if (isset($_GET['cookiepath']) && @$_COOKIE['zpcms_cookie_path'] != getOption('zpcms_cookie_path')) {
 					setOption('zenphoto_cookie_path', NULL);
 					?>
 					<div class="errorbox">
@@ -1027,7 +1027,7 @@ Zenphoto_Authority::printPasswordFormJS();
 											<?php
 										}
 										?>
-										<p><?php echo gettext('If this option is selected Zenphoto will use <a href="http://www.w3schools.com/php/php_sessions.asp">PHP sessions</a> instead of cookies to make visitor settings persistent.'); ?></p>
+										<p><?php echo gettext('If this option is selected Zenphoto will use <a href="https://www.php.net/manual/en/intro.session.php">PHP sessions</a> instead of cookies to make visitor settings persistent.'); ?></p>
 										<p class="notebox"><?php echo gettext('<strong>NOTE</strong>: Sessions will normally close when the browser closes causing all password and other data to be discarded. They may close more frequently depending on the runtime configuration. Longer <em>lifetime</em> of sessions is generally more conducive to a pleasant user experience. Cookies are the prefered storage option since their duration is determined by the <em>Cookie duration</em> option. ') ?>
 									</td>
 								</tr>
@@ -3113,6 +3113,8 @@ Zenphoto_Authority::printPasswordFormJS();
 									if ($str = isolate('$plugin_description', $pluginStream)) {
 										if (false === eval($str)) {
 											$plugin_description = '';
+										} else {
+											$plugin_description = processExtensionVariable($plugin_description);
 										}
 									} 
 									$plugin_version = '';
@@ -3125,6 +3127,8 @@ Zenphoto_Authority::printPasswordFormJS();
 									if ($str = isolate('$plugin_deprecated', $pluginStream)) {
 										if (false === eval($str)) {
 											$plugin_deprecated = '';
+										} else {
+											$plugin_deprecated = processExtensionVariable($plugin_deprecated);
 										}
 									} 
 									$plugin_date = '';
@@ -3304,17 +3308,21 @@ Zenphoto_Authority::printPasswordFormJS();
 									</td>
 									<td>
 										<?php echo gettext('Tie cookies to the IP address of the browser.'); ?>
-										<p class="notebox">
-											<?php
-											if (!getOption('IP_tied_cookies')) {
-												echo ' ' . gettext('<strong>Note</strong>: If your browser does not present a consistant IP address during a session you may not be able to log into your site when this option is enabled.') . ' ';
-											}
-											echo gettext('You <strong>WILL</strong> have to login after changing this option.');
-											if (!getOption('IP_tied_cookies')) {
-												echo ' ' . gettext('If you set the option and cannot login, you will have to restore your database to a point when the option was not set, so you might want to backup your database first.');
-											}
-											?>
-										</p>
+										<?php if (!getOption('IP_tied_cookies')) { ?>
+										<div class="warningbox">
+											<p>
+												<?php echo gettext('<strong>Warning</strong>: If your browser does not present a consistant IP address during a session you may not be able to log into your site when this option is enabled.');?>
+											</p>
+											<p>
+												<?php echo gettext('You <strong>WILL</strong> have to login after changing this option.'); ?>
+											</p>
+											<p>
+												<?php gettext('If you set the option and cannot login, you will have to restore your database to a point when the option was not set, so you might want to backup your database first.'); ?>
+											</p>
+											<p><?php echo gettext('This will not work properly if Zenhoto is set to anonymize the IP address which is strongly advised for privacy concerns in many jurisdictions.'); ?>
+											</p>
+										</div>
+										<?php } ?>
 									</td>
 								</tr>
 								<tr>
