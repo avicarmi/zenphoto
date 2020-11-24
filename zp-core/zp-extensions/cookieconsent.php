@@ -6,15 +6,13 @@
  * Adapted of https://cookieconsent.osano.com/
  * 
  * Note that to actually use the opt-in and out-out complicance modes your theme may require customisation. 
- * as the plugin does not clear or block scripts by itself. It is not possible to savely delete third party cookies.
+ * As the plugin does not clear or block scripts by itself. It is not possible to savely delete third party cookies.
  * 
  * It also does not block cookies Zenphoto sets itself as these are not privacy related and require to work properly. 
  * Learn more about Zenphotp's cookies on: https://zenphoto.org/news/cookies/
  * 
- * But you can use this plugin to only executed scripts on consent by:
- * 
- * a) Add the JS calls to block or allow the scripts option so they cannot set or use their cookies unless allowed to run
- * b) Use the method `cookieconsemt::checkConsent()` to manually wrap JS script calls 
+ * But you can use this plugin to only execute scripts on consent by adding the JS calls to block or allow the scripts option 
+ * so they cannot set or use their cookies unless allowed to run
  * 
  * @author Malte Müller (acrylian), Fred Sondaar (fretzl), Vincent Bourganel (vincent3569)
  * @license GPL v3 or later
@@ -28,10 +26,9 @@ $plugin_notice = gettext('Note: This plugin cannot block or delete cookies by it
 $option_interface = 'cookieConsent';
 $plugin_category = gettext('Misc');
 
-if (!zp_loggedin() && !isset($_COOKIE['cookieconsent_status'])) {
+if (!zp_loggedin()) {
 	zp_register_filter('theme_head', 'cookieConsent::getCSS');
 	zp_register_filter('theme_head', 'cookieConsent::getJS');
-	zp_register_filter('theme_head', 'cookieconsent::getConsentedJS');
 }
 
 class cookieConsent {
@@ -156,7 +153,13 @@ class cookieConsent {
 						'key' => 'zpcookieconsent_scripts',
 						'type' => OPTION_TYPE_TEXTAREA,
 						'multilingual' => false,
-						'desc' => gettext('Add privacy related JS scripts (ad trackers statistics etc.) here to allow or block opt-in/opt-out complicances (without the script wrapper). As we cannot safely delete cookies set by third party scripts, we block their execution so they can neither set nor fetch their cookies. You can also use the methode <code>cookieconsent::checkConsent()</code> on your theme.'))
+						'desc' => gettext('Add privacy related executional JS code (ad trackers statistics etc.) here to allow or block opt-in/opt-out complicances (without the script wrapper). As we cannot safely delete cookies set by third party scripts, we block their execution so they can neither set nor fetch their cookies.')),
+				gettext('External Scripts to allow or block') => array(
+						'key' => 'zpcookieconsent_externalscripts',
+						'type' => OPTION_TYPE_TEXTAREA,
+						'multilingual' => false,
+						'desc' => gettext('Add URLs to privacy related external JS scripts as a comma separated list (ad trackers statistics etc.) here to allow or block opt-in/opt-out complicances (without the script wrapper). As we cannot safely delete cookies set by third party scripts, we block their execution so they can neither set nor fetch their cookies.'))
+		
 		);
 		return $options;
 	}
@@ -245,6 +248,7 @@ class cookieConsent {
 		<script src="<?php echo FULLWEBPATH . '/' . ZENFOLDER . '/' . PLUGIN_FOLDER; ?>/cookieconsent/cookieconsent.min.js"></script>
 		<script>
 			window.addEventListener("load", function () {
+				var cookieconsent_allowed = false;
 				window.cookieconsent.initialise({
 					palette: {
 						popup: {
@@ -273,11 +277,52 @@ class cookieConsent {
 						deny: '<?php echo js_encode($decline); ?>',
 						link: "<?php echo js_encode($learnmore); ?>",
 						policy: "<?php echo js_encode($policy); ?>"
+					},
+					onInitialise: function (status) {
+						var type = this.options.type;
+						var didConsent = this.hasConsented();
+						if (type == 'opt-in' && didConsent) {
+							// enable cookies
+							cookieconsent_allowed = true;
+						}
+						if (type == 'opt-out' && !didConsent) {
+							// disable cookies
+							cookieconsent_allowed = false;
+						}
+					},
+					onStatusChange: function (status, chosenBefore) {
+						var type = this.options.type;
+						var didConsent = this.hasConsented();
+						if (type == 'opt-in' && didConsent) {
+							// enable cookies
+							cookieconsent_allowed = true;
+						}
+						if (type == 'opt-out' && !didConsent) {
+							// disable cookies
+							cookieconsent_allowed = false;
+						}
+					},
+					onRevokeChoice: function () {
+						var type = this.options.type;
+						if (type == 'opt-in') {
+							// disable cookies
+							cookieconsent_allowed = false;
+						}
+						if (type == 'opt-out') {
+							// enable cookies
+							cookieconsent_allowed = true;
+						}
 					}
-				}); 
+				});
+				if(cookieconsent_allowed) {
+					<?php 
+					cookieConsent::printExternalConsentJS(); 
+					cookieConsent::printConsentJS(); 
+					?>
+				}
 			});
 		</script>
-		<?php
+		<?php 
 	}
 	
 	
@@ -287,6 +332,8 @@ class cookieConsent {
 	 * - info: All just informational so always true
 	 * - opt-in: Returns true only if the consent cookie is set to "allow"
 	 * - opt-out: Returns true by default unless declined or if the consent cookie is set to "allow"
+	 * 
+	 * NOTE: This will not and cannot work properly while using the static_html_cache plugin unless called before the cache is fetched.
 	 * 
 	 * @since ZenphotoCMS 1.5.8
 	 * 
@@ -319,14 +366,52 @@ class cookieConsent {
 	}
 
 	/**
-	 * Prints the scropts added to the scripts option.
+	 * Prints the scripts added to the scripts option.
 	 * These are then added to the theme_header filter automatically by the plugin
+	 * 
+	 * Plugins or themes can use the "cookieconsent_consentscripts" to add additional ones
 	 * 
 	 * @since ZenphotoCMS 1.5.8
 	 */
-	static function getConsentedJS() {
-		if (cookieconsent::checkConsent()) {
-			echo '<script>' . getOption('zpcookieconsent_scripts') . '</script>';
+	static function printConsentJS() {
+		$scripts = getOption('zpcookieconsent_scripts');
+		echo zp_apply_filter('cookieconsent_consentscripts', $scripts, cookieconsent::checkConsent());
+	}
+	
+	/**
+	 * Prints JS code from the external scripts option without <script> that loads external scripts if consent has been given
+	 * 
+	 * Plugins or themes can use the "cookieconsent_externalconsentscripts" to add additional ones
+	 * 
+	 * @since ZenphotoCMS 1.5.8
+	 */
+	static function printExternalConsentJS() {
+		$option = trim(getOption('zpcookieconsent_externalscripts'));
+		$scripts = zp_apply_filter('cookieconsent_externalconsentscripts', $option, cookieconsent::checkConsent());
+		if(!empty($scripts)) {
+			$array = explode(',', $scripts);
+			$externaljs = '';
+			$total = count($array);
+			$count = '';
+			foreach($array as $url) {
+				$count++;
+				$externaljs .= '"' . $url . '"';
+				if($count != $total) {
+					$externaljs .= ',';
+				}
+			}
+			// JS code!
+			?>
+				var externalconsentjs = [<?php echo $externaljs; ?>];
+				$.each( externalconsentjs, function( key, value ) {
+					$.getScript( value, function( data, textStatus, jqxhr ) {
+						console.log( data ); // Data returned
+						console.log( textStatus ); // Success
+						console.log( jqxhr.status ); // 200
+						console.log( "Load was performed." );
+					});
+				});
+			<?php
 		}
 	}
 
