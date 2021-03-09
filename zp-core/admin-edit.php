@@ -571,10 +571,12 @@ echo "\n</head>";
 							gettext('Set to unpublished')	 => 'hideall',
 							gettext('Add tags')						 => 'addtags',
 							gettext('Clear tags')					 => 'cleartags',
-							gettext('Disable comments')		 => 'commentsoff',
-							gettext('Enable comments')		 => 'commentson',
 							gettext('Change owner')				 => 'changeowner'
 			);
+			if (extensionEnabled('comment_form')) {
+				$checkarray[gettext('Disable comments')] = 'commentsoff';
+				$checkarray[gettext('Enable comments')] = 'commentson';
+			}
 			if (extensionEnabled('hitcounter')) {
 				$checkarray[gettext('Reset hitcounter')] = 'resethitcounter';
 			}
@@ -1068,15 +1070,17 @@ echo "\n</head>";
 																	<input type="checkbox" id="Visible-<?php echo $currentimage; ?>" name="<?php echo $currentimage; ?>-Visible" value="1" <?php if ($image->get('show', false)) echo ' checked="checked"'; ?> />
 																	<?php echo $publishlabel; ?>
 																</label>
-																<label class="checkboxlabel">
-																	<input type="checkbox" id="allowcomments-<?php echo $currentimage; ?>" name="<?php echo $currentimage; ?>-allowcomments" value="1" <?php
-																	if ($image->getCommentsAllowed()) {
-																		echo ' checked="checked"';
-																	}
-																	?> />
-																				 <?php echo gettext("Allow Comments"); ?>
-																</label>
+																<?php if(extensionEnabled('comment_form')) { ?>
+																	<label class="checkboxlabel">
+																		<input type="checkbox" id="allowcomments-<?php echo $currentimage; ?>" name="<?php echo $currentimage; ?>-allowcomments" value="1" <?php
+																		if ($image->getCommentsAllowed()) {
+																			echo ' checked="checked"';
+																		}
+																		?> />
+																					 <?php echo gettext("Comments enabled"); ?>
+																	</label>
 																<?php
+																}
 																if (extensionEnabled('hitcounter')) {
 																	$hc = $image->get('hitcounter');
 																	if (empty($hc)) {

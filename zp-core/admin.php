@@ -11,6 +11,8 @@ define('OFFSET_PATH', 1);
 require_once(dirname(__FILE__) . '/admin-globals.php');
 require_once(SERVERPATH . '/' . ZENFOLDER . '/reconfigure.php');
 
+ignoreSetupRunRequest();
+
 if (isset($_GET['_zp_login_error'])) {
 	$_zp_login_error = sanitize($_GET['_zp_login_error']);
 }
@@ -671,18 +673,20 @@ if (!zp_loggedin()) {
 								}
 								?>
 							</li>
-							<li>
-								<?php
-								$t = $_zp_gallery->getNumComments(true);
-								$c = $t - $_zp_gallery->getNumComments(false);
-								if ($c > 0) {
-									printf(ngettext('<strong>%1$u</strong> Comment (%2$u in moderation)', '<strong>%1$u</strong> Comments (<strong>%2$u</strong> in moderation)', $t), $t, $c);
-								} else {
-									printf(ngettext('<strong>%u</strong> Comment', '<strong>%u</strong> Comments', $t), $t);
-								}
-								?>
-							</li>
+							<?php if(extensionEnabled('comment_form')) { ?>
+								<li>
+									<?php
+									$t = $_zp_gallery->getNumComments(true);
+									$c = $t - $_zp_gallery->getNumComments(false);
+									if ($c > 0) {
+										printf(ngettext('<strong>%1$u</strong> Comment (%2$u in moderation)', '<strong>%1$u</strong> Comments (<strong>%2$u</strong> in moderation)', $t), $t, $c);
+									} else {
+										printf(ngettext('<strong>%u</strong> Comment', '<strong>%u</strong> Comments', $t), $t);
+									}
+									?>
+								</li>
 							<?php
+							}
 							if (extensionEnabled('zenpage')) {
 								?>
 								<li>
