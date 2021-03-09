@@ -99,7 +99,6 @@ class print_album_menu {
  * @param string $css_class insert css class for the sub album lists (only list mode)
  * @param string $css_class_active insert css class for the active link in the sub album lists (only list mode)
  * @param string $indexname insert the name how you want to call the link to the gallery index (insert "" if you don't use it, it is not printed then)
- * @param int C Set to depth of sublevels that should be shown always. 0 by default. To show all, set to a true! Only valid if option=="list".
  * @param int $showsubs Set to depth of sublevels that should be shown always. 0 by default. To show all, set to a true! Only valid if option=="list".
  * @param bool $firstimagelink If set to TRUE and if the album has images the link will point to page of the first image instead the album thumbnail page
  * @param bool $keeptopactive If set to TRUE the toplevel album entry will stay marked as active if within its subalbums ("list" only)
@@ -285,9 +284,9 @@ function printAlbumMenuListAlbum($albums, $folder, $option, $showcount, $showsub
 				$display = $title;
 			}
 			if ($firstimagelink && $albumobj->getNumImages() != 0) {
-				$link = '<li><a class="' . $current . '" href="' . html_encode($albumobj->getImage(0)->getLink()) . '" title="' . html_encode($title) . '">' . html_encode($display) . '</a>' . $count;
+				$link = '<li class="' . $current . '"><a href="' . html_encode($albumobj->getImage(0)->getLink()) . '" title="' . html_encode($title) . '">' . html_encode($display) . '</a>' . $count;
 			} else {
-				$link = '<li><a class="' . $current . '" href="' . html_encode($albumobj->getLink(1)) . '" title="' . html_encode($title) . '">' . html_encode($display) . '</a>' . $count;
+				$link = '<li class="' . $current . '"><a href="' . html_encode($albumobj->getLink(1)) . '" title="' . html_encode($title) . '">' . html_encode($display) . '</a>' . $count;
 			}
 			echo $link;
 		}

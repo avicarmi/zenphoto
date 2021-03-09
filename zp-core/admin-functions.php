@@ -1707,15 +1707,17 @@ function printAdminHeader($tab, $subtab = NULL) {
 							<input type="checkbox" name="<?php echo $prefix; ?>Published" value="1" <?php if ($album->get('show', false)) echo ' checked="checked"'; ?> />
 							<?php echo $publishlabel; ?>
 						</label>
-						<label class="checkboxlabel">
-							<input type="checkbox" name="<?php echo $prefix . 'allowcomments'; ?>" value="1" <?php
-							if ($album->getCommentsAllowed()) {
-								echo ' checked="checked"';
-							}
-							?> />
-										 <?php echo gettext("Allow Comments"); ?>
-						</label>
+						<?php if(extensionEnabled('comment_form')) { ?>
+							<label class="checkboxlabel">
+								<input type="checkbox" name="<?php echo $prefix . 'allowcomments'; ?>" value="1" <?php
+								if ($album->getCommentsAllowed()) {
+									echo ' checked="checked"';
+								}
+								?> />
+											 <?php echo gettext("Comments enabled"); ?>
+							</label>
 						<?php
+						}
 						if (extensionEnabled('hitcounter')) {
 							$hc = $album->get('hitcounter');
 							if (empty($hc)) {
@@ -1989,12 +1991,14 @@ function printAdminHeader($tab, $subtab = NULL) {
 	 */
 	function printAlbumButtons($album) {
 		if ($imagcount = $album->getNumImages() > 0) {
+			if (!$album->isDynamic()) {
 			?>
-			<div class="button buttons tooltip" title="<?php echo addslashes(gettext("Clears the album’s cached images.")); ?>">
-				<a href="<?php echo WEBPATH . '/' . ZENFOLDER . '/admin-edit.php?action=clear_cache&amp;album=' . html_encode($album->name); ?>&amp;XSRFToken=<?php echo getXSRFToken('clear_cache'); ?>">
-					<img src="images/edit-delete.png" /><?php echo gettext('Clear album image cache'); ?></a>
-				<br class="clearall" />
-			</div>
+				<div class="button buttons tooltip" title="<?php echo addslashes(gettext("Clears the album’s cached images.")); ?>">
+					<a href="<?php echo WEBPATH . '/' . ZENFOLDER . '/admin-edit.php?action=clear_cache&amp;album=' . html_encode($album->name); ?>&amp;XSRFToken=<?php echo getXSRFToken('clear_cache'); ?>">
+						<img src="images/edit-delete.png" /><?php echo gettext('Clear album image cache'); ?></a>
+					<br class="clearall" />
+				</div>
+			<?php } ?>
 			<div class="button buttons tooltip" title="<?php echo gettext("Resets album’s hit counters."); ?>">
 				<a href="<?php echo WEBPATH . '/' . ZENFOLDER . '/admin-edit.php?action=reset_hitcounters&amp;album=' . html_encode($album->name) . '&amp;albumid=' . $album->getID(); ?>&amp;XSRFToken=<?php echo getXSRFToken('hitcounter'); ?>">
 					<img src="images/reset.png" /><?php echo gettext('Reset album hit counters'); ?></a>
@@ -2149,39 +2153,41 @@ function printAdminHeader($tab, $subtab = NULL) {
 				<div class="page-list_icon">
 					<?php printPublishIconLinkGallery($album, $enableEdit, $owner); ?>
 				</div>
-				<div class="page-list_icon">
-					<?php
-					if ($album->getCommentsAllowed()) {
-						if ($enableEdit) {
-							?>
-							<a href="?action=comments&amp;commentson=0&amp;album=<?php echo html_encode($album->getFileName()); ?>&amp;return=*<?php echo html_encode(pathurlencode($owner)); ?>&amp;XSRFToken=<?php echo getXSRFToken('albumedit') ?>" title="<?php echo gettext('Disable comments'); ?>">
-								<?php
-							}
-							?>
-							<img src="images/comments-on.png" alt="" title="<?php echo gettext("Comments on"); ?>" style="border: 0px;"/>
-							<?php
+				<?php if(extensionEnabled('comment_form')) { ?>
+					<div class="page-list_icon">
+						<?php
+						if ($album->getCommentsAllowed()) {
 							if ($enableEdit) {
 								?>
-							</a>
-							<?php
-						}
-					} else {
-						if ($enableEdit) {
-							?>
-							<a href="?action=comments&amp;commentson=1&amp;album=<?php echo html_encode($album->getFileName()); ?>&amp;return=*<?php echo html_encode(pathurlencode($owner)); ?>&amp;XSRFToken=<?php echo getXSRFToken('albumedit') ?>" title="<?php echo gettext('Enable comments'); ?>">
+								<a href="?action=comments&amp;commentson=0&amp;album=<?php echo html_encode($album->getFileName()); ?>&amp;return=*<?php echo html_encode(pathurlencode($owner)); ?>&amp;XSRFToken=<?php echo getXSRFToken('albumedit') ?>" title="<?php echo gettext('Disable comments'); ?>">
+									<?php
+								}
+								?>
+								<img src="images/comments-on.png" alt="" title="<?php echo gettext("Comments on"); ?>" style="border: 0px;"/>
+								<?php
+								if ($enableEdit) {
+									?>
+								</a>
 								<?php
 							}
-							?>
-							<img src="images/comments-off.png" alt="" title="<?php echo gettext("Comments off"); ?>" style="border: 0px;"/>
-							<?php
+						} else {
 							if ($enableEdit) {
 								?>
-							</a>
-							<?php
+								<a href="?action=comments&amp;commentson=1&amp;album=<?php echo html_encode($album->getFileName()); ?>&amp;return=*<?php echo html_encode(pathurlencode($owner)); ?>&amp;XSRFToken=<?php echo getXSRFToken('albumedit') ?>" title="<?php echo gettext('Enable comments'); ?>">
+									<?php
+								}
+								?>
+								<img src="images/comments-off.png" alt="" title="<?php echo gettext("Comments off"); ?>" style="border: 0px;"/>
+								<?php
+								if ($enableEdit) {
+									?>
+								</a>
+								<?php
+							}
 						}
-					}
-					?>
-				</div>
+						?>
+					</div>
+				<?php } ?>
 				<div class="page-list_icon">
 					<a href="<?php echo WEBPATH; ?>/index.php?album=<?php echo html_encode(pathurlencode($album->name)); ?>" title="<?php echo gettext("View album"); ?>">
 						<img src="images/view.png" style="border: 0px;" alt="" title="<?php echo sprintf(gettext('View album %s'), $album->name); ?>" />
@@ -2950,9 +2956,11 @@ function printAdminHeader($tab, $subtab = NULL) {
 	function copyThemeDirectory($source, $target, $newname) {
 		global $_zp_current_admin_obj;
 		$message = true;
+		$source = str_replace(array('../', './'), '', $source);
+		$target = str_replace(array('../', './'), '', $target);
 		$source = SERVERPATH . '/themes/' . internalToFilesystem($source);
 		$target = SERVERPATH . '/themes/' . internalToFilesystem($target);
-
+	
 		// If the target theme already exists, nothing to do.
 		if (is_dir($target)) {
 			return gettext('Cannot create new theme.') . ' ' . sprintf(gettext('Directory “%s” already exists!'), basename($target));
@@ -3073,6 +3081,12 @@ function printAdminHeader($tab, $subtab = NULL) {
 		return $message;
 	}
 
+	/**
+	 * Deletes a theme
+	 * 
+	 * @param string $source  Full serverpath of the theme
+	 * @return boolean
+	 */
 	function deleteThemeDirectory($source) {
 		if (is_dir($source)) {
 			$result = true;
@@ -4630,20 +4644,17 @@ function getAdminThumb($imageobj, $size = 'small') {
  * @return string
  */
 function getAdminThumbHTML($imageobj, $size = 'small', $class = null, $id = null, $title = null, $alt = null) {
-	if ($class) {
-		$class = ' class="' . $class . '"';
-	}
-	if ($id) {
-		$id = ' id="' . $id . '"';
-	}
-	if ($title) {
-		$title = ' title="' . html_encode($title) . '"';
-	}
-	if ($alt) {
-		$alt = ' alt="' . html_encode($alt) . '"';
-	}
-	$src = getAdminThumb($imageobj, $size);
-	$html = '<img src="' .  html_encode(pathurlencode($src)) . '"' . $class . $id . $title . $alt . ' loading="lazy" />';
+	$attr = array(
+			'src' => html_pathurlencode(getAdminThumb($imageobj, $size)),
+			'alt' => html_encode($alt),
+			'class' => $class,
+			'id' => $id,
+			'title' => html_encode($title),
+			'loading' => 'lazy'
+	);
+	$attr_filtered = zp_apply_filter('adminthumb_attr', $attr, $imageobj);
+	$attributes = generateAttributesFromArray($attr_filtered);
+	$html = '<img' . $attributes . ' />';
 	return zp_apply_filter('adminthumb_html', $html, $size, $imageobj);
 }
 
