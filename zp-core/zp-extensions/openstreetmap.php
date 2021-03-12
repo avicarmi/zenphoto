@@ -546,7 +546,6 @@ class openStreetMap {
 	 */
 	function getImageGeodata($image) {
 		global $_zp_current_image;
-
 		$result = array();
 		if (isImageClass($image)) {
 			$exif = $image->getMetaData();
@@ -569,14 +568,16 @@ class openStreetMap {
 				//in case European comma decimals sneaked in
 				$lat_f = str_replace(',', '.', $lat_f);
 				$long_f = str_replace(',', '.', $long_f);
-				$result = array(
-						'lat' => $lat_f,
-						'long' => $long_f,
-						'title' => shortenContent($image->getTitle(), 50, '...') . '<br />',
-						'desc' => shortenContent($image->getDesc(), 100, '...'),
-						'thumb' => $thumb,
-						'current' => $current
-				);
+				if (($long_f > -180 && $long_f < 180) && ($lat_f > -90 && $lat_f < 90)) {
+					$result = array(
+							'lat' => $lat_f,
+							'long' => $long_f,
+							'title' => shortenContent($image->getTitle(), 50, '...') . '<br />',
+							'desc' => shortenContent($image->getDesc(), 100, '...'),
+							'thumb' => $thumb,
+							'current' => $current
+					);
+				}
 			}
 		}
 		return $result;
@@ -717,7 +718,14 @@ class openStreetMap {
 					$this->center = array($geodata[0]['lat'], $geodata[0]['long']);
 					break;
 			}
+		} else {
+			//fallback if no geodata at all
+			$this->center = ''; // not null as we don't need to re-do if there is nothing
 		}
+		// fallback if geodata was somehow wrong
+		if(empty($this->center[0]) || empty($this->center[1])) {
+			$this->center = '';
+		} 
 		return $this->center;
 	}
 
@@ -763,7 +771,7 @@ class openStreetMap {
 			$class = ' class="' . $this->class . '"';
 		}
 		$geodataJS = $this->getGeoDataJS();
-		if (!empty($geodataJS)) {
+		if (!empty($geodataJS) && !empty($this->center)) {
 			?>
 			<div id="osm_map<?php echo $this->mapnumber; ?>"<?php echo $class; ?> style="width:<?php echo $this->width; ?>; height:<?php echo $this->height; ?>;"></div>
 			<script>
