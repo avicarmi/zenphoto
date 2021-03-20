@@ -1415,11 +1415,12 @@ class SearchEngine {
 						}
 					}
 					db_free_result($search_result);
+					$sortdir = self::getSortdirBool($sortdirection);
 					if (is_null($sorttype)) {
-						$result = sortMultiArray($result, 'weight', true, true, false, false, array('weight'));
+						$result = sortMultiArray($result, 'weight', $sortdir, true, false, false, array('weight'));
 					}
 					if ($sorttype == '`title`') {
-						$result = sortByMultilingual($result, 'title', $sortdirection);
+						$result = sortByMultilingual($result, 'title', $sortdir);
 					}
 					foreach ($result as $album) {
 						$albums[] = $album['name'];
@@ -1592,11 +1593,12 @@ class SearchEngine {
 					}
 				}
 				db_free_result($search_result);
+				$sortdir = self::getSortdirBool($sortdirection);
 				if (is_null($sorttype) && isset($weights)) {
-					$images = sortMultiArray($images, 'weight', true, true, false, false, array('weight'));
+					$images = sortMultiArray($images, 'weight', $sortdir, true, false, false, array('weight'));
 				}
 				if ($sorttype == '`title`') {
-					$images = sortByMultilingual($images, 'title', $sortdirection);
+					$images = sortByMultilingual($images, 'title', $sortdir);
 				}
 			}
 			if (empty($searchdate)) {
@@ -1767,11 +1769,12 @@ class SearchEngine {
 				}
 				db_free_result($search_result);
 			}
+			$sortdir = self::getSortdirBool($sortdirection);
 			if (is_null($sorttype) && isset($weights)) {
-				$result = sortMultiArray($result, 'weight', true, true, false, false, array('weight'));
+				$result = sortMultiArray($result, 'weight', $sortdir, true, false, false, array('weight'));
 			}
 			if ($sorttype == '`title`') {
-				$result = sortByMultilingual($result, 'title', $sortdirection);
+				$result = sortByMultilingual($result, 'title', $sortdir);
 			}
 			foreach ($result as $page) {
 				$pages[] = $page['titlelink'];
@@ -1855,11 +1858,12 @@ class SearchEngine {
 				}
 				db_free_result($search_result);
 			}
+			$sortdir = self::getSortdirBool($sortdirection);
 			if (is_null($sorttype) && isset($weights)) {
-				$result = sortMultiArray($result, 'weight', true, true, false, false, array('weight'));
+				$result = sortMultiArray($result, 'weight', $sortdir, true, false, false, array('weight'));
 			}
 			if ($sorttype == '`title`') {
-				$result = sortByMultilingual($result, 'title', $sortdirection);
+				$result = sortByMultilingual($result, 'title', $sortdir);
 			}
 			$this->cacheSearch($criteria, $result);
 		}
@@ -1945,6 +1949,22 @@ class SearchEngine {
 		if($check) {
 			query('TRUNCATE TABLE ' . prefix('search_cache'));
 		}
+	}
+	
+	/**
+	 * Returns true if $sortdir is set to "DESC", otherwise false, for use with sorting functions
+	 * @param string $sortdirection Traditional speaking values "ASC" or "DESC"
+	 * 
+	 * @since ZenphotoCMS 1.5.8
+	 * 
+	 * @return boolean
+	 */
+	static function getSortdirBool($sortdirection = 'asc') {
+		$dir = false; // ascending default
+		if (strtolower($sortdirection) == 'desc') {
+			$dir = true;
+		}
+		return $dir;
 	}
 
 }
