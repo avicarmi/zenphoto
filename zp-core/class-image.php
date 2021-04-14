@@ -1,12 +1,5 @@
 <?php
-
-/**
- * Image Class
- * @package core
- * @subpackage classes\objects
- */
 // force UTF-8 Ø
-
 $_zp_extra_filetypes = array(); // contains file extensions and the handler class for alternate images
 
 define('WATERMARK_IMAGE', 1);
@@ -93,7 +86,9 @@ function isImageClass($image = NULL) {
 }
 
 /**
- * handles 'picture' images
+ * Image Class
+ * @package core
+ * @subpackage classes\objects
  */
 class Image extends MediaObject {
 
@@ -926,6 +921,103 @@ class Image extends MediaObject {
 	function setCopyright($copyright) {
 		$this->set('copyright', tagURLs($copyright));
 	}
+	
+	/**
+	 * Returns the content of the copyright field if set.
+	 * If not it tries the following fallbacks:
+	 * 
+	 * - IPTCCopyright field
+	 * - EXIFCopyright field
+	 * - "coypright_image_notice" option
+	 * - Owner
+	 * 
+	 * @since ZenphotoCMS 1.5.8
+	 * 
+	 * @param string $locale
+	 * @return string|null
+	 */
+	function getCopyrightNotice($locale = null) {
+		$copyright = trim($this->getCopyright($locale));
+		if (!empty($copyright)) {
+			$notice = $copyright;
+		} else {
+			$metadata = $this->getMetaData();
+			if (isset($metadata['IPTCCopyright']) && !empty($metadata['IPTCCopyright'])) {
+				$notice = $metadata['IPTCCopyright'];
+			} else if (isset($metadata['EXIFCopyright']) && !empty($metadata['EXIFCopyright'])) {
+				$notice = $metadata['EXIFCopyright'];
+			} else if (empty($notice)) {
+				$option = trim(getOption('copyright_image_notice'));
+				if (!empty($option)) {
+					$notice = $option;
+				} 
+			}
+		}
+		if (!empty(trim($notice))) {
+			$notice = unTagURLs(get_language_string($notice, $locale));
+		}
+		return $notice;
+	}
+	
+	/**
+	 * Gets the general option "copyright_image_rightsholder" respectively "copyright_image_rightsholder_custom"
+	 * If set to "none" the following fallbacks are tried.
+	 * 
+	 * - EXIFArtist
+	 * - VideoArtist (for multimedia "images")
+	 * – IPTCByLine
+	 * - the owner (fullname if available)
+	 * 
+	 * @since ZenphotoCMS 1.5.8
+	 */
+	function getCopyrightRightsholder() {
+		$rightsholder = trim(getOption('copyright_image_rightsholder'));
+		if ($rightsholder && $rightsholder != 'none') {
+			if ($rightsholder == 'custom') {
+				$rightsholder = trim(getOption('copyright_image_rightsholder_custom'));
+			} else {
+				$rightsholder = Administrator::getNameByUser($rightsholder);
+			}
+		} else {
+			$metadata = $this->getMetaData();
+			if (isset($metadata['EXIFArtist']) && !empty($metadata['EXIFArtist'])) {
+				$rightsholder = $metadata['EXIFArtist'];
+			} else if (isset($metadata['VideoArtist']) && !empty($metadata['VideoArtist'])) {
+				$rightsholder = $metadata['VideoArtist'];
+			} else if (isset($metadata['IPTCByLine']) && !empty($metadata['IPTCByLine'])) {
+				$rightsholder = $metadata['IPTCByLine'];
+			}
+		}
+		if (empty($rightsholder)) {
+			$rightsholder = $this->getOwner(true);
+		}
+		return $rightsholder;
+	}
+
+	/**
+	 * Gets the image copyright URL
+	 * 
+	 * @since ZenhphotoCMS 1.5.8
+	 * 
+	 * @return string
+	 */
+	function getCopyrightURL() {
+		$url = getOption('copyright_image_url');
+		if ($url) {
+			if ($url == 'custom') {
+				return getOption('copyright_image_url_custom');
+			} else if ($url == 'none') {
+				return null;
+			} else {
+				if (extensionEnabled('zenpage') && ZP_PAGES_ENABLED) {
+					$pageobj = new ZenpagePage($url);
+					if ($pageobj->exists) {
+						return $pageobj->getLink();
+					}
+				}
+			}
+		}
+	}
 
 	/**
    * Permanently delete this image (permanent: be careful!)
@@ -1161,7 +1253,7 @@ class Image extends MediaObject {
 	 */
 	function getContent() {
 		$class = '';
-		if (!$this->getShow()) {
+		if (!$this->isPublished()) {
 			$class .= " not_visible";
 		}
 		$album = $this->getAlbum();
@@ -1389,12 +1481,18 @@ class Image extends MediaObject {
 	}
 
 	/**
-	 * Owner functions
+	 * Gets the owner of the image
+	 * 
+	 * @param bool $fullname Set to true to get the full name (if the owner is a vaild user of the site and has the full name defined)
+	 * @return string
 	 */
-	function getOwner() {
+	function getOwner($fullname = false) {
 		$owner = $this->get('owner');
 		if (empty($owner)) {
 			$owner = $this->album->getOwner();
+		}
+		if ($fullname) {
+			return Zenphoto_Administrator::getNameByUser($owner);
 		}
 		return $owner;
 	}
@@ -1414,9 +1512,9 @@ class Image extends MediaObject {
 	function checkAccess(&$hint = NULL, &$show = NULL) {
 		$album = $this->getAlbum();
 		if ($album->isMyItem(LIST_RIGHTS)) {
-			return $this->getShow() || $album->albumSubRights() & (MANAGED_OBJECT_RIGHTS_EDIT | MANAGED_OBJECT_RIGHTS_VIEW);
+			return $this->isPublished() || $album->albumSubRights() & (MANAGED_OBJECT_RIGHTS_EDIT | MANAGED_OBJECT_RIGHTS_VIEW);
 		}
-		return $album->checkforGuest($hint, $show) && $this->getShow() && $album->getShow();
+		return $album->checkforGuest($hint, $show) && $this->isPublished() && $album->isPublished();
 	}
 
 	/**
@@ -1449,7 +1547,7 @@ class Image extends MediaObject {
 	 */
 	function isPublic() {
 		if (is_null($this->is_public)) {
-			if (!$this->getShow()) {
+			if (!$this->isPublished()) {
 				return $this->is_public = false;
 			}
 			$album = $this->getAlbum();
@@ -1490,6 +1588,11 @@ class Image extends MediaObject {
 
 }
 
+/**
+ * Transient image class
+ * @package core
+ * @subpackage classes\objects
+ */
 class Transientimage extends Image {
 
 	/**

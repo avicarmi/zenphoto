@@ -1,10 +1,6 @@
 <?php
 
-/**
- * Album Class
- * @package core
- * @subpackage classes\objects
- */
+
 // force UTF-8 Ø
 
 define('IMAGE_SORT_DIRECTION', getOption('image_sortdirection'));
@@ -45,6 +41,11 @@ function isAlbumClass($album = NULL) {
 	return is_object($album) && ($album->table == 'albums');
 }
 
+/**
+ * Album Base Class
+ * @package core
+ * @subpackage classes\objects
+ */
 class AlbumBase extends MediaObject {
 
 	public $name; // Folder name of the album (full path from the albums folder)
@@ -503,7 +504,7 @@ class AlbumBase extends MediaObject {
 				// first check for images
 				$thumb = array_shift($thumbs);
 				$thumb = newImage($this, $thumb);
-				if ($mine || $thumb->getShow()) {
+				if ($mine || $thumb->isPublished()) {
 					if (isImagePhoto($thumb)) {
 						// legitimate image
 						$this->albumthumbnail = $thumb;
@@ -538,7 +539,7 @@ class AlbumBase extends MediaObject {
 				$folder = array_pop($subalbums);
 				$subalbum = newAlbum($folder);
 				$pwd = $subalbum->getPassword();
-				if (($subalbum->getShow() && empty($pwd)) || $subalbum->isMyItem(LIST_RIGHTS)) {
+				if (($subalbum->isPublished() && empty($pwd)) || $subalbum->isMyItem(LIST_RIGHTS)) {
 					$thumb = $subalbum->getAlbumThumbImage();
 					if (strtolower(get_class($thumb)) !== 'transientimage' && $thumb->exists) {
 						$this->albumthumbnail = $thumb;
@@ -871,7 +872,7 @@ class AlbumBase extends MediaObject {
 			$subRights = $this->albumSubRights();
 			if (is_null($subRights)) {
 // no direct rights, but if this is a private gallery and the album is published he should be allowed to see it
-				if (GALLERY_SECURITY != 'public' && $this->getShow() && $action == LIST_RIGHTS) {
+				if (GALLERY_SECURITY != 'public' && $this->isPublished() && $action == LIST_RIGHTS) {
 					return LIST_RIGHTS;
 				}
 			} else {
@@ -922,7 +923,7 @@ class AlbumBase extends MediaObject {
 	 */
 	function isPublic() {
 		if (is_null($this->is_public)) {
-			if (!$this->getShow()) {
+			if (!$this->isPublished()) {
 				return $this->is_public = false;
 			}
 			$parent = $this->getParent();
@@ -936,9 +937,13 @@ class AlbumBase extends MediaObject {
 	}
 
 	/**
-	 * Owner functions
+	 * Gets the owner of the album respectively of a parent album if not set specifically
+	 * 
+	 * @global obj $_zp_authority
+	 * @param bool $fullname Set to true to get the full name (if the owner is a vaild user of the site and has the full name defined)
+	 * @return string
 	 */
-	function getOwner() {
+	function getOwner($fullname = false) {
 		global $_zp_authority;
 		$owner = $this->get('owner');
 		if (empty($owner)) {
@@ -948,6 +953,13 @@ class AlbumBase extends MediaObject {
 			} else {
 				$admin = $_zp_authority->getMasterUser();
 				$owner = $admin->getUser();
+				if ($fullname && !empty($admin->getName())) {
+					return $admin->getName();
+				}
+			}
+		} else {
+			if ($fullname) {
+				return Zenphoto_Administrator::getNameByUser($owner);
 			}
 		}
 		return $owner;
@@ -1248,6 +1260,11 @@ class AlbumBase extends MediaObject {
 	
 }
 
+/**
+ * Album Class
+ * @package core
+ * @subpackage classes\objects
+ */
 class Album extends AlbumBase {
 
 	/**
@@ -1667,6 +1684,11 @@ class Album extends AlbumBase {
 
 }
 
+/**
+ * Dynamic Album Class for "saved searches"
+ * @package core
+ * @subpackage classes\objects
+ */
 class dynamicAlbum extends AlbumBase {
 
 	public $searchengine; // cache the search engine for dynamic albums

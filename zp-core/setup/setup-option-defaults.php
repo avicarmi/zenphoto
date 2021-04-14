@@ -185,21 +185,34 @@ setOptionDefault('style_tags', strtolower($style_tags));
 
 setOptionDefault('full_image_quality', 75);
 
-if (getOption('protect_full_image') === '0') {
-	$protection = 'Unprotected';
-} else if (getOption('protect_full_image') === '1') {
-	if (getOption('full_image_download')) {
-		$protection = 'Download';
-	} else {
-		$protection = 'Protected view';
-	}
-} else {
-	$protection = false;
+$protectfullimage = getOption('protect_full_image');
+//Update outdated values
+switch($protectfullimage) {
+	default: // option not set yet
+		$protection = false;
+		break;
+	case 'Protected view':
+	case '1': // outdated legady value
+		$protection = 'protected';
+		break;
+	case 'Unprotected':
+	case '0': // outdated legady value
+		$protection = 'unprotected';
+		break;
+	case 'No access':
+		$protection = 'no-access';
+		break;
+	case 'Download':
+		$protection = 'download';
+		break;
 }
 if ($protection) {
+	if (getOption('full_image_download')) { // outdated legady option
+		$protection = 'download';
+	}
 	setOption('protect_full_image', $protection);
 } else {
-	setOptionDefault('protect_full_image', 'Protected view');
+	setOptionDefault('protect_full_image', 'protected');
 }
 
 setOptionDefault('locale', '');
@@ -233,6 +246,7 @@ foreach ($_zp_exifvars as $key => $item) {
 }
 setOptionDefault('IPTC_encoding', 'ISO-8859-1');
 setOptionDefault('IPTC_convert_linebreaks', 0);
+renameOption('ImbedIPTC', 'EmbedIPTC');
 
 setOptionDefault('UTF8_image_URI', 0);
 
@@ -349,7 +363,9 @@ if (!file_exists(SERVERPATH . '/favicon.ico')) {
 	@copy(SERVERPATH . '/' . ZENFOLDER . '/images/favicon.ico', SERVERPATH . '/favicon.ico');
 }
 
-setOptionDefault('default_copyright', sprintf(gettext('Copyright %1$u: %2$s'), date('Y'), $_SERVER["HTTP_HOST"]));
+renameOption('default_copyright', 'copyright_image_notice');
+setOptionDefault('copyright_image_notice', sprintf(gettext('Copyright %1$u: %2$s'), date('Y'), $_SERVER["HTTP_HOST"]));
+
 setOptionDefault('fullsizeimage_watermark', getOption('fullimage_watermark'));
 
 $data = getOption('gallery_data');
