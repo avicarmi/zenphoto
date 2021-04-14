@@ -144,6 +144,12 @@ if (isset($_GET['action'])) {
 			$_zp_gallery->setSecondLevelThumbs((int) isset($_POST['multilevel_thumb_select_images']));
 			$_zp_gallery->setTitle(process_language_string_save('gallery_title', 2));
 			$_zp_gallery->setDesc(process_language_string_save('Gallery_description', EDITOR_SANITIZE_LEVEL));
+			
+			$_zp_gallery->setCopyrightNotice(process_language_string_save('copyright_site_notice', EDITOR_SANITIZE_LEVEL));
+			$_zp_gallery->set('copyright_site_rightsholder', sanitize($_POST['copyright_site_rightsholder'], 3));
+			$_zp_gallery->set('copyright_site_rightsholder_custom', sanitize($_POST['copyright_site_rightsholder_custom'], 3));
+			$_zp_gallery->setCopyrightURL(sanitize($_POST['copyright_site_url'], 3));
+			
 			$_zp_gallery->setWebsiteTitle(process_language_string_save('website_title', 2));
 			$web = sanitize($_POST['website_url'], 3);
 			$_zp_gallery->setWebsiteURL($web);
@@ -261,8 +267,14 @@ if (isset($_GET['action'])) {
 			setOption('thumb_sharpen', (int) isset($_POST['thumb_sharpen']));
 			setOption('image_sharpen', (int) isset($_POST['image_sharpen']));
 			setOption('image_interlace', (int) isset($_POST['image_interlace']));
-			setOption('ImbedIPTC', (int) isset($_POST['ImbedIPTC']));
-			setOption('default_copyright', sanitize($_POST['default_copyright']));
+			setOption('EmbedIPTC', (int) isset($_POST['EmbedIPTC']));
+			
+			setOption('copyright_image_notice', process_language_string_save('copyright_image_notice', 3));
+			setOption('copyright_image_rightsholder', sanitize($_POST['copyright_image_rightsholder']));
+			setOption('copyright_image_rightsholder_custom', sanitize($_POST['copyright_image_rightsholder_custom']));
+			setOption('copyright_image_url', sanitize($_POST['copyright_image_url']));
+			setOption('copyright_image_url_custom', sanitize($_POST['copyright_image_url_custom']));
+			
 			setOption('sharpen_amount', sanitize_numeric($_POST['sharpen_amount']));
 			setOption('image_max_size', sanitize_numeric($_POST['image_max_size']));
 			$num = str_replace(',', '.', sanitize($_POST['sharpen_radius']));
@@ -1146,6 +1158,38 @@ Zenphoto_Authority::printPasswordFormJS();
 									</td>
 									<td><?php echo gettext("A brief description of your gallery. Some themes may display this text."); ?></td>
 								</tr>
+								
+								<tr>
+									<td><?php echo gettext('Site copyright notice'); ?></td>
+									<td>
+										<p><?php print_language_string_list($_zp_gallery->getCopyrightNotice('all'), 'copyright_site_notice'); ?> <?php echo gettext('Notice'); ?></p>
+										
+									</td>
+									<td>
+										<p><?php echo gettext('The notice will be used by the html_meta_tags plugin. If not set the image meta data is tried instead.'); ?></p>
+									</td>
+								</tr>
+								
+								<tr>
+									<td><?php echo gettext('Site copyright rightsholder'); ?></td>
+									<td>
+										<?php printUserSelector('copyright_site_rightsholder','copyright_site_rightsholder_custom', 'users', true); ?>
+									</td>
+									<td>
+										<p><?php echo gettext('The rights holder will be used by the html_meta_tags plugin. If set to <em>none</em> the image metadata fields "copyright" or "owner" are used as fallbacks, if available.'); ?></p>
+									</td>
+								</tr>
+								
+								<tr>
+									<td><?php echo gettext('Site copyright URL'); ?></td>
+									<td>
+									<?php printZenpagePageSelector('copyright_site_url', 'copyright_site_url_custom', false, true); ?>
+									</td>
+									<td>
+										<p><?php echo gettext('Choose a Zenpage page or define a custom URL. The URL maybe used to point to some specific copyright info source. Must be an absolute URL address of the form: http://mydomain.com/license.html.'); ?></p>
+									</td>
+								</tr>
+								
 								<tr>
 									<td><?php echo gettext('Gallery type'); ?></td>
 									<td>
@@ -2121,7 +2165,7 @@ Zenphoto_Authority::printPasswordFormJS();
 									?>
 									<td><input type="checkbox" name="use_embedded_thumb" value="1" <?php checked('1', getOption('use_embedded_thumb')); ?><?php echo $disabled; ?> /></td>
 									<td>
-										<p><?php echo gettext('If set, Zenphoto will use the thumbnail imbedded in the image when creating a cached image that is equal or smaller in size. Note: the quality of this image varies by camera and its orientation may not match the master image.'); ?></p>
+										<p><?php echo gettext('If set, Zenphoto will use the thumbnail embedded in the image when creating a cached image that is equal or smaller in size. Note: the quality of this image varies by camera and its orientation may not match the master image.'); ?></p>
 										<?php
 										if ($disabled) {
 											?>
@@ -2463,9 +2507,9 @@ Zenphoto_Authority::printPasswordFormJS();
 											<?php
 											echo "<select id=\"protect_full_image\" name=\"protect_full_image\">\n";
 											$protection = getOption('protect_full_image');
-											$list = array(gettext('Protected view') => 'Protected view', gettext('Download') => 'Download', gettext('No access') => 'No access');
+											$list = array(gettext('Protected view') => 'protected', gettext('Download') => 'download', gettext('No access') => 'no-access');
 											if ($_zp_conf_vars['album_folder_class'] != 'external') {
-												$list[gettext('Unprotected')] = 'Unprotected';
+												$list[gettext('Unprotected')] = 'unprotected';
 											}
 											generateListFromArray(array($protection), $list, false, true);
 											echo "</select>\n";
@@ -2569,23 +2613,54 @@ Zenphoto_Authority::printPasswordFormJS();
 										</td>
 										<td><?php echo gettext("If checked line breaks embeded in the IPTCcaption field will be converted to <code>&lt;br&gt;</code> on image importing."); ?></td>
 									</tr>
-        <?php
-								if (GRAPHICS_LIBRARY == 'Imagick') {
-									$optionText = gettext('Imbed IPTC copyright');
-									$desc = gettext('If checked and an image has no IPTC data a copyright notice will be imbedded cached copies.');
-								} else {
-									$optionText = gettext('Replicate IPTC metadata');
-									$desc = gettext('If checked IPTC data from the original image will be imbedded in cached copies. If the image has no IPTC data a copyright notice will be imbedded. (The text supplied will be used if the orginal image has no copyright.)');
-								}
-								?>
+        
 								<tr>
-									<td><?php echo gettext("IPTC Imbedding:"); ?></td>
+									<td><?php echo gettext('Image copyright notice'); ?></td>
 									<td>
-										<label><input type="checkbox" name="ImbedIPTC" value="1"	<?php checked('1', getOption('ImbedIPTC')); ?> /> <?php echo $optionText; ?></label>
-										<p><input type="textbox" name="default_copyright" value="<?php echo getOption('default_copyright'); ?>" size="50" /></p>
+										<p><?php print_language_string_list(getOption('copyright_image_notice'), 'copyright_image_notice'); ?> <?php echo gettext('Notice'); ?></p>
+										
 									</td>
 									<td>
-										<?php echo $desc; ?>
+										<p><?php echo gettext('The notice will be used by the html_meta_tags plugin. If not set the image meta data is tried instead.'); ?></p>
+									</td>
+								</tr>
+								
+								<tr>
+									<td><?php echo gettext('Image copyright rightsholder'); ?></td>
+									<td>
+										<?php printUserSelector('copyright_image_rightsholder','copyright_image_rightsholder_custom', 'users'); ?>
+									</td>
+									<td>
+										<p><?php echo gettext('The rights holder will be used by the html_meta_tags plugin. If set to <em>none</em> the image metadata fields "copyright" or "owner" are used as fallbacks, if available.'); ?></p>
+									</td>
+								</tr>
+								
+								<tr>
+									<td><?php echo gettext('Image Copyright URL'); ?></td>
+									<td>
+									<?php printZenpagePageSelector('copyright_image_url', 'copyright_image_url_custom', false); ?>
+									</td>
+									<td>
+										<p><?php echo gettext('Choose a Zenpage page or define a custom URL. The URL maybe used to point to some specific copyright info source. Must be an absolute URL address of the form: http://mydomain.com/license.html.'); ?></p>
+									</td>
+								</tr>
+								
+								<tr>
+									<?php
+											if (GRAPHICS_LIBRARY == 'Imagick') {
+												$optionText = gettext('Embed IPTC copyright');
+												$desc = gettext('If checked and an image has no IPTC data a copyright notice will be embedded in cached copies.');
+											} else {
+												$optionText = gettext('Replicate IPTC metadata');
+												$desc = gettext('If checked IPTC data from the original image will be embedded in cached copies. If the image has no IPTC data a copyright notice will be embedded. (The text supplied will be used if the orginal image has no copyright.)');
+											}
+										?>
+									<td><?php echo gettext('IPTC copyright embedding'); ?></td>
+									<td>
+										<p><label><input type="checkbox" name="EmbedIPTC" value="1"	<?php checked('1', getOption('EmbedIPTC')); ?> /> <?php echo $optionText; ?></label></p>
+									</td>
+									<td>
+										<p><?php echo $desc; ?></p>
 										<p class="notebox">
 											<?php echo gettext('<strong>NOTE:</strong> This option applies only to JPEG format cached images.'); ?>
 										</p>
@@ -3435,50 +3510,11 @@ Zenphoto_Authority::printPasswordFormJS();
 										<p><?php echo gettext('Data privacy policy page'); ?></p>
 									</td>
 									<td width="350">
-										<p><label><input type="text" name="dataprivacy_policy_custompage" id="dataprivacy_policy_custompage" value="<?php echo html_encode(getOption('dataprivacy_policy_custompage')); ?>"> <?php echo gettext('Custom page url'); ?></label></p>
-										<?php
-										if(extensionEnabled('zenpage') && ZP_PAGES_ENABLED) {
-											$datapolicy_zenpage = getOption('dataprivacy_policy_zenpage');
-											$zenpageobj = new Zenpage();
-											$zenpagepages = $zenpageobj->getPages(false, false, null, 'sortorder', false);
-											$privacypages = array();
-											$privacypages[gettext('None')] = 'none'; 
-											foreach($zenpagepages as $zenpagepage) {
-												$pageobj = new Zenpagepage($zenpagepage['titlelink']);
-												if(!$pageobj->isProtected()) {
-													$unpublished_note = '';
-													if(!$pageobj->getShow()) {
-														$unpublished_note = '*';
-													}
-													$sublevel = '';
-													$level = count(explode('-', $pageobj->getSortorder()));
-													if($level != 1) {
-														for($l = 1; $l < $level; $l++) {
-															$sublevel .= '-'; 
-														}
-													}
-													$privacypages[$sublevel . get_language_string($zenpagepage['title']) . $unpublished_note] = $zenpagepage['titlelink'];
-												}
-											}
-											if($privacypages) {
-												unset($zenpagepages);
-												?>
-												<label>
-													<select id="dataprivacy_policy_zenpage" name="dataprivacy_policy_zenpage">
-													<?php	generateListFromArray(array($datapolicy_zenpage), $privacypages, null, true); ?>
-													</select>
-													<br><?php echo gettext('Select a Zenpage page. * denotes unpublished page.'); ?>
-												</label>
-												<?php 
-											} else {
-												echo '<p><em>' . gettext('No suitable Zenpage pages available') . '</em></p>';
-											}
-										} 
-									  ?>	
+										<?php printZenpagePageSelector('dataprivacy_policy_zenpage', 'dataprivacy_policy_custompage', false); ?>
 										<p>
 											<label>
 											<?php print_language_string_list(getOption('dataprivacy_policy_customlinktext'), 'dataprivacy_policy_customlinktext'); ?>
-											<?php echo gettext('Custom link text'); ?>
+											<br><?php echo gettext('Custom link text'); ?>
 										</label>
 										</p>
 									</td>

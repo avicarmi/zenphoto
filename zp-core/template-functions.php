@@ -1224,7 +1224,7 @@ function getAnnotatedAlbumTitle() {
 	if (zp_loggedin() && !empty($pwd)) {
 		$title .= "\n" . gettext('The album is password protected.');
 	}
-	if (!$_zp_current_album->getShow()) {
+	if (!$_zp_current_album->isPublished()) {
 		$title .= "\n" . gettext('The album is un-published.');
 	}
 	return $title;
@@ -1764,7 +1764,7 @@ function getAlbumThumb() {
  * @param string $extra extra stuff to put in the HTML
  * @return string
  */
-function getPasswordProtectImage($extra) {
+function getPasswordProtectImage($extra = '') {
 	global $_zp_themeroot;
 	$image = '';
 	$themedir = SERVERPATH . '/themes/' . basename($_zp_themeroot);
@@ -1790,16 +1790,20 @@ function printAlbumThumbImage($alt, $class = NULL, $id = NULL , $title = null) {
 	global $_zp_current_album;
 	$thumbobj = $_zp_current_album->getAlbumThumbImage();
 	$sizes = getSizeDefaultThumb($thumbobj);
+	if (empty($title)) {
+		$title = $alt;
+	}
 	$attr = array(
 			'src' => html_pathurlencode($thumbobj->getThumb('album')),
 			'alt' => html_encode($alt),
+			'title' => html_encode($title),
 			'class' => $class,
 			'id' => $id,
 			'width' => $sizes[0],
 			'height' => $sizes[1],
 			'loading' => 'lazy'
 	);
-	if (!$_zp_current_album->getShow()) {
+	if (!$_zp_current_album->isPublished()) {
 		$attr['class'] .= " not_visible";
 	}
 	$pwd = $_zp_current_album->getPassword();
@@ -1808,12 +1812,13 @@ function printAlbumThumbImage($alt, $class = NULL, $id = NULL , $title = null) {
 	}
 	$attr['class'] = trim($attr['class']);
 	$attr_filtered = zp_apply_filter('standard_album_thumb_attr', $attr, $thumbobj);
-	$attributes = generateAttributesFromArray($attr_filtered);
 	if (!getOption('use_lock_image') || $_zp_current_album->isMyItem(LIST_RIGHTS) || empty($pwd)) {
+		$attributes = generateAttributesFromArray($attr_filtered);
 		$html = '<img' . $attributes . ' />';
 		$html = zp_apply_filter('standard_album_thumb_html', $html, $thumbobj);
 		echo $html;
 	} else {
+		$size = ' width="' . $attr['width'] . '"';
 		echo getPasswordProtectImage($size);
 	}
 }
@@ -1862,6 +1867,9 @@ function printCustomAlbumThumbImage($alt, $size, $width = NULL, $height = NULL, 
 	global $_zp_current_album;
 	$thumbobj = $_zp_current_album->getAlbumThumbImage();
 	$sizes = getSizeCustomImage($size, $width, $height, $cropw, $croph, $cropx, $cropy, $thumbobj, 'thumb');
+	if (empty($title)) {
+		$title = $alt;
+	}
 	$attr = array(
 			'alt' => html_encode($alt),
 			'class' => $class,
@@ -1874,7 +1882,7 @@ function printCustomAlbumThumbImage($alt, $size, $width = NULL, $height = NULL, 
 	if($maxspace) {
 		getMaxSpaceContainer($width, $height, $thumbobj, true);
 	}
-	if (!$_zp_current_album->getShow()) {
+	if (!$_zp_current_album->isPublished()) {
 		$attr['class'] .= " not_visible";
 	}
 	$pwd = $_zp_current_album->getPassword();
@@ -1887,14 +1895,15 @@ function printCustomAlbumThumbImage($alt, $size, $width = NULL, $height = NULL, 
 	} else {
 		$attr['src']= html_pathurlencode(getCustomAlbumThumb($size, $width, $height, $cropw, $croph, $cropx, $cropy));
 	}
+	$attr_filtered = zp_apply_filter('custom_album_thumb_attr', $attr, $thumbobj);
 	if (!getOption('use_lock_image') || $_zp_current_album->isMyItem(LIST_RIGHTS) || empty($pwd)) {
-		$attr_filtered = zp_apply_filter('custom_album_thumb_attr', $attr, $thumbobj);
 		$attributes = generateAttributesFromArray($attr_filtered);
 		$html = '<img' . $attributes . ' />';
 		$html = zp_apply_filter('custom_album_thumb_html', $html, $thumbobj);
 		echo $html;
 	} else {
-		echo getPasswordProtectImage($sizes);
+		$size = ' width="' . $attr['width'] . '"';
+		echo getPasswordProtectImage($size);
 	}
 }
 
@@ -2179,7 +2188,7 @@ function getBareImageTitle() {
 function getAnnotatedImageTitle() {
 	global $_zp_current_image;
 	$title = getBareImageTitle();
-	if (!$_zp_current_image->getShow()) {
+	if (!$_zp_current_image->isPublished()) {
 		$title .= "\n" . gettext('The image is marked un-published.');
 	}
 	return $title;
@@ -2858,6 +2867,9 @@ function printDefaultSizedImage($alt, $class = null, $id = null, $title = null, 
 	if (is_null($image)) {
 		return false;
 	}
+	if (empty($title)) {
+		$title = $alt;
+	}
 	$attr = array(
 			'alt' => html_encode($alt),
 			'class' => $class,
@@ -2867,7 +2879,7 @@ function printDefaultSizedImage($alt, $class = null, $id = null, $title = null, 
 			'width' => getDefaultWidth(),
 			'height' => getDefaultHeight()
 	);
-	if (!$image->getShow()) {
+	if (!$image->isPublished()) {
 		$attr['class'] .= " not_visible";
 	}
 	$album = $image->getAlbum();
@@ -2914,6 +2926,9 @@ function printImageThumb($alt, $class = null, $id = null, $title = null, $image 
 	if (is_null($image)) {
 		return false;
 	}
+	if (empty($title)) {
+		$title = $alt;
+	}
 	$attr = array(
 			'alt' => html_encode($alt),
 			'class' => $class,
@@ -2921,7 +2936,7 @@ function printImageThumb($alt, $class = null, $id = null, $title = null, $image 
 			'id' => $id,
 			'loading' => 'lazy'
 	);
-	if (!$image->getShow()) {
+	if (!$image->isPublished()) {
 		$attr['class'] .= " not_visible";
 	}
 	$album = $image->getAlbum();
@@ -2979,10 +2994,10 @@ function getFullImageURL($image = NULL) {
 		return false;
 	}
 	$outcome = getOption('protect_full_image');
-	if ($outcome == 'No access') {
+	if ($outcome == 'no-access') {
 		return NULL;
 	}
-	if ($outcome == 'Unprotected') {
+	if ($outcome == 'unprotected') {
 		return $image->getFullImageURL();
 	} else {
 		return getProtectedImageURL($image, $outcome);
@@ -3010,7 +3025,7 @@ function getUnprotectedImageURL($image = NULL) {
  * Returns an url to the password protected/watermarked current image
  *
  * @param object $image optional image object overrides the current image
- * @param string $disposal set to override the 'protect_full_image' option
+ * @param string $disposal set to override the 'protect_full_image' option. 'protected', "download", "unprotected" or "no-access"
  * @return string
  * */
 function getProtectedImageURL($image = NULL, $disposal = NULL) {
@@ -3018,7 +3033,7 @@ function getProtectedImageURL($image = NULL, $disposal = NULL) {
 	if (is_null($disposal)) {
 		$disposal = getOption('protect_full_image');
 	}
-	if ($disposal == 'No access')
+	if ($disposal == 'no-access')
 		return NULL;
 	if (is_null($image)) {
 		if (!in_context(ZP_IMAGE))
@@ -3037,9 +3052,9 @@ function getProtectedImageURL($image = NULL, $disposal = NULL) {
 	$args = array('FULL', NULL, NULL, NULL, NULL, NULL, NULL, (int) getOption('full_image_quality'), NULL, NULL, NULL, $wmt, false, NULL, NULL);
 	$cache_file = getImageCacheFilename($album->name, $image->filename, $args);
 	$cache_path = SERVERCACHE . $cache_file;
-	if ($disposal != 'Download' && OPEN_IMAGE_CACHE && file_exists($cache_path)) {
+	if ($disposal != 'download' && OPEN_IMAGE_CACHE && file_exists($cache_path)) {
 		return WEBPATH . '/' . CACHEFOLDER . pathurlencode(imgSrcURI($cache_file));
-	} else if ($disposal == 'Unprotected') {
+	} else if ($disposal == 'unprotected') {
 		return getImageURI($args, $album->name, $image->filename, $image->filemtime);
 	} else {
 		$params = '&q=' . getOption('full_image_quality');
@@ -3174,6 +3189,9 @@ function printCustomSizedImage($alt, $size, $width = NULL, $height = NULL, $crop
 	if ($maxspace) {
 		getMaxSpaceContainer($width, $height, $image);
 	}
+	if (empty($title)) {
+		$title = $alt;
+	}
 	$attr = array(
 			'alt' => html_encode($alt),
 			'class' => $class,
@@ -3181,7 +3199,7 @@ function printCustomSizedImage($alt, $size, $width = NULL, $height = NULL, $crop
 			'id' => $id,
 			'loading' => 'lazy'
 	);
-	if (!$image->getShow()) {
+	if (!$image->isPublished()) {
 		$attr['class'] .= " not_visible";
 	}
 	$album = $image->getAlbum();
@@ -4439,24 +4457,18 @@ function getOwnerAuthor($fullname = false) {
 	global $_zp_current_album, $_zp_current_image, $_zp_current_zenpage_page, $_zp_current_zenpage_news;
 	$ownerauthor = false;
 	if (in_context(ZP_IMAGE)) {
-		$ownerauthor = $_zp_current_image->getOwner();
+		$ownerauthor = $_zp_current_image->getOwner($fullname);
 	} else if (in_context(ZP_ALBUM)) {
-		$ownerauthor = $_zp_current_album->getOwner();
+		$ownerauthor = $_zp_current_album->getOwner($fullname);
 	} 
 	if (extensionEnabled('zenpage')) {
 		if (is_Pages()) {
-			$ownerauthor = $_zp_current_zenpage_page->getAuthor();
+			$ownerauthor = $_zp_current_zenpage_page->getAuthor($fullname);
 		} else if (is_NewsArticle()) {
-			$ownerauthor = $_zp_current_zenpage_news->getAuthor();
+			$ownerauthor = $_zp_current_zenpage_news->getAuthor($fullname);
 		} 
 	} 
 	if ($ownerauthor) {
-		if ($fullname) {
-			$admin = Zenphoto_Authority::getAnAdmin(array('`user`=' => $ownerauthor, '`valid`=' => 1));
-			if (is_object($admin) && $admin->getName()) {
-				return $admin->getName();
-			}
-		}
 		return $ownerauthor;
 	} 
 	return false;
