@@ -58,7 +58,7 @@ function processTags($object) {
  * @return object
  */
 function updatePage(&$reports, $newpage = false) {
-	global $_zp_current_admin_obj;
+	global $_zp_zenpage, $_zp_current_admin_obj;
 	$title = process_language_string_save("title", 2);
 	$author = sanitize($_POST['author']);
 	$content = updateImageProcessorLink(process_language_string_save("content", EDITOR_SANITIZE_LEVEL));
@@ -138,11 +138,10 @@ function updatePage(&$reports, $newpage = false) {
 		$page->set('total_votes', 0);
 		$page->set('used_ips', 0);
 	}
-	if(!$newpage) {
-		$page->setLastchangeUser($_zp_current_admin_obj->getUser());
-	}
 	processTags($page);
 	if ($newpage) {
+		$sortorder = $_zp_zenpage->getItemDefaultSortorder('page');
+		$page->setSortorder($sortorder);
 		$msg = zp_apply_filter('new_page', '', $page);
 		if (empty($title)) {
 			$reports[] = "<p class='errorbox fade-message'>" . sprintf(gettext("Page <em>%s</em> added but you need to give it a <strong>title</strong> before publishing!"), get_language_string($titlelink)) . '</p>';
@@ -154,6 +153,7 @@ function updatePage(&$reports, $newpage = false) {
 			$reports[] = "<p class='messagebox fade-message'>" . sprintf(gettext("Page <em>%s</em> added"), $titlelink) . '</p>';
 		}
 	} else {
+		$page->setLastchangeUser($_zp_current_admin_obj->getUser());
 		$msg = zp_apply_filter('update_page', '', $page, $oldtitlelink);
 		if (!$rslt) {
 			$reports[] = "<p class='errorbox fade-message'>" . sprintf(gettext("A page with the title/titlelink <em>%s</em> already exists!"), $titlelink) . '</p>';
@@ -851,7 +851,7 @@ function printAuthorDropdown() {
  *
  */
 function updateCategory(&$reports, $newcategory = false) {
-	global $_zp_current_admin_obj;
+	global $_zp_zenpage, $_zp_current_admin_obj;
 	$date = date('Y-m-d_H-i-s');
 	$id = sanitize_numeric($_POST['id']);
 	$permalink = getcheckboxState('permalink');
@@ -913,10 +913,9 @@ function updateCategory(&$reports, $newcategory = false) {
 		$cat->set('total_votes', 0);
 		$cat->set('used_ips', 0);
 	}
-	if (!$newcategory) {
-		$cat->setLastchangeUser($_zp_current_admin_obj->getUser());
-	}
 	if ($newcategory) {
+		$sortorder = $_zp_zenpage->getItemDefaultSortorder('category');
+		$cat->setSortorder($sortorder);
 		$msg = zp_apply_filter('new_category', '', $cat);
 		if (empty($title)) {
 			$reports[] = "<p class='errorbox fade-message'>" . sprintf(gettext("Category <em>%s</em> added but you need to give it a <strong>title</strong> before publishing!"), $titlelink) . '</p>';
@@ -928,6 +927,7 @@ function updateCategory(&$reports, $newcategory = false) {
 			$reports[] = "<p class='messagebox fade-message'>" . sprintf(gettext("Category <em>%s</em> added"), $titlelink) . '</p>';
 		}
 	} else {
+		$cat->setLastchangeUser($_zp_current_admin_obj->getUser());
 		$msg = zp_apply_filter('update_category', '', $cat, $oldtitlelink);
 		if ($titleok) {
 			if (empty($titlelink) OR empty($title)) {
@@ -1115,8 +1115,8 @@ function printNestedItemsList($listtype = 'cats-sortablelist', $articleid = '', 
 	switch ($listtype) {
 		case 'cats-checkboxlist':
 		case 'cats-sortablelist':
-   //Without this the order is incorrect until the 2nd page reload…
-   $_zp_zenpage = new Zenpage();
+			//Without this the order is incorrect until the 2nd page reload…
+			$_zp_zenpage = new Zenpage();
 			$items = $_zp_zenpage->getAllCategories(false);
 			break;
 		case 'pages-sortablelist':
@@ -1126,6 +1126,7 @@ function printNestedItemsList($listtype = 'cats-sortablelist', $articleid = '', 
 			$items = array();
 			break;
 	}
+	//echo "<pre>"; print_r($items); echo "</pre>";
 	$indent = 1;
 	$open = array(1 => 0);
 	$rslt = false;
@@ -1809,16 +1810,15 @@ function printPublishIconLink($object, $type, $linkback = '') {
 			case 'timestamp':
 				$date = time();
 				break;
-		}
-		switch ($addwhere) {
-			case 'before':
-				$titlelink = $date . '-' . $titlelink;
-				break;
-			default:
-			case 'after':
-				$titlelink = $titlelink . '-' . $date;
-				break;
-		}
-		return $titlelink;
 	}
-	
+	switch ($addwhere) {
+		case 'before':
+			$titlelink = $date . '-' . $titlelink;
+			break;
+		default:
+		case 'after':
+			$titlelink = $titlelink . '-' . $date;
+			break;
+	}
+	return $titlelink;
+}

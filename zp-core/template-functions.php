@@ -3221,7 +3221,7 @@ function printCustomSizedImage($alt, $size, $width = NULL, $height = NULL, $crop
 	}
 	if (isImagePhoto($image) || $thumbStandin) {
 		if ($maxspace) {
-			$attr['src'] = html_pathurlencode(getCustomImageURL(null, $width, $height, NULL, NULL, NULL, NULL, true, $effects, null, $image));
+			$attr['src'] = html_pathurlencode(getCustomImageURL(null, $width, $height, NULL, NULL, NULL, NULL, $thumbStandin, $effects, null, $image));
 		} else {
 			$attr['src'] = html_pathurlencode(getCustomImageURL($size, $width, $height, $cropw, $croph, $cropx, $cropy, $thumbStandin, $effects, null, $image));
 		}
@@ -3917,7 +3917,7 @@ function printSearchForm($prevtext = NULL, $id = 'search', $buttonSource = NULL,
 				<?php
 				if (count($fields) > 1 || $searchwords) {
 					$fields = array_flip($fields);
-					natcasesort($fields);
+					sortArray($fields);
 					$fields = array_flip($fields);
 					if (is_null($query_fields)) {
 						$query_fields = $engine->parseQueryFields();
@@ -4588,6 +4588,23 @@ function printUserURL($username, $resulttype = 'all', $linktext = null, $class =
 			$title = $username;
 		}
 		printLinkHTML($url, $linktext, $title, $class, $id);
+	}
+}
+
+/**
+ * Display the site copyright notice if defined and display is enabled
+ * 
+ * @since ZenphotoCMS 1.5.8
+ * 
+ * @global obj $_zp_gallery
+ * @param string $before Text to print before it
+ * @param string $after Text to print after it
+ */
+function printCopyrightNotice($before = '', $after = '') {
+	global $_zp_gallery;
+	$copyright_notice = $_zp_gallery->getCopyrightNotice();
+	if(!empty($copyright_notice) && getOption('display_copyright_notice')) {
+		echo $before . $copyright_notice . $after;
 	}
 }
 

@@ -14,7 +14,7 @@ class ZenpageCategory extends ZenpageRoot {
 	public $view_rights = ALL_NEWS_RIGHTS;
 	public $parent = null;
 	public $parents = null;
-	protected $sortorder = 'date';
+	protected $sorttype = 'date';
 	protected $sortdirection = true;
 	protected $sortSticky = true;
 	protected $is_public = null;
@@ -125,11 +125,11 @@ class ZenpageCategory extends ZenpageRoot {
 	}
 
 	function getSortType() {
-		return $this->sortorder;
+		return $this->sorttype;
 	}
 
 	function setSortType($value) {
-		$this->sortorder = $value;
+		$this->sorttype = $value;
 	}
 
 	function getSortSticky() {
@@ -205,25 +205,34 @@ class ZenpageCategory extends ZenpageRoot {
 		}
 		return $success;
 	}
-
+	
 	/**
 	 * Gets the sub categories recursivly by titlelink
+	 * 
+	 * @since ZenphotoCMS 1.5.8
+	 * 
 	 * @param bool $visible TRUE for published and unprotected
 	 * @param string $sorttype NULL for the standard order as sorted on the backend, "title", "date", "popular"
-	 * @param string $sortdirection "asc" or "desc" for ascending or descending order
+	 * @param bool $sortdirection True for descending (default), false for ascending direction
+	 * @param bool $directchilds Default true to get only the direct sub level pages, set to false to get all levels
 	 * @return array
 	 */
-	function getSubCategories($visible = true, $sorttype = NULL, $sortdirection = NULL) {
+	function getCategories($visible = true, $sorttype = NULL, $sortdirection = NULL, $directchilds = true) {
 		global $_zp_zenpage;
-		$subcategories = array();
-		$sortorder = $this->getSortOrder();
-		foreach ($_zp_zenpage->getAllCategories($visible, $sorttype, $sortdirection) as $cat) {
-			$catobj = new ZenpageCategory($cat['titlelink']);
-			if ($catobj->getParentID() == $this->getID() && $catobj->getSortOrder() != $sortorder) { // exclude the category itself!
-				array_push($subcategories, $catobj->getTitlelink());
+		$categories = array();
+		foreach ($_zp_zenpage->getAllCategories($visible, $sorttype, $sortdirection, false) as $cat) {
+			if ($cat['sort_order'] != $this->getSortOrder() && (!$directchilds && stripos($cat['sort_order'], $this->getSortOrder()) === 0) || $cat['parentid'] == $this->getID()) {
+				array_push($categories, $cat);
 			}
 		}
-		return $subcategories;
+		return $categories;
+	}
+
+	/**
+	 * @see getCategories()
+	 */
+	function getSubCategories($visible = true, $sorttype = NULL, $sortdirection = NULL, $directchilds = false) {
+		return $this->getCategories($visible, $sorttype, $sortdirection, $directchilds);
 	}
 
 	/**
@@ -233,7 +242,6 @@ class ZenpageCategory extends ZenpageRoot {
 	 */
 	function isSubNewsCategoryOf($catlink) {
 		if (!empty($catlink)) {
-			$parentid = $this->getParentID();
 			$categories = $this->getParents();
 			$count = 0;
 			foreach ($categories as $cat) {
