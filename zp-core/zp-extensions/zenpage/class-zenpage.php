@@ -22,12 +22,17 @@ class Zenpage {
 
 	public $categoryStructure = null;
 	// article defaults (mirrors category vars)
-	protected $sortorder = 'date';
-	protected $sortdirection = true;
+	protected $sorttype = 'date';
+	protected $sortdirection = true; // descending
 	protected $sortSticky = true;
+	
+	// category defaults
+	protected $category_sorttype = 'sort_order';
+	protected $category_sortdirection = false; // ascending
+
 	// page defaults
-	protected $page_sortorder;
-	protected $page_sortdirection;
+	protected $page_sorttype = 'sort_order';
+	protected $page_sortdirection = false; //ascending
 	/**
 	 * Class instantiator
 	 */
@@ -105,10 +110,14 @@ class Zenpage {
 	 * @param string $sorttype NULL for the standard order as sorted on the backend, "title", "date", "id", "popular", "mostrated", "toprated", "random"
 	 * @param string $sortdirection false for ascenting, true for descending
 	 * @param string $author Optional author name to get the pages of
+	 * @param obj $pageobj Optional pageobj to get its subpages
 	 * @return array
 	 */
-	function getPages($published = NULL, $toplevel = false, $number = NULL, $sorttype = NULL, $sortdirection = NULL, $author = null) {
+	function getPages($published = NULL, $toplevel = false, $number = NULL, $sorttype = NULL, $sortdirection = NULL, $author = null, $pageobj = null) {
 		global $_zp_loggedin;
+		if(!is_null($pageobj) && get_class($pageobj) != 'ZenpagePage') {
+			$pageobj = null;
+		}
 		if (is_null($sortdirection)) {
 			$sortdirection = $this->getSortDirection('pages');
 		}
@@ -122,13 +131,26 @@ class Zenpage {
 			$all = !$published;
 		}
 		$gettop = '';
+		if ($toplevel) {
+			if ($pageobj) {
+				$gettop = " parentid = " . $pageobj->getID();
+			} else {
+				$gettop = " parentid IS NULL";
+			}
+		} else {
+			if ($pageobj) {
+				$gettop = " sort_order like '" . $pageobj->getSortorder() . "-%'";
+			} 
+		}
 		if ($published) {
-			if ($toplevel)
-				$gettop = " AND parentid IS NULL";
+			if ($gettop) {
+				$gettop = ' AND' . $gettop;
+			}
 			$show = " WHERE `show` = 1 AND date <= '" . date('Y-m-d H:i:s') . "'" . $gettop;
 		} else {
-			if ($toplevel)
-				$gettop = " WHERE parentid IS NULL";
+			if ($gettop) {
+				$gettop = ' WHERE' . $gettop;
+			}
 			$show = $gettop;
 		}
 		if ($author) {
@@ -159,8 +181,6 @@ class Zenpage {
 				$sortorder = 'total_votes';
 				break;
 			case 'toprated':
-				if (empty($sortdir))
-					$sortdir = ' DESC';
 				$sortorder = '(total_value/total_votes) ' . $sortdir . ', total_value';
 				break;
 			case 'random':
@@ -188,6 +208,9 @@ class Zenpage {
 				}
 			}
 			db_free_result($result);
+		}
+		if ($sorttype == 'title') {
+			$all_pages = sortMultiArray($all_pages, 'title', $sortdirection, true, false, false);
 		}
 		return $all_pages;
 	}
@@ -290,7 +313,7 @@ class Zenpage {
 				$showConjunction = ' AND ';
 				// new code to get nested cats
 				$catid = $category->getID();
-				$subcats = $category->getSubCategories();
+				$subcats = $category->getCategories();
 				if ($subcats) {
 					$cat = " (cat.cat_id = '" . $catid . "'";
 					foreach ($subcats as $subcat) {
@@ -638,16 +661,33 @@ class Zenpage {
 
 	/**
 	 * Gets all categories
+	 * 
 	 * @param bool $visible TRUE for published and unprotected
 	 * @param string $sorttype NULL for the standard order as sorted on the backend, "title", "id", "popular", "random"
-	 * @param bool $sortdirection TRUE for ascending or FALSE for descending order
+	 * @param bool $sortdirection TRUE for descending (default) or FALSE for ascending order
+	 * @param bool $toplevel True for only toplevel categories
 	 * @return array
 	 */
-	function getAllCategories($visible = true, $sorttype = NULL, $sortdirection = NULL) {
+	function getAllCategories($visible = true, $sorttype = NULL, $sortdirection = NULL, $toplevel = false) {
 		$structure = $this->getCategoryStructure();
-		if (is_null($sortdirection))
-			$sortdirection = $this->sortdirection;
-
+		if (is_null($sortdirection)) {
+			$sortdirection = $this->getSortDirection('categories');
+		} else {
+			// fallback of old documentation
+			switch(strtolower($sortdirection)) {
+				case 'asc':
+					$sortdirection = false;
+					trigger_error(gettext('Zenpage::getAllCategories() - The value "asc" for the $sortdirection is deprecated since ZenphotoCMS 1.5.8. Use false instead.'), E_USER_NOTICE);
+					break;
+				case 'desc':
+					trigger_error(gettext('Zenpage::getAllCategories() - The value "desc" for the $sortdirection is deprecated since ZenphotoCMS 1.5.8. Use true instead.'), E_USER_NOTICE);
+					$sortdirection = true;
+					break;
+			}
+		}
+		if (is_null($sorttype)) {
+			$sorttype = $this->getSortType('categories');
+		}
 		switch ($sorttype) {
 			case "id":
 				$sortorder = "id";
@@ -665,6 +705,13 @@ class Zenpage {
 				$sortorder = "sort_order";
 				break;
 		}
+		if ($toplevel) {
+			foreach ($structure as $key => $cat) {
+				if (!is_null($cat['parentid'])) {
+					unset($structure[$key]);
+				}
+			}
+		}
 		if ($visible) {
 			foreach ($structure as $key => $cat) {
 				$catobj = new ZenpageCategory($cat['titlelink']);
@@ -679,13 +726,7 @@ class Zenpage {
 			if ($sorttype == 'random') {
 				shuffle($structure);
 			} else {
-				//sortMultiArray descending = true
-				if($sortdirection) {
-					$sortdir = false;
-				} else {
-					$sortdir = true;
-				}
-				$structure = sortMultiArray($structure, $sortorder, $sortdir, true, false, false);
+				$structure = sortMultiArray($structure, $sortorder, $sortdirection, true, false, false);
 			}
 		}
 		return $structure;
@@ -727,36 +768,75 @@ class Zenpage {
 	public function __toString() {
 		return 'Zenpage';
 	}
-
+	
+	/**
+	 * Gets the internal default sortdirection
+	 * @param sting $what "new", "pages", "categories"
+	 * @return booliean
+	 */
 	function getSortDirection($what = 'news') {
-		if ($what == 'pages') {
-			return $this->page_sortdirection;
-		} else {
-			return $this->sortdirection;
+		switch ($what) {
+			case 'pages':
+				return $this->page_sortdirection;
+			case 'news':
+				return $this->sortdirection;
+			case 'categories':
+				return $this->category_sortdirection;
 		}
 	}
 
+	/**
+	 * Sets the sortdirection
+	 * @param boolean $value The  true for decending false for ascending
+	 * @param string $what "new", "pages", "categories"
+	 */
 	function setSortDirection($value, $what = 'news') {
-		if ($what == 'pages') {
-			$this->page_sortdirection = (int) ($value && true);
-		} else {
-			$this->sortdirection = (int) ($value && true);
+		switch ($what) {
+			case 'pages':
+				$this->page_sortdirection = (int) ($value && true);
+				break;
+			case 'news':
+				$this->sortdirection = (int) ($value && true);
+				break;
+			case 'categories':
+				$this->category_sortdirection = (int) ($value && true);
+				break;
 		}
 	}
 
+	/**
+	 * Gets the sorttype 
+	 * @param string $what "new", "pages", "categories"
+	 * @return string
+	 */
 	function getSortType($what = 'news') {
-		if ($what == 'pages') {
-			return $this->page_sortorder;
-		} else {
-			return $this->sortorder;
+		switch ($what) {
+			case 'pages':
+				return $this->page_sorttype;
+			case 'news':
+				return $this->sorttype;
+			case 'categories':
+				return $this->category_sorttype;
 		}
 	}
 
+	/**
+	 * Sets the sortdtype
+	 * @param boolean $value The field/sorttype to sort by
+	 * @param string $what "new", "pages", "categories"
+	 * @return string
+	 */
 	function setSortType($value, $what = 'news') {
-		if ($what == 'pages') {
-			$this->page_sortorder = $value;
-		} else {
-			$this->sortorder = $value;
+		switch ($what) {
+			case 'pages':
+				$this->page_sorttype = $value;
+				break;
+			case 'news':
+				$this->sorttype = $value;
+				break;
+			case 'categories':
+				$this->category_sorttype = $value;
+				break;
 		}
 	}
 
@@ -766,6 +846,36 @@ class Zenpage {
 
 	function setSortSticky($value) {
 		$this->sortSticky = (bool) $value;
+	}
+	
+	/**
+	 * Gets the default sortorder for a Zenpage caategory or page that does not yet have one, e.g. because newly created
+	 * The sortorder takae care of existing ones and add the item after existing items.
+	 *  
+	 * @since ZenphotoCMS 1.5.8
+	 * 
+	 * @param string $type "category" or "page"
+	 * @return string
+	 */
+	function getItemDefaultSortorder($type = 'category') {
+		if (!in_array($type, array('category', 'page'))) {
+			return '000';
+		}
+		switch ($type) {
+			case 'category':
+				$items = $this->getAllCategories(false, null, null, true);
+				break;
+			case 'page':
+				$items = $this->getPages(false, true);
+				break;
+		}
+		if (empty($items)) {
+			$sortorder = '000';
+		} else {
+			$count = count($items);
+			$sortorder = str_pad($count, 3, "0", STR_PAD_LEFT);
+		}
+		return $sortorder;
 	}
 
 }

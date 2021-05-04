@@ -480,7 +480,7 @@ function sortByMultilingual($dbresult, $field, $descending) {
 	foreach ($dbresult as $key => $row) {
 		$temp[$key] = get_language_string($row[$field]);
 	}
-	natcasesort($temp);
+	sortArray($temp);
 	if ($descending) {
 		$temp = array_reverse($temp, true);
 	}
@@ -1284,7 +1284,7 @@ function readTags($id, $tbl) {
 		}
 		db_free_result($result);
 	}
-	natcasesort($tags);
+	sortArray($tags);
 	return $tags;
 }
 
@@ -1301,18 +1301,18 @@ function generateListFromArray($currentValue, $list, $descending, $localize) {
 		$list = array_flip($list);
 		if (!is_null($descending)) {
 			if ($descending) {
-				arsort($list);
+				sortArray($list, true); 
 			} else {
-				natcasesort($list);
+				sortArray($list); 
 			}
 		}
 		$list = array_flip($list);
 	} else {
 		if (!is_null($descending)) {
 			if ($descending) {
-				rsort($list);
+				sortArray($list, true); 
 			} else {
-				natcasesort($list);
+				sortArray($list); 
 			}
 		}
 	}
@@ -1322,10 +1322,11 @@ function generateListFromArray($currentValue, $list, $descending, $localize) {
 		if (in_array($item, $currentValue)) {
 			echo ' selected="selected"';
 		}
-		if ($localize)
+		if ($localize) {
 			$display = $key;
-		else
+		} else {
 			$display = $item;
+		}
 		echo '>' . $display . "</option>" . "\n";
 	}
 }
@@ -1540,7 +1541,7 @@ function sortMultiArray($array, $index, $descending = false, $natsort = true, $c
 			}
 			$temp[$key] .= $key;
 		}
-		$temp = sortArray($temp, $descending, $natsort, $case_sensitive);
+		sortArray($temp, $descending, $natsort, $case_sensitive);
 		foreach (array_keys($temp) as $key) {
 			if (!$preservekeys && is_numeric($key)) {
 				$sorted[] = $array[$key];
@@ -1559,30 +1560,33 @@ function sortMultiArray($array, $index, $descending = false, $natsort = true, $c
  * If the system's PHP has the native intl extension and its Collator class available and $natsort is set to true
  * the sorting is locale sensitive (true natural order).
  * 
+ * The function follows native PHP array sorting functions (natcasesort() etc.) and uses the array by reference and returns true or false on success or failure.
+ * 
  * @since ZenphotoCMS 1.5.8
  * 
- * @param array $array The array to sort
- * @param string  $descending true for descending sorts
- * @param bool $natsort If natural order should be used. If available sorting will be locale sensitive.
- * @param bool $case_sensitive If the sort should be case sensitive. Note if $natsort is true and locale aware sorting is available sorting is always case sensitive
- * @return array
+ * @param array $array The array to sort. The array is passed by reference
+ * @param string  $descending true for descending sorts (default false)
+ * @param bool $natsort If natural order should be used (default true). If available sorting will be locale sensitive. 
+ * @param bool $case_sensitive If the sort should be case sensitive (default false). Note if $natsort is true and locale aware sorting is available sorting is always case sensitive
+ * @return boolean
  */
-function sortArray($array, $descending = false, $natsort = true, $case_sensitive = false) {
+function sortArray(&$array, $descending = false, $natsort = true, $case_sensitive = false) {
+	$success = false;
 	if (is_array($array) && count($array) > 0) {
 		if ($natsort) {
 			if (class_exists('collator')) {
 				$locale = getUserLocale();
 				$collator = new Collator($locale);
-				if($case_sensitive) {
+				if ($case_sensitive) {
 					$collator->setAttribute(Collator::CASE_FIRST, Collator::UPPER_FIRST);
 				}
 				$collator->setAttribute(Collator::NUMERIC_COLLATION, Collator::ON);
-				$collator->asort($array);
+				$success = $collator->asort($array);
 			} else {
 				if ($case_sensitive) {
-					natsort($array);
+					$success = natsort($array);
 				} else {
-					natcasesort($array);
+					$success = natcasesort($array);
 				}
 			}
 			if ($descending) {
@@ -1590,13 +1594,13 @@ function sortArray($array, $descending = false, $natsort = true, $case_sensitive
 			}
 		} else {
 			if ($descending) {
-				arsort($array);
+				$success = arsort($array);
 			} else {
-				asort($array);
+				$success = asort($array);
 			}
 		}
 	}
-	return $array;
+	return $success;
 }
 
 /**
