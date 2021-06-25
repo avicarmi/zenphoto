@@ -158,7 +158,12 @@ if (!isset($_zp_conf_vars['special_pages'])) {
 	addMissingDefaultRewriteTokens();
 }
 
-define('DATABASE_PREFIX', $_zp_conf_vars['mysql_prefix']);
+$mysql_prefix = '';
+if (isset($_zp_conf_vars['mysql_prefix'])) {
+	$mysql_prefix = $_zp_conf_vars['mysql_prefix'];
+}
+define('DATABASE_PREFIX', $mysql_prefix);
+
 
 $_zp_mutex = new zpMutex();
 
@@ -1729,8 +1734,10 @@ function getDefaultRewriteTokens($token = null) {
 		$i = strpos($zp_cfg, "\$conf['special_pages']");
 		$j = strpos($zp_cfg, '//', $i);
 		eval(substr($zp_cfg, $i, $j - $i));
-		$_zp_default_rewritetokens = $conf['special_pages'];
-		unset($conf);
+		if (isset($conf['special_pages'])) {
+			$_zp_default_rewritetokens = $conf['special_pages'];
+			unset($conf);
+		}
 	}
 	if(isset($_zp_default_rewritetokens[$token])) {
 		return $_zp_default_rewritetokens[$token];

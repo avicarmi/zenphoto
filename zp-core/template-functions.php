@@ -1701,16 +1701,22 @@ function printAlbumData($field, $label = '') {
  */
 function getAlbumPage($album = NULL) {
 	global $_zp_current_album, $_zp_current_image, $_zp_current_search, $_firstPageImages;
-	if (is_null($album))
+	if (is_null($album)) {
 		$album = $_zp_current_album;
+	}
+	$use_realalbum = false;
+	if (!$album->isDynamic()) {
+		$use_realalbum = true;
+	} 
 	$page = 0;
 	if (in_context(ZP_IMAGE) && !in_context(ZP_SEARCH)) {
-		$imageindex = $_zp_current_image->getIndex();
+		$imageindex = $_zp_current_image->getIndex($use_realalbum);
 		$numalbums = $album->getNumAlbums();
 		$imagepage = floor(($imageindex - $_firstPageImages) / max(1, getOption('images_per_page'))) + 1;
 		$albumpages = ceil($numalbums / max(1, getOption('albums_per_page')));
-		if ($albumpages == 0 && $_firstPageImages > 0)
+		if ($albumpages == 0 && $_firstPageImages > 0) {
 			$imagepage++;
+		}
 		$page = $albumpages + $imagepage;
 	}
 	return $page;
@@ -3159,13 +3165,27 @@ function getSizedImageURL($size) {
  * $size=NULL, $width=200, $height=NULL, $cropw=180, $croph=120, $cropx=NULL, $cropy=NULL
  * will produce an image that is 200x133 from a 1.5x1 crop that is 5% from the left
  * and 15% from the top of the image.
- *
+ * 
+  * @param int $size the size of the image to have
+ * @param int $width width
+ * @param int $height height
+ * @param int $cropw crop width
+ * @param int $croph crop height
+ * @param int $cropx crop part x axis
+ * @param int $cropy crop part y axis
+ * @param bool $thumbStandin set true to inhibit watermarking
+ * @param bool $effects image effects (e.g. set gray to force to grayscale)
+ * @param obj $image optional image object, null means current image
  */
-function getCustomImageURL($size, $width = NULL, $height = NULL, $cropw = NULL, $croph = NULL, $cropx = NULL, $cropy = NULL, $thumbStandin = false, $effects = NULL) {
+function getCustomImageURL($size, $width = NULL, $height = NULL, $cropw = NULL, $croph = NULL, $cropx = NULL, $cropy = NULL, $thumbStandin = false, $effects = NULL, $image = null) {
 	global $_zp_current_image;
-	if (is_null($_zp_current_image))
+	if (is_null($image)) {
+		$image = $_zp_current_image;
+	}
+	if (is_null($image)) {
 		return false;
-	return $_zp_current_image->getCustomImage($size, $width, $height, $cropw, $croph, $cropx, $cropy, $thumbStandin, $effects);
+	}
+	return $image->getCustomImage($size, $width, $height, $cropw, $croph, $cropx, $cropy, $thumbStandin, $effects);
 }
 
 /**
@@ -3239,9 +3259,9 @@ function printCustomSizedImage($alt, $size, $width = NULL, $height = NULL, $crop
 	}
 	if (isImagePhoto($image) || $thumbStandin) {
 		if ($maxspace) {
-			$attr['src'] = html_pathurlencode(getCustomImageURL(null, $width, $height, NULL, NULL, NULL, NULL, $thumbStandin, $effects, null, $image));
+			$attr['src'] = html_pathurlencode($image->getCustomImage(null, $width, $height, NULL, NULL, NULL, NULL, $thumbStandin, $effects));
 		} else {
-			$attr['src'] = html_pathurlencode(getCustomImageURL($size, $width, $height, $cropw, $croph, $cropx, $cropy, $thumbStandin, $effects, null, $image));
+			$attr['src'] = html_pathurlencode($image->getCustomImage($size, $width, $height, $cropw, $croph, $cropx, $cropy, $thumbStandin, $effects));
 		}
 		$attr_filtered = zp_apply_filter('custom_image_attr', $attr, $image);
 		$attributes = generateAttributesFromArray($attr_filtered);
