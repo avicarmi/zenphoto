@@ -29,8 +29,8 @@ class ThemeOptions {
 		setThemeOption('thumb_use_side', 'longest', NULL, 'zenpagerhea');
 		setThemeOptionDefault('thumb_crop_width', 200);
 		setThemeOptionDefault('thumb_crop_height', 200);
-		setThemeOptionDefault('thumb_crop', 1);
-		setThemeOptionDefault('thumb_transition', 1);
+		setThemeOptionDefault('thumb_crop', 0);
+		setThemeOptionDefault('thumb_transition', 0);
 		setOptionDefault('colorbox_' . $me . '_album', 1);
 		setOptionDefault('colorbox_' . $me . '_image', 1);
 		setOptionDefault('colorbox_' . $me . '_search', 1);
