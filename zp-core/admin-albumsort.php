@@ -206,6 +206,8 @@ echo "\n</head>";
 							}
 							?>
 						</ul>
+</div> <!-- AVI CUSTOM -->
+
 						<br class="clearall" />
 
 						<div>
