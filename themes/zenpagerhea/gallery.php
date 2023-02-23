@@ -31,7 +31,7 @@ if (!defined('WEBPATH'))
 			<div id="content">
 
 				<div id="breadcrumb">
-					<h2 style="height:22px;">Home</h2>
+					<h2 style="height:22px;">Home <?php printCurrentPageAppendix();?></h2>
 				</div>
 				<div id="content-left">
 					<?php

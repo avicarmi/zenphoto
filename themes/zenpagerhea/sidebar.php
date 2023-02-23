@@ -41,4 +41,4 @@ if (getOption("zenpage_contactpage") && extensionEnabled('contact_form')) {
 	<?php
 }
 ?>
-<?php @call_user_func('printLanguageSelector'); ?>
+<?php callUserFunction('printLanguageSelector'); ?>

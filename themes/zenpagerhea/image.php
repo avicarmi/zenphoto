@@ -12,8 +12,7 @@ if (!defined('WEBPATH'))
 		<?php printHeadTitle(); ?>
 		<link rel="stylesheet" href="<?php echo $_zp_themeroot; ?>/style.css" type="text/css" />
 		<?php if (zp_has_filter('theme_head', 'colorbox::css')) { ?>
-			<script type="text/javascript">
-				// <!-- <![CDATA[
+			<script>
 				$(document).ready(function () {
 					$("a.thickbox").colorbox({
 						maxWidth: "98%",
@@ -25,7 +24,6 @@ if (!defined('WEBPATH'))
 						}
 					});
 				});
-				// ]]> -->
 			</script>
 		<?php } ?>
 		<?php if (class_exists('RSS')) printRSSHeaderLink('Album', getAlbumTitle()); ?>
@@ -57,7 +55,7 @@ if (!defined('WEBPATH'))
 					if (function_exists('printThumbNav')) {
 						printThumbNav(3, 6, 50, 50, 50, 50, FALSE);
 					} else {
-						@call_user_func('printPagedThumbsNav', 6, FALSE, gettext('« prev thumbs'), gettext('next thumbs »'), 40, 40);
+						callUserFunction('printPagedThumbsNav', 6, FALSE, gettext('« prev thumbs'), gettext('next thumbs »'), 40, 40);
 					}
 					?>
 
@@ -71,12 +69,12 @@ if (!defined('WEBPATH'))
 
 					<div id="image">
 						<?php
-						if (getOption("Use_thickbox") && !isImageVideo()) {
+						if (getOption("Use_thickbox") && !$_zp_current_image->isVideo()) {
 							$boxclass = " class=\"thickbox\"";
 						} else {
 							$boxclass = "";
 						}
-						if (isImagePhoto()) {
+						if ($_zp_current_image->isPhoto()) {
 							$tburl = getFullImageURL();
 						} else {
 							$tburl = NULL;
