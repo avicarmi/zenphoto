@@ -3,8 +3,7 @@
  * zenpage admin-news-articles.php
  *
  * @author Malte Müller (acrylian)
- * @package plugins
- * @subpackage zenpage
+ * @package zpcore\plugins\zenpage
  */
 define("OFFSET_PATH", 4);
 require_once(dirname(dirname(dirname(__FILE__))) . '/admin-globals.php');
@@ -69,8 +68,7 @@ zenpageJSCSS();
 datepickerJS();
 ?>
 
-<script type="text/javascript">
-	//<!-- <![CDATA[
+<script>
 	var deleteArticle = "<?php echo gettext("Are you sure you want to delete this article? THIS CANNOT BE UNDONE!"); ?>";
 	function confirmAction() {
 		if ($('#checkallaction').val() == 'deleteall') {
@@ -79,7 +77,6 @@ datepickerJS();
 			return true;
 		}
 	}
-	// ]]> -->
 </script>
 </head>
 <body>
@@ -175,16 +172,16 @@ datepickerJS();
 						}
 					}
 					// Basic setup for the global for the current admin page first
-					if (!isset($_GET['subpage'])) {
-						$subpage = 0;
+					if (!isset($_GET['pagenumber'])) {
+						$pagenumber = 0;
 					} else {
-						$subpage = sanitize_numeric($_GET['subpage']);
+						$pagenumber = sanitize_numeric($_GET['pagenumber']);
 					}
 					if ($articles_page) {
 						$total = ceil($articles / $articles_page);
 						//Needed check if we really have articles for page x or not otherwise we are just on page 1
-						if ($total <= $subpage) {
-							$subpage = 0;
+						if ($total <= $pagenumber) {
+							$pagenumber = 0;
 						}
 						$offset = Zenpage::getOffset($articles_page);
 						$list = array();
@@ -206,10 +203,10 @@ datepickerJS();
         <div class="news-dropdowns floatright">
 					<?php
 					printCategoryDropdown();
-					printArticleDatesDropdown($subpage);
+					printArticleDatesDropdown($pagenumber);
 					printUnpublishedDropdown();
 					printSortOrderDropdown();
-					printArticlesPerPageDropdown($subpage, $articles_page);
+					printArticlesPerPageDropdown($pagenumber, $articles_page);
 					printAuthorDropdown();
 					?>
           <span class="buttons">
@@ -231,7 +228,7 @@ datepickerJS();
           <table class="bordered">
             <tr>
               <th colspan="12" id="imagenav">
-								<?php printPageSelector($subpage, $rangeset, PLUGIN_FOLDER . '/zenpage/admin-news-articles.php', $options); ?>
+								<?php printPageSelector($pagenumber, $rangeset, PLUGIN_FOLDER . '/zenpage/admin-news-articles.php', $options); ?>
               </th>
             </tr>
             <tr>
@@ -289,7 +286,7 @@ datepickerJS();
 									}
 
 									if (checkIfLockedNews($article)) {
-										echo '<a href="admin-edit.php' . getNewsAdminOptionPath(array_merge(array('newsarticle' => NULL, 'titlelink' => urlencode($article->getTitlelink())), getNewsAdminOption(array('category' => 0, 'date' => 0, 'published' => 0, 'sortorder' => 0, 'articles_page' => 1, 'subpage' => 1)))) . '">';
+										echo '<a href="admin-edit.php' . getNewsAdminOptionPath(array_merge(array('newsarticle' => NULL, 'titlelink' => urlencode($article->getName())), getNewsAdminOption(array('category' => 0, 'date' => 0, 'published' => 0, 'sortorder' => 0, 'articles_page' => 1, 'subpage' => 1)))) . '">';
 										checkForEmptyTitle($article->getTitle(), "news");
 										echo '</a>' . checkHitcounterDisplay($article->getHitcounter()) . $sticky;
 									} else {
@@ -337,7 +334,7 @@ datepickerJS();
 
 											?>
 											<a href="<?php echo $option.$divider; ?>commentson=0&amp;titlelink=<?php
-											echo html_encode($article->getTitlelink());
+											echo html_encode($article->getName());
 											?>&amp;XSRFToken=<?php echo getXSRFToken('update') ?>" title="<?php echo gettext('Disable comments'); ?>">
 												<img src="../../images/comments-on.png" alt="" title="<?php echo gettext("Comments on"); ?>" style="border: 0px;"/>
 											</a>
@@ -345,7 +342,7 @@ datepickerJS();
 										} else {
 											?>
 											<a href="<?php echo $option.$divider; ?>commentson=1&amp;titlelink=<?php
-											echo html_encode($article->getTitlelink());
+											echo html_encode($article->getName());
 											?>&amp;XSRFToken=<?php echo getXSRFToken('update') ?>" title="<?php echo gettext('Enable comments'); ?>">
 												<img src="../../images/comments-off.png" alt="" title="<?php echo gettext("Comments off"); ?>" style="border: 0px;"/>
 											</a>
@@ -367,7 +364,7 @@ datepickerJS();
 
 								<td class="page-list_icon">
 									<a target="_blank" href="../../../index.php?p=news&amp;title=<?php
-									echo $article->getTitlelink();
+									echo $article->getName();
 									?>" title="<?php echo gettext('View article'); ?>">
 										<img src="images/view.png" alt="" title="<?php echo gettext('View article'); ?>" />
 									</a>
@@ -379,7 +376,7 @@ datepickerJS();
 										?>
 										<td class="page-list_icon">
 											<a href="<?php echo $option.$divider; ?>hitcounter=1&amp;titlelink=<?php
-											echo html_encode($article->getTitlelink());
+											echo html_encode($article->getName());
 											?>&amp;XSRFToken=<?php echo getXSRFToken('hitcounter') ?>" title="<?php echo gettext('Reset hitcounter'); ?>">
 												<img src="../../images/reset.png" alt="" title="<?php echo gettext('Reset hitcounter'); ?>" /></a>
 										</td>
@@ -388,13 +385,13 @@ datepickerJS();
 									?>
 									<td class="page-list_icon">
 										<a href="javascript:confirmDelete('admin-news-articles.php?delete=<?php
-										echo $article->getTitlelink();
+										echo $article->getName();
 										echo $option;
 										?>&amp;XSRFToken=<?php echo getXSRFToken('delete') ?>','<?php echo js_encode(gettext('Are you sure you want to delete this article? THIS CANNOT BE UNDONE!')); ?>')" title="<?php echo gettext('Delete article'); ?>">
 											<img src="../../images/fail.png" alt="" title="<?php echo gettext('Delete article'); ?>" /></a>
 									</td>
 									<td class="page-list_icon">
-										<input type="checkbox" name="ids[]" value="<?php echo $article->getTitlelink(); ?>" onclick="triggerAllBox(this.form, 'ids[]', this.form.allbox);" />
+										<input type="checkbox" name="ids[]" value="<?php echo $article->getName(); ?>" onclick="triggerAllBox(this.form, 'ids[]', this.form.allbox);" />
 									</td>
 								<?php } else { ?>
 									<td class="page-list_icon">
@@ -414,7 +411,7 @@ datepickerJS();
 						}
 						?>
             <tr>
-              <td id="imagenavb" colspan="11"><?php printPageSelector($subpage, $rangeset, PLUGIN_FOLDER . '/zenpage/admin-news-articles.php', $options); ?>	</td>
+              <td id="imagenavb" colspan="11"><?php printPageSelector($pagenumber, $rangeset, PLUGIN_FOLDER . '/zenpage/admin-news-articles.php', $options); ?>	</td>
             </tr>
           </table>
 

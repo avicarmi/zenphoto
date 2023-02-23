@@ -42,7 +42,7 @@ $map = function_exists('printGoogleMap');
 							<div class="left-corner"><!-- begin content -->
 								<div class="main section" id="main">
 									<h2 id="gallerytitle">
-										<?php printHomeLink('', ' » '); printGalleryIndexURL(' » '); printParentBreadcrumb("", " » ", " » "); echo html_encode(getAlbumTitle()); ?>
+										<?php printHomeLink('', ' » '); printGalleryIndexURL(' » '); printParentBreadcrumb("", " » ", " » "); echo html_encode(getAlbumTitle()); printCurrentPageAppendix(); ?>
 									</h2>
 									<?php printAlbumDesc(); ?>
 									<?php printCodeblock(1); ?>
@@ -73,14 +73,14 @@ $map = function_exists('printGoogleMap');
 									<p style="clear: both; "></p>
 									<?php $handler->theme_content($map); ?>
 									<?php
-									if ((getNumAlbums() != 0) || !$_oneImagePage) {
-										printPageListWithNav(gettext("« prev"), gettext("next »"), $_oneImagePage);
+									if ((getNumAlbums() != 0) || !$_zp_one_image_page) {
+										printPageListWithNav(gettext("« prev"), gettext("next »"), $_zp_one_image_page);
 									}
-									@call_user_func('printOpenStreetMap');
+									callUserFunction('openStreetMap::printOpenStreetMap');
 									if (function_exists('printAddToFavorites'))
 										printAddToFavorites($_zp_current_album);
-									@call_user_func('printRating');
-									@call_user_func('printCommentForm');
+									callUserFunction('printRating');
+									callUserFunction('printCommentForm');
 									printCodeblock(2);
 									footer();
 									?>

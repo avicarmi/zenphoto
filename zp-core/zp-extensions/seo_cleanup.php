@@ -8,8 +8,7 @@
  * Note: Clicking the button causes this process to execute. There is no <i>undo</i>.
  *
  * @author Stephen Billard (sbillard)
- * @package plugins
- * @subpackage seo-cleanup
+ * @package zpcore\plugins\seocleanup
  */
 if (defined('OFFSET_PATH')) {
 	$plugin_is_filter = 5 | ADMIN_PLUGIN;
@@ -88,7 +87,7 @@ if (defined('OFFSET_PATH')) {
 				printf(gettext('<em>%1$s</em> renamed to <em>%2$s</em>'), $subalbum, $newname);
 				echo "<br />\n";
 				$albumcount++;
-				$obj = newAlbum($newname);
+				$obj = AlbumBase::newAlbum($newname);
 				removeDir(SERVERCACHE . '/' . $subalbum);
 				if (extensionEnabled('static_html_cache')) {
 					Gallery::clearCache(SERVERPATH . '/' . STATIC_CACHE_FOLDER);
@@ -104,7 +103,7 @@ if (defined('OFFSET_PATH')) {
 		global $count, $albumcount, $_zp_current_admin_obj;
 		$subalbums = $album->getAlbums(0);
 		foreach ($subalbums as $subalbum) {
-			$obj = newAlbum($subalbum);
+			$obj = AlbumBase::newAlbum($subalbum);
 			cleanAlbum($obj);
 		}
 		$folder = $album->name . '/';
@@ -112,7 +111,7 @@ if (defined('OFFSET_PATH')) {
 		foreach ($files as $filename) {
 			$seoname = seoFriendly($filename);
 			if (stripSuffix($seoname) != stripSuffix($filename)) {
-				$image = newImage($album, $filename);
+				$image = Image::newImage($album, $filename);
 				if ($e = $image->rename($seoname)) {
 					$error = getE($e, $filename, $seoname);
 					printf(gettext('<em>%1$s</em> rename to <em>%2$s</em> failed: %3$s'), $folder . $filename, $seoname, $error);
@@ -139,7 +138,7 @@ if (defined('OFFSET_PATH')) {
 
 	$_zp_gallery->garbageCollect();
 
-	$zenphoto_tabs['overview']['subtabs'] = array(gettext('SEO cleaner') => FULLWEBPATH . '/' . ZENFOLDER . '/' . PLUGIN_FOLDER . '/seo_cleanup.php?XSRFToken=' . getXSRFToken('seo_cleanup'));
+	$_zp_admin_menu['overview']['subtabs'] = array(gettext('SEO cleaner') => FULLWEBPATH . '/' . ZENFOLDER . '/' . PLUGIN_FOLDER . '/seo_cleanup.php?XSRFToken=' . getXSRFToken('seo_cleanup'));
 	printAdminHeader('overview', 'SEO cleaner');
 
 	if (isset($_GET['todo'])) {
@@ -167,7 +166,7 @@ if (defined('OFFSET_PATH')) {
 					<h1><?php echo gettext('Cleanup album and image names to be SEO friendly'); ?></h1>
 					<?php
 					foreach ($albums as $album) {
-						$obj = newAlbum($album);
+						$obj = AlbumBase::newAlbum($album);
 						cleanAlbum($obj);
 					}
 					if ($albumcount || $count) {

@@ -3,8 +3,7 @@
  * zenpage admin-edit.php
  *
  * @author Malte Müller (acrylian)
- * @package plugins
- * @subpackage zenpage
+ * @package zpcore\plugins\zenpage
  */
 define("OFFSET_PATH", 4);
 require_once(dirname(dirname(dirname(__FILE__))) . '/admin-globals.php');
@@ -117,7 +116,7 @@ if (is_AdminEditPage('newscategory')) {
 		$result = updateCategory($reports);
 	} else {
 		$result = new ZenpageCategory('');
-		$result->setShow(1);
+		$result->setPublished(1);
 	}
 }
 
@@ -127,8 +126,7 @@ zenpageJSCSS();
 datepickerJS();
 codeblocktabsJS();
 ?>
-<script type="text/javascript">
-	//<!-- <![CDATA[
+<script>
 	var deleteArticle = "<?php echo gettext("Are you sure you want to delete this article? THIS CANNOT BE UNDONE!"); ?>";
 	var deletePage = "<?php echo gettext("Are you sure you want to delete this page? THIS CANNOT BE UNDONE!"); ?>";
 	var deleteCategory = "<?php echo gettext("Are you sure you want to delete this category? THIS CANNOT BE UNDONE!"); ?>";
@@ -163,9 +161,8 @@ if (!isset($_GET['add'])) { // prevent showing the message when adding page or a
 	<?php
 }
 ?>
-	// ]]> -->
 </script>
-<?php Zenphoto_Authority::printPasswordFormJS(); ?>
+<?php Authority::printPasswordFormJS(); ?>
 </head>
 <body>
 	<?php
@@ -185,7 +182,7 @@ if (!isset($_GET['add'])) { // prevent showing the message when adding page or a
 			$saveitem = $updateitem = gettext('Apply');
 			if (is_AdminEditPage('newsarticle')) {
 				if (!empty($page)) {
-					$zenphoto_tabs['news']['subtabs'][gettext('articles')] .= $page;
+					$_zp_admin_menu['news']['subtabs'][gettext('articles')] .= $page;
 				}
 				$subtab = printSubtabs();
 				?>
@@ -297,7 +294,7 @@ if (!isset($_GET['add'])) { // prevent showing the message when adding page or a
 								}
 								?>
 								<input type="hidden" name="id" value="<?php echo $result->getID(); ?>" />
-								<input type="hidden" name="titlelink-old" id="titlelink-old" value="<?php echo html_encode($result->getTitlelink()); ?>" />
+								<input type="hidden" name="titlelink-old" id="titlelink-old" value="<?php echo html_encode($result->getName()); ?>" />
 								<input type="hidden" name="hitcounter" id="hitcounter" value="<?php echo $result->getHitcounter(); ?>" />
 								<?php
 								if (is_AdminEditPage("newsarticle")) {
@@ -357,9 +354,9 @@ if (!isset($_GET['add'])) { // prevent showing the message when adding page or a
 										if (!$result->transient) {
 											if (is_AdminEditPage("newscategory")) {
 												?>
-												<a href="../../../index.php?p=<?php echo $themepage; ?>&amp;category=<?php echo $result->getTitlelink(); ?>" title="<?php echo gettext("View"); ?>"><img src="images/view.png" alt="" /><?php echo gettext("View"); ?></a>
+												<a href="../../../index.php?p=<?php echo $themepage; ?>&amp;category=<?php echo $result->getName(); ?>" title="<?php echo gettext("View"); ?>"><img src="images/view.png" alt="" /><?php echo gettext("View"); ?></a>
 											<?php } else { ?>
-												<a href="../../../index.php?p=<?php echo $themepage; ?>&amp;title=<?php echo $result->getTitlelink(); ?>" title="<?php echo gettext("View"); ?>"><img src="images/view.png" alt="" /><?php echo gettext("View"); ?></a>
+												<a href="../../../index.php?p=<?php echo $themepage; ?>&amp;title=<?php echo $result->getName(); ?>" title="<?php echo gettext("View"); ?>"><img src="images/view.png" alt="" /><?php echo gettext("View"); ?></a>
 												<?php
 											}
 										}
@@ -577,8 +574,7 @@ if (!isset($_GET['add'])) { // prevent showing the message when adding page or a
 													<div class="box-edit">
 														<p>
 
-															<script type="text/javascript">
-																// <!-- <![CDATA[
+															<script>
 																$(function() {
 																	$("#date").datepicker({
 																		dateFormat: 'yy-mm-dd',
@@ -588,7 +584,6 @@ if (!isset($_GET['add'])) { // prevent showing the message when adding page or a
 																		buttonImageOnly: true
 																	});
 																});
-																// ]]> -->
 															</script>
 															<?php
 															$date = $result->getDatetime();
@@ -605,8 +600,7 @@ if (!isset($_GET['add'])) { // prevent showing the message when adding page or a
 														</p>
 														<hr />
 														<p>
-															<script type="text/javascript">
-																// <!-- <![CDATA[
+															<script>
 																$(function() {
 																	$("#expiredate").datepicker({
 																		dateFormat: 'yy-mm-dd',
@@ -616,7 +610,6 @@ if (!isset($_GET['add'])) { // prevent showing the message when adding page or a
 																		buttonImageOnly: true
 																	});
 																});
-																// ]]> -->
 															</script>
 
 															<?php
@@ -730,7 +723,7 @@ if (!isset($_GET['add'])) { // prevent showing the message when adding page or a
 													echo gettext("A search engine friendly <em>titlelink</em> (aka slug) without special characters to be used in URLs is generated from the title of the currently chosen language automatically. You can edit it manually later after saving if necessary.");
 												} else {
 													?>
-													<input name="titlelink" type="text" size="92" id="titlelink" value="<?php echo $result->getTitlelink(); ?>" disabled="disabled" />
+													<input name="titlelink" type="text" size="92" id="titlelink" value="<?php echo $result->getName(); ?>" disabled="disabled" />
 													<?php
 												}
 												?>
@@ -817,11 +810,11 @@ if (!isset($_GET['add'])) { // prevent showing the message when adding page or a
 											if (!$result->transient) {
 												if (is_AdminEditPage("newscategory")) {
 													?>
-													<a href="../../../index.php?p=<?php echo $themepage; ?>&amp;category=<?php echo $result->getTitlelink(); ?>" title="<?php echo gettext("View"); ?>"><img src="images/view.png" alt="" /><?php echo gettext("View"); ?></a>
+													<a href="../../../index.php?p=<?php echo $themepage; ?>&amp;category=<?php echo $result->getName(); ?>" title="<?php echo gettext("View"); ?>"><img src="images/view.png" alt="" /><?php echo gettext("View"); ?></a>
 													<?php
 												} else {
 													?>
-													<a href="../../../index.php?p=<?php echo $themepage; ?>&amp;title=<?php echo $result->getTitlelink(); ?>" title="<?php echo gettext("View"); ?>"><img src="images/view.png" alt="" /><?php echo gettext("View"); ?></a>
+													<a href="../../../index.php?p=<?php echo $themepage; ?>&amp;title=<?php echo $result->getName(); ?>" title="<?php echo gettext("View"); ?>"><img src="images/view.png" alt="" /><?php echo gettext("View"); ?></a>
 													<?php
 												}
 											}

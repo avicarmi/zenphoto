@@ -3,7 +3,7 @@
 	<p><?php echo gettext("Fill in the information below and <strong>setup</strong> will attempt to update your configuration file."); ?><br />
 	</p>
 	<form action="" method="post"><input type="hidden" name="db" value="yes" />
-		<input type="hidden" name="xsrfToken" value="<?php echo $_zp_setup_xsrftoken; ?>" />
+		<input type="hidden" name="xsrfToken" value="<?php echo setup::getXSRFToken(); ?>" />
 		<?php
 		if ($_zp_setup_debug) {
 			?>
@@ -11,7 +11,7 @@
 			<?php
 		}
 		?>
-	<script type="text/javascript">
+	<script>
 		function showFields() {
 			switch ($('#dbselect').val()) {
 			<?php

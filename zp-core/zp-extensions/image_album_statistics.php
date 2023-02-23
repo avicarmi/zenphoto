@@ -8,8 +8,7 @@
  * <b>CAUTION:</b> The way to get a specific album has changed. You now have to pass the foldername of an album instead the album title.
  *
  * @author Malte Müller (acrylian), Stephen Billard (sbillard), gjr
- * @package plugins
- * @subpackage image-album-statistiscs
+ * @package zpcore\plugins\imagealbumstatistiscs
  */
 $plugin_description = gettext("Functions that provide various statistics about images and albums in the gallery.");
 $plugin_author = "Malte Müller (acrylian), Stephen Billard (sbillard), gjr";
@@ -36,10 +35,10 @@ require_once(dirname(dirname(__FILE__)) . '/template-functions.php');
  * @param bool $collection only if $albumfolder is set: true if you want to get statistics to include all subalbum levels
  * @return array
  */
-function getAlbumStatistic($number = 5, $option, $albumfolder = '', $threshold = 0, $sortdirection = 'desc', $collection = false) {
-  global $_zp_gallery;
+function getAlbumStatistic($number = 5, $option = '', $albumfolder = '', $threshold = 0, $sortdirection = 'desc', $collection = false) {
+  global $_zp_gallery, $_zp_db;
   if ($albumfolder) {
-    $obj = newAlbum($albumfolder);
+    $obj = AlbumBase::newAlbum($albumfolder);
     $albumWhere = ' WHERE parentid = ' . $obj->getID();
     if ($collection) {
       $albumWhere = '';
@@ -114,7 +113,7 @@ function getAlbumStatistic($number = 5, $option, $albumfolder = '', $threshold =
   if ($obj->table == 'albums' && $obj->isDynamic()) {
     $albums = $obj->getAlbums(0, $sortorder, $sortdir);
     foreach ($albums as $album) {
-      $album = newAlbum($album);
+      $album = AlbumBase::newAlbum($album);
       if ($album->checkAccess() && ($album->isPublic() || zp_loggedin(VIEW_UNPUBLISHED_RIGHTS))) {
         $albumArray[] = $album;
         if (count($albumArray) >= $number) { // got enough
@@ -123,9 +122,9 @@ function getAlbumStatistic($number = 5, $option, $albumfolder = '', $threshold =
       }
     }
   } else {
-    $result = query("SELECT id, title, folder, thumb FROM " . prefix('albums') . $albumWhere . " ORDER BY " . $sortorder . " " . $sortdir);
-    while ($row = db_fetch_assoc($result)) {
-      $album = newAlbum($row['folder'], true, true);
+    $result = $_zp_db->query("SELECT id, title, folder, thumb FROM " . $_zp_db->prefix('albums') . $albumWhere . " ORDER BY " . $sortorder . " " . $sortdir);
+    while ($row = $_zp_db->fetchAssoc($result)) {
+      $album = AlbumBase::newAlbum($row['folder'], true, true);
       if ($album->exists && $album->checkAccess() && ($album->isPublic() || zp_loggedin(VIEW_UNPUBLISHED_RIGHTS))) {
         //actually we only use "folder" but keep for backward compatibility in case someone uses those for now …
         $albumArray[] = $album;
@@ -134,7 +133,7 @@ function getAlbumStatistic($number = 5, $option, $albumfolder = '', $threshold =
         }
       }
     }
-    db_free_result($result);
+    $_zp_db->freeResult($result);
   }
   return $albumArray;
 }
@@ -208,7 +207,7 @@ function printAlbumStatistic($number, $option, $showtitle = false, $showdate = f
  * @param bool $collection only if $albumfolder is set: true if you want to get statistics to include all subalbum levels
  */
 function printAlbumStatisticItem($album, $option, $showtitle = false, $showdate = false, $showdesc = false, $desclength = 40, $showstatistic = '', $width = NULL, $height = NULL, $crop = NULL, $firstimglink = false) {
-	global $_zp_gallery;
+	global $_zp_gallery, $_zp_db;
 	$twidth = $width;
 	$theight = $height;
 	if (is_null($crop) && is_null($width) && is_null($height)) {
@@ -280,9 +279,9 @@ function printAlbumStatisticItem($album, $option, $showtitle = false, $showdate 
 		if ($option === "latestupdated") {
 			$filechangedate = strtotime($tempalbum->getUpdatedDate());
 			echo "<p>" . sprintf(gettext("Last update: %s"), zpFormattedDate(DATE_FORMAT, $filechangedate)) . "</p>";
-			$latestimage = query_single_row("SELECT mtime FROM " . prefix('images') . " WHERE albumid = " . $tempalbum->getID() . " AND `show` = 1 ORDER BY id DESC");
+			$latestimage = $_zp_db->querySingleRow("SELECT mtime FROM " . $_zp_db->prefix('images') . " WHERE albumid = " . $tempalbum->getID() . " AND `show` = 1 ORDER BY id DESC");
 			if ($latestimage) {
-				$count = db_count('images', "WHERE albumid = " . $tempalbum->getID() . " AND mtime = " . $latestimage['mtime']);
+				$count = $_zp_db->count('images', "WHERE albumid = " . $tempalbum->getID() . " AND mtime = " . $latestimage['mtime']);
 				if ($count <= 1) {
 					$image = gettext("image");
 				} else {
@@ -332,12 +331,12 @@ function printAlbumStatisticItem($album, $option, $showtitle = false, $showdate 
  * @param string $albumfolder foldername of an specific album
  * @param bool $collection only if $albumfolder is set: true if you want to get statistics from this album and all of its subalbums
  * @param integer $threshold the minimum number of ratings (for rating options) or hits (for popular option) an image must have to be included in the list. (Default 0)
- * @return string
+ * @return array
  */
 function getImageStatistic($number, $option, $albumfolder = '', $collection = false, $threshold = 0, $sortdirection = 'desc') {
-  global $_zp_gallery;
+  global $_zp_gallery, $_zp_db;
   if ($albumfolder) {
-    $obj = newAlbum($albumfolder);
+    $obj = AlbumBase::newAlbum($albumfolder);
     $albumWhere = ' AND albums.id = ' . $obj->getID();
     if ($collection) {
       $albumWhere = '';
@@ -403,7 +402,7 @@ function getImageStatistic($number, $option, $albumfolder = '', $collection = fa
     $sorttype = str_replace('images.', '', $sortorder);
     $images = $obj->getImages(0, 0, $sorttype, $sortdir);
     foreach ($images as $image) {
-      $image = newImage($obj, $image);
+      $image = Image::newImage($obj, $image);
       if ($image->exists && $image->checkAccess() && ($image->isPublic() || zp_loggedin(VIEW_UNPUBLISHED_RIGHTS))) {
         $imageArray[] = $image;
         if (count($imageArray) >= $number) { // got enough
@@ -412,9 +411,9 @@ function getImageStatistic($number, $option, $albumfolder = '', $collection = fa
       }
     }
   } else {
-    $result = query("SELECT images.filename AS filename, albums.folder AS folder FROM " . prefix('images') . " AS images, " . prefix('albums') . " AS albums " . "WHERE (images.albumid = albums.id) " . $albumWhere . " ORDER BY " . $sortorder . " " . $sortdir);
-    while ($row = db_fetch_assoc($result)) {
-      $image = newImage(NULL, $row, true);
+    $result = $_zp_db->query("SELECT images.filename AS filename, albums.folder AS folder FROM " . $_zp_db->prefix('images') . " AS images, " . $_zp_db->prefix('albums') . " AS albums " . "WHERE (images.albumid = albums.id) " . $albumWhere . " ORDER BY " . $sortorder . " " . $sortdir);
+    while ($row = $_zp_db->fetchAssoc($result)) {
+      $image = Image::newImage(NULL, $row, true);
       if ($image->exists && $image->checkAccess() && ($image->isPublic() || zp_loggedin(VIEW_UNPUBLISHED_RIGHTS))) {
         $imageArray[] = $image;
         if (count($imageArray) >= $number) { // got enough
@@ -422,7 +421,7 @@ function getImageStatistic($number, $option, $albumfolder = '', $collection = fa
         }
       }
     }
-    db_free_result($result);
+    $_zp_db->freeResult($result);
   }
   return $imageArray;
 }
@@ -614,9 +613,9 @@ function getPictureOfTheDay($albumfolder = '', $collection = false) {
 	global $_zp_gallery;
 	$potd = getSerializedArray(getOption('picture_of_the_day'));
 	if (date('Y-m-d', $potd['day']) == date('Y-m-d')) {
-		$album = newAlbum($potd['folder'], true, true);
+		$album = AlbumBase::newAlbum($potd['folder'], true, true);
 		if ($album->exists) {
-			$image = newImage($album, $potd['filename'], true);
+			$image = Image::newImage($album, $potd['filename'], true);
 			if ($image->exists) {
 				return $image;
 			}
@@ -624,7 +623,7 @@ function getPictureOfTheDay($albumfolder = '', $collection = false) {
 	}
 	$randomimage = getImageStatistic(1, 'random', $albumfolder, $collection);
 	if ($randomimage) {
-		$potd = array('day' => time(), 'folder' => $randomimage[0]->getAlbumName(), 'filename' => $randomimage[0]->getFileName());
+		$potd = array('day' => time(), 'folder' => $randomimage[0]->getAlbumName(), 'filename' => $randomimage[0]->getName());
 		setThemeOption('picture_of_the_day', serialize($potd), NULL, $_zp_gallery->getCurrentTheme());
 		return $randomimage[0];
 	}

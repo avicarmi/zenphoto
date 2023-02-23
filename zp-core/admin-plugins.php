@@ -1,7 +1,7 @@
 <?php
 /**
  * provides the Plugins tab of admin
- * @package admin
+ * @package zpcore\admin
  */
 // force UTF-8 Ø
 
@@ -11,13 +11,13 @@ require_once(dirname(__FILE__) . '/admin-globals.php');
 admin_securityChecks(NULL, currentRelativeURL());
 
 define('PLUGINS_PER_PAGE', max(1, getOption('plugins_per_page')));
-if (isset($_GET['subpage'])) {
-	$subpage = sanitize_numeric($_GET['subpage']);
+if (isset($_GET['pagenumber'])) {
+	$pagenumber = sanitize_numeric($_GET['pagenumber']);
 } else {
-	if (isset($_POST['subpage'])) {
-		$subpage = sanitize_numeric($_POST['subpage']);
+	if (isset($_POST['pagenumber'])) {
+		$pagenumber = sanitize_numeric($_POST['pagenumber']);
 	} else {
-		$subpage = 0;
+		$pagenumber = 0;
 	}
 }
 
@@ -57,7 +57,7 @@ if (isset($_GET['action'])) {
 		} else {
 			$notify = '&post_error';
 		}
-		redirectURL(FULLWEBPATH . "/" . ZENFOLDER . "/admin-plugins.php?page=plugins&tab=" . html_encode($subtab) . "&subpage=" . html_encode($subpage) . $notify);
+		redirectURL(FULLWEBPATH . "/" . ZENFOLDER . "/admin-plugins.php?page=plugins&tab=" . html_encode($subtab) . "&pagenumber=" . html_encode($pagenumber) . $notify);
 	}
 }
 $saved = isset($_GET['saved']);
@@ -66,9 +66,9 @@ zp_apply_filter('texteditor_config', 'zenphoto');
 
 sortArray($pluginlist);
 $rangeset = getPageSelector($pluginlist, PLUGINS_PER_PAGE);
-$filelist = array_slice($pluginlist, $subpage * PLUGINS_PER_PAGE, PLUGINS_PER_PAGE);
+$filelist = array_slice($pluginlist, $pagenumber * PLUGINS_PER_PAGE, PLUGINS_PER_PAGE);
 ?>
-<script type="text/javascript">
+<script>
 	<!--
 	function toggleDetails(plugin) {
 		toggle(plugin + '_show');
@@ -85,7 +85,7 @@ $filelist = array_slice($pluginlist, $subpage * PLUGINS_PER_PAGE, PLUGINS_PER_PA
 	var pluginsToPage = ['<?php echo implode("','", $pluginlist); ?>'];
 	function gotoPlugin(plugin) {
 		i = Math.floor(jQuery.inArray(plugin, pluginsToPage) / <?php echo PLUGINS_PER_PAGE; ?>);
-		window.location = '<?php echo FULLWEBPATH . '/' . ZENFOLDER; ?>/admin-plugins.php?page=plugins&tab=<?php echo html_encode($subtab); ?>&subpage=' + i + '&show=' + plugin + '#' + plugin;
+		window.location = '<?php echo FULLWEBPATH . '/' . ZENFOLDER; ?>/admin-plugins.php?page=plugins&tab=<?php echo html_encode($subtab); ?>&pagenumber=' + i + '&show=' + plugin + '#' + plugin;
 	}
 //-->
 </script>
@@ -127,14 +127,14 @@ $subtab = printSubtabs();
 		echo sprintf(gettext("Third party plugins are placed in the <code>%s</code> folder and are automatically discovered."), USER_PLUGIN_FOLDER) . ' ';
 		echo gettext("If the plugin checkbox is checked, the plugin will be loaded and its functions made available. If the checkbox is not checked the plugin is disabled and occupies no resources.");
 		?>
-		<a href="http://www.zenphoto.org/news/category/extensions" alt="Zenphoto extensions section"> <?php echo gettext('Find more plugins'); ?></a>
+		<a href="https://www.zenphoto.org/news/category/extensions" alt="Zenphoto extensions section"> <?php echo gettext('Find more plugins'); ?></a>
 	</p>
 	<p class='notebox'><?php echo gettext("<strong>Note:</strong> Support for a particular plugin may be theme dependent! You may need to add the plugin theme functions if the theme does not currently provide support."); ?>
 	</p>
 	<form class="dirty-check" id="form_plugins" action="?action=saveplugins&amp;page=plugins&amp;tab=<?php echo html_encode($subtab); ?>" method="post" autocomplete="off">
 		<?php XSRFToken('saveplugins'); ?>
 		<input type="hidden" name="saveplugins" value="yes" />
-		<input type="hidden" name="subpage" value="<?php echo $subpage; ?>" />
+		<input type="hidden" name="pagenumber" value="<?php echo $pagenumber; ?>" />
 		<p class="buttons">
 			<button type="submit" value="<?php echo gettext('Apply') ?>"><img src="images/pass.png" alt="" /><strong><?php echo gettext("Apply"); ?></strong></button>
 			<button type="reset" value="<?php echo gettext('Reset') ?>"><img src="images/reset.png" alt="" /><strong><?php echo gettext("Reset"); ?></strong></button>
@@ -142,7 +142,7 @@ $subtab = printSubtabs();
 		<table class="bordered options">
 			<tr>
 				<th id="imagenav" colspan="3">
-					<?php printPageSelector($subpage, $rangeset, 'admin-plugins.php', array('page' => 'plugins', 'tab' => $subtab)); ?>
+					<?php printPageSelector($pagenumber, $rangeset, 'admin-plugins.php', array('page' => 'plugins', 'tab' => $subtab)); ?>
 				</th>
 			</tr>
 			<tr>
@@ -183,6 +183,9 @@ $subtab = printSubtabs();
 						$plugin_deprecated = gettext('<strong>Error parsing <em>plugin_deprecated</em> string!</strong>');
 					} else {
 						$plugin_deprecated  = processExtensionVariable($plugin_deprecated);
+						if (is_bool($plugin_deprecated) || empty($plugin_deprecated)) {
+							$plugin_deprecated = gettext('This plugin will be removed in future versions.');
+						}
 					}
 				} 
 				$plugin_notice = '';
@@ -371,9 +374,8 @@ $subtab = printSubtabs();
 					<td colspan="2">
 						<?php
 						echo $plugin_description;
-						
-						if($plugin_deprecated) {
-							echo '<p class="notebox">' . $plugin_deprecated . '</p>';
+						if ($plugin_deprecated) {
+							echo '<p class="warningbox"><strong>' . gettext('Deprecated').  ':</strong> ' . $plugin_deprecated . '</p>';
 						}
 						if ($plugin_disable) {
 							?>
@@ -406,7 +408,7 @@ $subtab = printSubtabs();
 			?>
 			<tr>
 				<td colspan="4" id="imagenavb">
-					<?php printPageSelector($subpage, $rangeset, 'admin-plugins.php', array('page' => 'plugins', 'tab' => $subtab)); ?>
+					<?php printPageSelector($pagenumber, $rangeset, 'admin-plugins.php', array('page' => 'plugins', 'tab' => $subtab)); ?>
 				</td>
 			</tr>
 		</table>

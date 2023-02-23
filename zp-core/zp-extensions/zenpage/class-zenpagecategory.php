@@ -4,8 +4,7 @@
  * zenpage news category class
  *
  * @author Malte Müller (acrylian)
- * @package plugins
- * @subpackage zenpage
+ * @package zpcore\plugins\zenpage\classes
  */
 class ZenpageCategory extends ZenpageRoot {
 
@@ -161,8 +160,13 @@ class ZenpageCategory extends ZenpageRoot {
 		$this->set('password', $pwd);
 	}
 
-	function getPasswordHint() {
-		return $this->get('password_hint');
+	function getPasswordHint($locale = NULL) {
+		$text = $this->get('password_hint');
+		if ($locale !== 'all') {
+			$text = get_language_string($text, $locale);
+		}
+		$text = unTagURLs($text);
+		return $text;
 	}
 
 	/**
@@ -179,12 +183,13 @@ class ZenpageCategory extends ZenpageRoot {
 	 *
 	 */
 	function remove() {
+		global $_zp_db;
 		if ($success = parent::remove()) {
 			$sortorder = $this->getSortOrder();
-			$success = query("DELETE FROM " . prefix('news2cat') . " WHERE cat_id = " . $this->getID()); // the cat itself
+			$success = $_zp_db->query("DELETE FROM " . $_zp_db->prefix('news2cat') . " WHERE cat_id = " . $this->getID()); // the cat itself
 			// get Subcategories
 			$mychild = strlen($sortorder) + 4;
-			$result = query_full_array('SELECT * FROM ' . prefix('news_categories') . " WHERE `sort_order` like '" . $sortorder . "-%'");
+			$result = $_zp_db->queryFullArray('SELECT * FROM ' . $_zp_db->prefix('news_categories') . " WHERE `sort_order` like '" . $sortorder . "-%'");
 			if (is_array($result)) {
 				foreach ($result as $row) {
 					if (strlen($row['sort_order']) == $mychild) {
@@ -291,7 +296,7 @@ class ZenpageCategory extends ZenpageRoot {
 			$parents = array();
 			$cat = $this;
 			while (!is_null($cat = $cat->getParent())) {
-				array_unshift($parents, $cat->getTitlelink());
+				array_unshift($parents, $cat->getName());
 			}
 			return $this->parents = $parents;
 		} else {
@@ -305,18 +310,19 @@ class ZenpageCategory extends ZenpageRoot {
 	 * @param $show
 	 */
 	function checkforGuest(&$hint = NULL, &$show = NULL) {
+		global $_zp_db;
 		if (!parent::checkForGuest()) {
 			return false;
 		}
 		$obj = $this;
-		$hash = $this->getPassword();
+		$hash = $obj->getPassword();
 		while (empty($hash) && !is_null($obj)) {
 			$parentID = $obj->getParentID();
 			if (empty($parentID)) {
 				$obj = NULL;
 			} else {
-				$sql = 'SELECT `titlelink` FROM ' . prefix('news_categories') . ' WHERE `id`=' . $parentID;
-				$result = query_single_row($sql);
+				$sql = 'SELECT `titlelink` FROM ' . $_zp_db->prefix('news_categories') . ' WHERE `id`=' . $parentID;
+				$result = $_zp_db->querySingleRow($sql);
 				$obj = new ZenpageCategory($result['titlelink']);
 				$hash = $obj->getPassword();
 			}
@@ -324,14 +330,13 @@ class ZenpageCategory extends ZenpageRoot {
 		if (empty($hash)) { // no password required
 			return 'zp_public_access';
 		} else {
-			$authType = "zp_category_auth_" . $this->getID();
+			$authType = "zpcms_auth_category_" . $this->getID();
 			$saved_auth = zp_getCookie($authType);
 			if ($saved_auth == $hash) {
 				return $authType;
 			} else {
 				$user = $this->getUser();
-				if (!empty($user))
-					$show = true;
+				$show = (!empty($user));
 				$hint = $this->getPasswordHint();
 				return false;
 			}
@@ -387,7 +392,7 @@ class ZenpageCategory extends ZenpageRoot {
 			$mycategories = $_zp_current_admin_obj->getObjects('news');
 			if (!empty($mycategories)) {
 				$allowed = $this->getParents();
-				array_unshift($allowed, $this->getTitlelink());
+				array_unshift($allowed, $this->getName());
 				$overlap = array_intersect($mycategories, $allowed);
 				if (!empty($overlap)) {
 					return true;
@@ -422,6 +427,24 @@ class ZenpageCategory extends ZenpageRoot {
 		global $_zp_zenpage;
 		return $_zp_zenpage->getArticles($articles_per_page, $published, $ignorepagination, $sortorder, $sortdirection, $sticky, $this, $author);
 	}
+	
+	/**
+	 * Returns the articles count
+	 * 
+	 * @since ZenphotoCMS 1.6
+	 */
+	function getTotalArticles() {
+		return count($this->getArticles(0));
+	}
+	
+	/**
+	 * Gets the total news pages
+	 * 
+	 * @since ZenphotoCMS 1.6
+	 */
+	function getTotalNewsPages() {
+		return ceil($this->getTotalArticles() / ZP_ARTICLES_PER_PAGE);
+	}
 
 	/**
 	 * Returns an article from the album based on the index passed.
@@ -447,7 +470,7 @@ class ZenpageCategory extends ZenpageRoot {
 			$articles = $this->getArticles(0, NULL, true, $sortorder, $sortdirection, $sticky);
 			for ($i = 0; $i < count($articles); $i++) {
 				$article = $articles[$i];
-				if ($this->getTitlelink() == $article['titlelink']) {
+				if ($this->getName() == $article['titlelink']) {
 					$this->index = $i;
 					break;
 				}
@@ -495,7 +518,7 @@ class ZenpageCategory extends ZenpageRoot {
 		} else {
 			$pager = $page = '';
 		}
-		return zp_apply_filter('getLink', rewrite_path(_CATEGORY_ . '/' . $this->getTitlelink() . '/' . $pager, "/index.php?p=news&category=" . $this->getTitlelink() . $page), $this, NULL);
+		return zp_apply_filter('getLink', rewrite_path(_CATEGORY_ . '/' . $this->getName() . '/' . $pager, "/index.php?p=news&category=" . $this->getName() . $page), $this, NULL);
 	}
 
 }

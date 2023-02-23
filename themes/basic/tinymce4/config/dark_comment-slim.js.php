@@ -5,9 +5,8 @@
  * Comment form plugin default light configuration
  */
 ?>
-<script type="text/javascript" src="<?php echo WEBPATH . "/" . ZENFOLDER . "/" . PLUGIN_FOLDER; ?>/tinymce4/tinymce.min.js"></script>
-<script type="text/javascript">
-// <!-- <![CDATA[
+<script src="<?php echo WEBPATH . "/" . ZENFOLDER . "/" . PLUGIN_FOLDER; ?>/tinymce4/tinymce.min.js"></script>
+<script>
 	tinymce.init({
 		selector: "textarea.textarea_inputbox",
 		language: "<?php echo $locale; ?>",
@@ -23,5 +22,4 @@
 		skin: "tundora",
 		content_css: "<?php echo FULLWEBPATH . '/' . THEMEFOLDER . '/' . basename(dirname(dirname(dirname(__FILE__)))); ?>/tinymce4/config/dark_content.css",
 	});
-// ]]> -->
 </script>

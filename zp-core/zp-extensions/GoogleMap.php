@@ -16,8 +16,7 @@
  * </ul>
  *
  * @author Stephen Billard (sbillard), Vincent Bourganel (vincent3569)
- * @package plugins
- * @subpackage googlemap
+ * @package zpcore\plugins\googlemap
  */
 $plugin_is_filter = 5 | THEME_PLUGIN;
 $plugin_description = gettext('Display Google Maps based on <em>latitude</em> and <em>longitude</em> metadata in the images.');
@@ -28,6 +27,7 @@ $plugin_notice = array(
 );
 				
 $plugin_author = 'Stephen Billard (sbillard), Vincent Bourganel (vincent3569)';
+$plugin_deprecated = true;
 $plugin_category = gettext('Misc');
 
 
@@ -174,9 +174,9 @@ class GoogleMap {
 			$url_appendix = implode('&amp;', $parameters);
 		}
 		?>
-		<script type="text/javascript" src="https://maps.googleapis.com/maps/api/js?<?php echo $url_appendix; ?>"></script>
-		<script type="text/javascript" src="<?php echo WEBPATH . '/' . ZENFOLDER . '/' . PLUGIN_FOLDER; ?>/GoogleMap/markerClustererPlus/markerclusterer.js"></script>
-		<script type="text/javascript" src="<?php echo WEBPATH . '/' . ZENFOLDER . '/' . PLUGIN_FOLDER; ?>/GoogleMap/overlappingMarkerSpiderfier/oms.min.js"></script>
+		<script src="https://maps.googleapis.com/maps/api/js?<?php echo $url_appendix; ?>"></script>
+		<script src="<?php echo WEBPATH . '/' . ZENFOLDER . '/' . PLUGIN_FOLDER; ?>/GoogleMap/markerClustererPlus/markerclusterer.js"></script>
+		<script src="<?php echo WEBPATH . '/' . ZENFOLDER . '/' . PLUGIN_FOLDER; ?>/GoogleMap/overlappingMarkerSpiderfier/oms.min.js"></script>
 		<link rel="stylesheet" href="<?php echo WEBPATH . '/' . ZENFOLDER . '/' . PLUGIN_FOLDER; ?>/GoogleMap/googleMap.css" type="text/css" media="screen"/>
 		<?php
 	}
@@ -309,7 +309,7 @@ function getAlbumGeodata($album, $map) {
 	$result = false;
 	$images = $album->getImages(0, 0, null, null, false);
 	foreach ($images as $an_image) {
-		$image = newImage($album, $an_image);
+		$image = Image::newImage($album, $an_image);
 		$coord = getGeoCoord($image);
 		if ($coord) {
 			$result = true; // at least one image has geodata
@@ -435,7 +435,7 @@ function printGoogleMap($text = NULL, $id = NULL, $hide = NULL, $obj = NULL, $ca
 	}
 
 	if (!is_null($callback)) {
-		call_user_func($callback, $map);
+		callUserFunction($callback, $map);
 	}
 
 	/* map display */
@@ -449,8 +449,7 @@ function printGoogleMap($text = NULL, $id = NULL, $hide = NULL, $obj = NULL, $ca
 		case 'show':
 			$map->create_map();
 			?>
-			<script type="text/javascript">
-				//<![CDATA[
+			<script>
 			<?php
 			echo $map->output_js_contents;
 			echo omsAdditions();
@@ -459,7 +458,6 @@ function printGoogleMap($text = NULL, $id = NULL, $hide = NULL, $obj = NULL, $ca
 				function image(album, image) {
 					window.location = '<?php echo WEBPATH ?>/index.php?album=' + album + '&image=' + image;
 				}
-				//]]>
 			</script>
 			<div id="<?php echo $id_data; ?>">
 				<?php echo $map->output_html; ?>
@@ -469,8 +467,7 @@ function printGoogleMap($text = NULL, $id = NULL, $hide = NULL, $obj = NULL, $ca
 		case 'hide':
 			$map->create_map();
 			?>
-			<script type="text/javascript">
-				//<![CDATA[
+			<script>
 			<?php
 			echo $map->output_js_contents;
 			echo omsAdditions();
@@ -493,7 +490,6 @@ function printGoogleMap($text = NULL, $id = NULL, $hide = NULL, $obj = NULL, $ca
 						$('#<?php echo $id_data; ?>').addClass('hidden_map');
 					}
 				}
-				//]]>
 			</script>
 			<a id="<?php echo $id_toggle; ?>" href="javascript:toggle_<?php echo $id_data; ?>();" title="<?php echo gettext('Display or hide the Google Map.'); ?>">
 				<?php echo $text; ?>
@@ -525,8 +521,7 @@ function printGoogleMap($text = NULL, $id = NULL, $hide = NULL, $obj = NULL, $ca
 				<a href="<?php echo WEBPATH . '/' . ZENFOLDER . '/' . PLUGIN_FOLDER . '/GoogleMap/Map.php' . $param ?>" title="<?php echo $text; ?>" class="google_map">
 					<?php echo $text; ?>
 				</a>
-				<script type="text/javascript">
-					//<![CDATA[
+				<script>
 					$(document).ready(function() {
 						$(".google_map").colorbox({
 							iframe: true,
@@ -538,7 +533,6 @@ function printGoogleMap($text = NULL, $id = NULL, $hide = NULL, $obj = NULL, $ca
 							}
 						});
 					});
-					//]]>
 				</script>
 				<?php
 			}

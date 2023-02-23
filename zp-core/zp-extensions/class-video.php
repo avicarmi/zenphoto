@@ -8,8 +8,7 @@
  * according to the player enabled.
  *
  * @author Stephen Billard (sbillard), Malte Müller (acrylian)
- * @package plugins
- * @subpackage class-video
+ * @package zpcore\plugins\classvideo
  */
 // force UTF-8 Ø
 
@@ -85,7 +84,8 @@ class Video extends Image {
 			}
 			return;
 		}
-		$alts = explode(',', extensionEnabled('class-video_videoalt'));
+
+		$alts = explode(',', strval(getOption('class-video_videoalt'))); //extensionEnabled() must have been a mistake…
 		foreach ($alts as $alt) {
 			$this->videoalt[] = trim(strtolower($alt));
 		}
@@ -207,13 +207,14 @@ class Video extends Image {
 	 * @return array
 	 */
 	function getThumbDimensions() {
+		global $_zp_graphics;
 		if (!is_null($this->thumbdimensions)) {
 			return $this->thumbdimensions;
 		}
 		$imgfile = $this->getThumbImageFile();
-		$image = zp_imageGet($imgfile);
-		$width = zp_imageWidth($image);
-		$height = zp_imageHeight($image);
+		$image = $_zp_graphics->imageGet($imgfile);
+		$width = $_zp_graphics->imageWidth($image);
+		$height = $_zp_graphics->imageHeight($image);
 		return $this->thumbdimensions = array(
 				'width' => $width,
 				'height' => $height
@@ -290,7 +291,7 @@ class Video extends Image {
 	function getFullImageURL() {
 		// Search for a high quality version of the video
 		if ($vid = parent::getFullImageURL()) {
-			$folder = ALBUM_FOLDER_SERVERPATH . internalToFilesystem($this->album->getFileName());
+			$folder = ALBUM_FOLDER_SERVERPATH . internalToFilesystem($this->album->getName());
 			$video = stripSuffix($this->filename);
 			$curdir = getcwd();
 			chdir($folder);
@@ -442,7 +443,7 @@ class pseudoPlayer {
 				break;
 		}
 		if (empty($content)) {
-			return '<img src="' . WEBPATH . '/' . ZENFOLDER . '/images/err-noflashplayer.png" alt="' . gettext('No multimedia extension installed for this format.') . '" />';
+			return '<img src="' . WEBPATH . '/' . ZENFOLDER . '/images_errors/err-noflashplayer.png" alt="' . gettext('No multimedia extension installed for this format.') . '" />';
 		}
 		return $content;
 	}

@@ -1,7 +1,7 @@
 <?php
 /**
  * provides the Upload tab of admin
- * @package admin
+ * @package zpcore\admin
  */
 // force UTF-8 Ø
 
@@ -21,8 +21,8 @@ if (isset($_GET['type'])) {
 $handlers = array_keys($uploadHandlers = zp_apply_filter('upload_handlers', array()));
 if (!zp_loggedin(UPLOAD_RIGHTS) || empty($handlers)) {
 	//	redirect to the files page if present
-	if (isset($zenphoto_tabs['upload']['subtabs'][0])) {
-		redirectURL($zenphoto_tabs['upload']['subtabs'][0]);
+	if (isset($_zp_admin_menu['upload']['subtabs'][0])) {
+		redirectURL($_zp_admin_menu['upload']['subtabs'][0]);
 	}
 	$handlers = array();
 }
@@ -33,7 +33,6 @@ if (count($handlers) > 0) {
 	}
 	require_once($uploadHandlers[$uploadtype] . '/upload_form.php');
 } else {
-
 	require_once(SERVERPATH . '/' . ZENFOLDER . '/no_uploader.php');
 	exitZP();
 }
@@ -43,7 +42,7 @@ $_GET['page'] = 'upload';
 
 printAdminHeader('upload', 'albums');
 ?>
-<script type="text/javascript" src="<?php echo WEBPATH . '/' . ZENFOLDER; ?>/js/upload.js"></script>
+<script src="<?php echo WEBPATH . '/' . ZENFOLDER; ?>/js/zp_upload.js"></script>
 <?php
 //	load the uploader specific header stuff
 $formAction = upload_head();
@@ -58,7 +57,7 @@ printLogoAndLinks();
 	?>
 	<div id="content">
 		<?php
-		if (!empty($zenphoto_tabs['upload']['subtabs'])) {
+		if (!empty($_zp_admin_menu['upload']['subtabs'])) {
 			printSubtabs();
 		}
 		$albumlist = $_zp_gallery->getAllAlbumsFromDB();
@@ -69,8 +68,7 @@ printLogoAndLinks();
 			}
 		}
 		?>
-		<script type="text/javascript">
-			// <!-- <![CDATA[
+		<script>
 			// Array of album names for javascript functions.
 			var albumArray = new Array(
 <?php
@@ -80,7 +78,6 @@ foreach ($albumlist as $key => $value) {
 	$separator = ", ";
 }
 ?>);
-			// ]]> -->
 		</script>
 
 		<div class="tabbox">
@@ -164,8 +161,7 @@ foreach ($albumlist as $key => $value) {
 					$checked = '';
 				}
 				?>
-				<script type="text/javascript">
-					// <!-- <![CDATA[
+				<script>
 	<?php seoFriendlyJS(); ?>
 					function buttonstate(good) {
 						$('#albumtitleslot').val($('#albumtitle').val());
@@ -208,7 +204,6 @@ foreach ($albumlist as $key => $value) {
 						var state = albumSwitch(sel, true, '<?php echo addslashes(gettext('That name is already used.')); ?>', '<?php echo addslashes(gettext('This upload has to have a folder. Type a title or folder name to continue...')); ?>');
 						buttonstate(state);
 					}
-					// ]]> -->
 				</script>
 				<div id="albumselect">
 
@@ -262,7 +257,7 @@ foreach ($albumlist as $key => $value) {
 						if (empty($passedalbum)) {
 							$modified_rights = MANAGED_OBJECT_RIGHTS_EDIT;
 						} else {
-							$rightsalbum = newAlbum($passedalbum);
+							$rightsalbum = AlbumBase::newAlbum($passedalbum);
 							$modified_rights = $rightsalbum->albumSubRights();
 						}
 						if ($modified_rights & MANAGED_OBJECT_RIGHTS_EDIT) { //	he has edit rights, allow new album creation
@@ -303,8 +298,7 @@ foreach ($albumlist as $key => $value) {
 						?>
 					</div><!-- upload action -->
 
-					<script type="text/javascript">
-						//<!-- <![CDATA[
+					<script>
 	<?php
 	echo zp_apply_filter('upload_helper_js', '') . "\n";
 	if ($passedalbum) {
@@ -345,7 +339,6 @@ foreach ($albumlist as $key => $value) {
 	}
 	?>
 						buttonstate($('#folderdisplay').val() != '');
-						// ]]> -->
 					</script>
 					<?php
 				} else {

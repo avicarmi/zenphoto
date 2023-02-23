@@ -1,7 +1,7 @@
 <?php
 /**
  * Displays locale information of the system
- * @package admin
+ * @package zpcore\admin\utilities
  */
 define('OFFSET_PATH', 3);
 require_once(dirname(dirname(__FILE__)) . '/admin-globals.php');
@@ -20,7 +20,7 @@ $buttonlist[] = array(
 );
 
 admin_securityChecks(NULL, currentRelativeURL());
-$zenphoto_tabs['overview']['subtabs'] = array(gettext('Locale info') => FULLWEBPATH . '/' . ZENFOLDER . '/' . UTILITIES_FOLDER . '/list_locales.php');
+$_zp_admin_menu['overview']['subtabs'] = array(gettext('Locale info') => FULLWEBPATH . '/' . ZENFOLDER . '/' . UTILITIES_FOLDER . '/list_locales.php');
 printAdminHeader('overview', 'List locales');
 ?>
 <style>

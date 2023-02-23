@@ -22,8 +22,7 @@
  * <b>NOTE:</b> This plugin does not expire users with <var>ADMIN_RIGHTS</var>!
  *
  * @author Stephen Billard (sbillard)
- * @package plugins
- * @subpackage user-expiry
+ * @package zpcore\plugins\userexpiry
  */
 // force UTF-8 Ø
 
@@ -192,12 +191,14 @@ class user_expiry {
 	}
 
 	static function cleanup($user) {
-		query('DELETE FROM ' . prefix('plugin_storage') . ' WHERE `type`=' . db_quote('user_expiry_usedPasswords') . ' AND `aux`=' . $user->getID());
+		global $_zp_db;
+		$_zp_db->query('DELETE FROM ' . $_zp_db->prefix('plugin_storage') . ' WHERE `type`=' . $_zp_db->quote('user_expiry_usedPasswords') . ' AND `aux`=' . $user->getID());
 	}
 
 	static function passwordAllowed($msg, $pwd, $user) {
+		global $_zp_db;
 		if ($id = $user->getID() > 0) {
-			$store = query_single_row('SELECT * FROM ' . prefix('plugin_storage') . ' WHERE `type`=' . db_quote('user_expiry_usedPasswords') . ' AND `aux`=' . $id);
+			$store = $_zp_db->querySingleRow('SELECT * FROM ' . $_zp_db->prefix('plugin_storage') . ' WHERE `type`=' . $_zp_db->quote('user_expiry_usedPasswords') . ' AND `aux`=' . $id);
 			if ($store) {
 				$used = getSerializedArray($store['data']);
 				if (in_array($pwd, $used)) {
@@ -215,9 +216,9 @@ class user_expiry {
 			}
 			array_push($used, $pwd);
 			if ($store) {
-				query('UPDATE ' . prefix('plugin_storage') . 'SET `data`=' . db_quote(serialize($used)) . ' WHERE `type`=' . db_quote('user_expiry_usedPasswords') . ' AND `aux`=' . $id);
+				$_zp_db->query('UPDATE ' . $_zp_db->prefix('plugin_storage') . 'SET `data`=' . $_zp_db->quote(serialize($used)) . ' WHERE `type`=' . $_zp_db->quote('user_expiry_usedPasswords') . ' AND `aux`=' . $id);
 			} else {
-				query('INSERT INTO ' . prefix('plugin_storage') . ' (`type`, `aux`, `data`) VALUES (' . db_quote('user_expiry_usedPasswords') . ',' . $id . ',' . db_quote(serialize($used)) . ')');
+				$_zp_db->query('INSERT INTO ' . $_zp_db->prefix('plugin_storage') . ' (`type`, `aux`, `data`) VALUES (' . $_zp_db->quote('user_expiry_usedPasswords') . ',' . $id . ',' . $_zp_db->quote(serialize($used)) . ')');
 			}
 		}
 		return $msg;
@@ -234,7 +235,7 @@ class user_expiry {
 	static function checklogon($loggedin, $user) {
 		if ($loggedin) {
 			if (!($loggedin & ADMIN_RIGHTS)) {
-				if ($userobj = Zenphoto_Authority::getAnAdmin(array('`user`=' => $user, '`valid`=' => 1))) {
+				if ($userobj = Authority::getAnAdmin(array('`user`=' => $user, '`valid`=' => 1))) {
 					$loggedin = user_expiry::checkexpires($loggedin, $userobj);
 				}
 			}
@@ -248,11 +249,12 @@ class user_expiry {
 	 * @return string
 	 */
 	static function reverify($path) {
+		global $_zp_current_admin_obj;
 		//process any verifications posted
 		if (isset($_GET['user_expiry_reverify'])) {
-			$params = unserialize(pack("H*", trim(sanitize($_GET['user_expiry_reverify']), '.')));
+			$params = sanitize(unserialize(pack("H*", trim($_GET['user_expiry_reverify']), '.'), ['allowed_classes' => false]));
 			if ((time() - $params['date']) < 2592000) {
-				$userobj = Zenphoto_Authority::getAnAdmin(array('`user`=' => $params['user'], '`email`=' => $params['email'], '`valid`>' => 0));
+				$userobj = Authority::getAnAdmin(array('`user`=' => $params['user'], '`email`=' => $params['email'], '`valid`>' => 0));
 				if ($userobj) {
 					$credentials = $userobj->getCredentials();
 					$credentials[] = 'expiry';
@@ -265,7 +267,7 @@ class user_expiry {
 				$userobj->setLastChangeUser($_zp_current_admin_obj->getUser());
 				$userobj->save();
 
-				Zenphoto_Authority::logUser($userobj);
+				Authority::logUser($userobj);
 				redirectURL(FULLWEBPATH . '/' . ZENFOLDER . '/admin.php');
 			}
 		}
@@ -304,7 +306,7 @@ class user_expiry {
 			if (user_expiry::checkPasswordRenew()) {
 				echo '<p class="errorbox">' . gettext('You must change your password.'), '</p>';
 			} else {
-				if (Zenphoto_Authority::getAnAdmin(array('`valid`>' => 1))) {
+				if (Authority::getAnAdmin(array('`valid`>' => 1))) {
 					echo '<p class="notebox">' . gettext('You have users whose credentials have expired.'), '</p>';
 				}
 			}

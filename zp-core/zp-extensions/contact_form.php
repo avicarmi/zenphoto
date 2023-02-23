@@ -11,8 +11,7 @@
  * version of the form in a similar folder in your theme if you wish something different from the standard form.
  *
  * @author Malte Müller (acrylian), Stephen Billard (sbillard)
- * @package plugins
- * @subpackage contact-form
+ * @package zpcore\plugins\contactform
  */
 $plugin_is_filter = 5 | FEATURE_PLUGIN;
 $plugin_description = gettext("Prints an e-mail contact so that visitors may e-mail the site administrator.");
@@ -185,8 +184,9 @@ class contactformOptions {
 				gettext('CAPTCHA') => array(
 						'key' => 'contactform_captcha',
 						'type' => OPTION_TYPE_CHECKBOX,
+						'disabled' =>  ($_zp_captcha->name) ? false : true,
 						'order' => 9,
-						'desc' => ($_zp_captcha->name) ? gettext('If checked, the form will include a Captcha verification.') : '<span class="notebox">' . gettext('No captcha handler is enabled.') . '</span>'),
+						'desc' => ($_zp_captcha->name) ? gettext('If checked, the form will include a Captcha verification.') : '<span class="warningbox">' . gettext('No captcha handler is enabled.') . '</span>'),
 				gettext('Phone') => array(
 						'key' => 'contactform_phone',
 						'type' => OPTION_TYPE_RADIO,
@@ -235,7 +235,7 @@ function getField($field, $level = 3) {
  * @param string $subject_override set to override the subject.
  */
 function printContactForm($subject_override = '') {
-	global $_zp_UTF8, $_zp_captcha, $_processing_post, $_zp_current_admin_obj;
+	global $_zp_utf8, $_zp_captcha, $_processing_post, $_zp_current_admin_obj;
 	$error = array();
 	$error_dataconfirmation = null;
 	if (isset($_POST['sendmail'])) {
@@ -303,7 +303,7 @@ function printContactForm($subject_override = '') {
 			$error[13] = gettext("a message");
 		}
 		// CAPTCHA start
-		if (getOption("contactform_captcha")) {
+		if ($_zp_captcha->name && getOption("contactform_captcha")) {
 			$code_ok = trim(sanitize(isset($_POST['code_h']) ? $_POST['code_h'] : NULL));
 			$code = trim(sanitize(isset($_POST['code']) ? $_POST['code'] : NULL));
 			if (!$_zp_captcha->checkCaptcha($code, $code_ok)) {

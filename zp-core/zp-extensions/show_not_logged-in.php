@@ -3,8 +3,7 @@
  * When enabled, Zenphoto users will be appear not to be logged-in when viewing gallery pages.
  *
  * @author Stephen Billard (sbillard)
- * @package plugins
- * @subpackage show-not-logged-in
+ * @package zpcore\plugins\shownotloggedin
  */
 $plugin_is_filter = 1001 | FEATURE_PLUGIN;
 $plugin_description = sprintf(gettext("Treats users as not logged in for gallery pages."), DATA_FOLDER);
@@ -20,9 +19,9 @@ if (!OFFSET_PATH) {
 class show_not_loggedin {
 
 	static function hideAdmin() {
-		global $_zp_loggedin, $_zp_current_admin_obj, $_showNotLoggedin_real_auth;
+		global $_zp_loggedin, $_zp_current_admin_obj, $_zp_show_not_loggedin_realauth;
 		if (!OFFSET_PATH && is_object($_zp_current_admin_obj)) {
-			$_showNotLoggedin_real_auth = $_zp_current_admin_obj;
+			$_zp_show_not_loggedin_realauth = $_zp_current_admin_obj;
 			if (isset($_SESSION)) {
 				unset($_SESSION['zpcms_auth_user']);
 			}
@@ -41,8 +40,8 @@ class show_not_loggedin {
 	}
 
 	static function loginRedirect($link) {
-		global $_showNotLoggedin_real_auth;
-		if (is_object($_showNotLoggedin_real_auth)) {
+		global $_zp_show_not_loggedin_realauth;
+		if (is_object($_zp_show_not_loggedin_realauth)) {
 			$link = WEBPATH . '/' . ZENFOLDER . '/admin.php';
 			?>
 			<div class="error">

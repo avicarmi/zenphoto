@@ -28,8 +28,7 @@
  * The plugin does not present any theme interface.
  *
  * @author Stephen Billard (sbillard)
- * @package plugins
- * @subpackage xmpmetadata
+ * @package zpcore\plugins\xmpmetadata
  */
 $plugin_is_filter = 9 | CLASS_PLUGIN;
 $plugin_description = gettext('Extracts <em>XMP</em> metadata from images and <code>XMP</code> sidecar files.');
@@ -50,9 +49,9 @@ zp_register_filter('edit_image_utilities', 'xmpMetadata::create');
 zp_register_filter('bulk_image_actions', 'xmpMetadata::bulkActions');
 zp_register_filter('bulk_album_actions', 'xmpMetadata::bulkActions');
 
-require_once(dirname(dirname(__FILE__)) . '/exif/exif.php');
+require_once SERVERPATH .'/' . ZENFOLDER . '/libs/exif/exif.php';
 
-define('XMP_EXTENSION', strtolower(getOption('xmpMetadata_suffix')));
+define('XMP_EXTENSION', strtolower(strval(getOption('xmpMetadata_suffix'))));
 
 /**
  * Plugin option handling class
@@ -1028,7 +1027,7 @@ class xmpMetadata {
 						'rating'					 => '<MicrosoftPhoto:Rating>'
 		);
 		$process = array('dc', 'Iptc4xmpCore', 'photoshop', 'xap');
-		if (isAlbumClass($object)) {
+		if (AlbumBase::isAlbumClass($object)) {
 			$file = rtrim($object->localpath, '/');
 			$file .= '.xmp';
 		} else {
@@ -1115,7 +1114,7 @@ class xmpMetadata {
 	}
 
 	static function bulkActions($actions) {
-		return array_merge($actions, array(gettext('Export Metadata') => 'xmpMetadataPublish'));
+		return array_merge($actions, array(gettext('Export Metadata') => 'xmpMetadata::publish'));
 	}
 
 }

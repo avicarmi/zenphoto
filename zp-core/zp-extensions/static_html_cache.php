@@ -21,8 +21,7 @@
  * being viewed. Likewise, Zenpage News and Pages are not cached when viewed by the author.
  *
  * @author Malte Müller (acrylian), Stephen Billard (sbillard)
- * @package plugins
- * @subpackage static-html-cache
+ * @package zpcore\plugins\statichtmlcache
  */
 $plugin_is_filter = 400 | CLASS_PLUGIN;
 $plugin_description = gettext("Adds static HTML cache functionality to Zenphoto.");
@@ -50,7 +49,7 @@ if (OFFSET_PATH == 2) { //	clear the cache upon upgrade
 	static_html_cache::clearHTMLCache();
 }
 
-$_zp_HTML_cache = new static_html_cache();
+$_zp_html_cache = new static_html_cache();
 zp_register_filter('image_processor_uri', 'static_html_cache::_disable');
 
 class staticHTMLCacheOptions {
@@ -112,16 +111,16 @@ class static_html_cache {
 				break;
 			case 'pages.php':
 				$obj = $_zp_current_zenpage_page;
-				$title = $_zp_current_zenpage_page->getTitlelink();
+				$title = $_zp_current_zenpage_page->getName();
 				break;
 			case 'news.php':
 				if (in_context(ZP_ZENPAGE_NEWS_ARTICLE)) {
 					$obj = $_zp_current_zenpage_news;
-					$title = $obj->getTitlelink();
+					$title = $obj->getName();
 				} else {
 					if (in_context(ZP_ZENPAGE_NEWS_CATEGORY)) {
 						$obj = $_zp_current_category;
-						$title = $obj->getTitlelink();
+						$title = $obj->getName();
 					} else {
 						$obj = NULL;
 						$title = NULL;
@@ -293,20 +292,20 @@ class static_html_cache {
 				break;
 			case 'pages.php':
 				$cachesubfolder = "pages";
-				$cachefilepath .= 'page-' . $_zp_current_zenpage_page->getTitlelink();
+				$cachefilepath .= 'page-' . $_zp_current_zenpage_page->getName();
 				break;
 			case 'news.php':
 				$cachesubfolder = "news";
 				$cachefilepath .= 'news';
 				if (is_object($_zp_current_zenpage_news)) {
-					$title = "-" . $_zp_current_zenpage_news->getTitlelink();
+					$title = "-" . $_zp_current_zenpage_news->getName();
 				} 
 				if (!is_object($_zp_current_category) && !is_object($_zp_current_zenpage_news)) {
 					$cachefilepath .= '_sortype-' . $_zp_zenpage->getSortType();
 					$cachefilepath .= '_sortdir-' . $_zp_zenpage->getSortDirection();
 				}
 				if (is_object($_zp_current_category)) {
-					$category = "_cat-" . $_zp_current_category->getTitlelink();
+					$category = "_cat-" . $_zp_current_category->getName();
 					$category .= '_catsortype-' . $_zp_current_category->getSortType();
 					$category .= '_catsortdir-' . $_zp_current_category->getSortDirection();
 				} 
@@ -361,8 +360,8 @@ class static_html_cache {
 	 * call to disable caching a page
 	 */
 	static function disable() {
-		global $_zp_HTML_cache;
-		$_zp_HTML_cache->enabled = false;
+		global $_zp_html_cache;
+		$_zp_html_cache->enabled = false;
 	}
 
 	
@@ -373,8 +372,8 @@ class static_html_cache {
 	 * @return string
 	 */
 	static function _disable($uri) {
-		global $_zp_HTML_cache;
-		$_zp_HTML_cache->disable();
+		global $_zp_html_cache;
+		$_zp_html_cache->disable();
 		return $uri;
 	}
 

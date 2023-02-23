@@ -5,10 +5,10 @@
  * This script is accessed via a /page/setup_set-mod_rewrite?z=setup.
  * It will not be found unless mod_rewrite is working.
  *
- * @package setup
+ * @package zpcore\setup
  *
  */
-require_once(dirname(dirname(__FILE__)) . '/functions-basic.php');
+require_once(dirname(dirname(__FILE__)) . '/functions/functions-basic.php');
 require_once(dirname(__FILE__) . '/class-setup.php');
 require_once(dirname(__FILE__) . '/class-setupmutex.php');
 

@@ -2,7 +2,7 @@
 /**
  * user_groups log--tabs
  * @author Stephen Billard (sbillard)
- * @package plugins
+ * @package zpcore\admin
  */
 define('OFFSET_PATH', 1);
 require_once(dirname(__FILE__) . '/admin-globals.php');
@@ -87,7 +87,7 @@ if (isset($_GET['action'])) {
 							unlink($zipname);
 							exit;
 						} else {
-							include_once(SERVERPATH . '/' . ZENFOLDER . '/lib-zipStream.php');
+							include_once(SERVERPATH . '/' . ZENFOLDER . '/libs/class-zipstream.php');
 							$zip = new ZipStream($zipname);
 							$zip->add_file_from_path(internalToFilesystem(basename($file)), internalToFilesystem($file));
 							$zip->finish();
@@ -99,10 +99,10 @@ if (isset($_GET['action'])) {
 	}
 }
 
-list($subtabs, $default) = getLogTabs();
-$zenphoto_tabs['logs'] = array('text'		 => gettext("logs"),
+list($_zp_admin_submenu, $default) = getLogTabs();
+$_zp_admin_menu['logs'] = array('text'		 => gettext("logs"),
 				'link'		 => FULLWEBPATH . '/' . ZENFOLDER . '/admin-logs.php?page=logs',
-				'subtabs'	 => $subtabs,
+				'subtabs'	 => $_zp_admin_submenu,
 				'default'	 => $default);
 
 printAdminHeader('logs', $default);

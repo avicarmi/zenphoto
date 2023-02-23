@@ -1,7 +1,7 @@
 <?php
 /**
  * provides the Themes tab of admin
- * @package admin
+ * @package zpcore\admin
  */
 
 // force UTF-8 Ø
@@ -25,12 +25,12 @@ if (isset($_GET['action'])) {
 				if (empty($alb)) {
 					$_zp_gallery->setCurrentTheme($newtheme);
 					$_zp_gallery->save();
-					$_set_theme_album = NULL;
+					$_zp_set_theme_album = NULL;
 				} else {
-					$_set_theme_album = newAlbum($alb);
-					$oldtheme = $_set_theme_album->getAlbumTheme();
-					$_set_theme_album->setAlbumTheme($newtheme);
-					$_set_theme_album->save();
+					$_zp_set_theme_album = AlbumBase::newAlbum($alb);
+					$oldtheme = $_zp_set_theme_album->getAlbumTheme();
+					$_zp_set_theme_album->setAlbumTheme($newtheme);
+					$_zp_set_theme_album->save();
 				}
 				$opthandler = SERVERPATH . '/' . THEMEFOLDER . '/' . $newtheme . '/themeoptions.php';
 				if (file_exists($opthandler)) {
@@ -38,7 +38,7 @@ if (isset($_GET['action'])) {
 					$opt = new ThemeOptions(); //	prime the default options!
 				}
 				/* set any "standard" options that may not have been covered by the theme */
-				standardThemeOptions($newtheme, $_set_theme_album);
+				standardThemeOptions($newtheme, $_zp_set_theme_album);
 				redirectURL(FULLWEBPATH . "/" . ZENFOLDER . "/admin-themes.php?themealbum=" . sanitize($_GET['themealbum']));
 			}
 			break;
@@ -71,9 +71,8 @@ printAdminHeader('themes');
 // Script for the "Duplicate theme" feature
 ?>
 
-<script type="text/javascript" src="<?php echo WEBPATH.'/'.ZENFOLDER;?>/js/sprintf.js"></script>
-<script type="text/javascript">
-	//<!-- <![CDATA[
+<script src="<?php echo WEBPATH.'/'.ZENFOLDER;?>/js/sprintf.js"></script>
+<script>
 	function copyClick(source) {
 		var targetname = prompt('<?php echo gettext('New theme name?'); ?>', sprintf('<?php echo gettext('Copy of %s');?>',source));
 		if (targetname) {
@@ -85,7 +84,6 @@ printAdminHeader('themes');
 		}
 		return false;
 	}
-	// ]]> -->
 </script>
 
 <?php
@@ -107,7 +105,7 @@ echo "\n" . '<div id="content">';
 	}
 	$albums = $_zp_gallery->getAlbums(0);
 	foreach ($albums as $alb) {
-		$album = newAlbum($alb);
+		$album = AlbumBase::newAlbum($alb);
 		if ($album->isMyItem(THEMES_RIGHTS)) {
 			$key = $album->getTitle();
 			if ($key != $alb) {
@@ -118,7 +116,7 @@ echo "\n" . '<div id="content">';
 	}
 	if (!empty($_REQUEST['themealbum'])) {
 		$alb = sanitize_path($_REQUEST['themealbum']);
-		$album = newAlbum($alb);
+		$album = AlbumBase::newAlbum($alb);
 		$albumtitle = $album->getTitle();
 		$themename = $album->getAlbumTheme();
 		$current_theme = $themename;
@@ -129,7 +127,7 @@ echo "\n" . '<div id="content">';
 			$themename = $_zp_gallery->getCurrentTheme();
 		} else {
 			$alb = sanitize_path($alb);
-			$album = newAlbum($alb);
+			$album = AlbumBase::newAlbum($alb);
 			$albumtitle = $album->getTitle();
 			$themename = $album->getAlbumTheme();
 		}
@@ -179,7 +177,7 @@ echo "\n" . '<div id="content">';
 
 <p>
 	<?php echo gettext('Themes allow you to visually change the entire look and feel of your gallery. Theme files are located in your Zenphoto <code>/themes</code> folder.'); ?>
-	<?php echo gettext('You can download more themes from the <a href="http://www.zenphoto.org/theme/">zenphoto themes page</a>.'); ?>
+	<?php echo gettext('You can download more themes from the <a href="https://www.zenphoto.org/theme/">zenphoto themes page</a>.'); ?>
 	<?php echo gettext('Place the downloaded themes in the <code>/themes</code> folder and they will be available for your use.') ?>
 </p>
 
@@ -251,7 +249,11 @@ foreach($themes as $theme => $themeinfo) {
 			<?php 
 			echo processExtensionVariable($themeinfo['desc']); 
 			if(array_key_exists('deprecated', $themeinfo)) {
-				echo '<div class="notebox">' . processExtensionVariable($themeinfo['deprecated']) . '</div>';
+				$theme_deprecated = processExtensionVariable($themeinfo['deprecated']);
+				if (is_bool($theme_deprecated) || empty($theme_deprecated)) {
+					$theme_deprecated = gettext('This theme will be removed in future versions.');
+				}
+				echo '<div class="warningbox"><strong>' . gettext('Deprecated') . ':</strong> ' . $theme_deprecated . '</div>';
 			}
 			$disable = false;
 			if(array_key_exists('disable', $themeinfo)) {

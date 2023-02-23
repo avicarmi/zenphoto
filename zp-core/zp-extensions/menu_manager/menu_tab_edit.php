@@ -1,4 +1,7 @@
 <?php
+/**
+ * @package zpcore\plugins\menumanager
+ */
 define('OFFSET_PATH', 4);
 require_once(dirname(dirname(dirname(__FILE__))) . '/admin-globals.php');
 if (extensionEnabled('zenpage')) {
@@ -48,15 +51,14 @@ $menuset = checkChosenMenuset();
 				echo $report;
 			}
 			?>
-			<script type="text/javascript">
-				// <!-- <![CDATA[
+			<script>
 				function handleSelectorChange(type) {
 					$('#add,#titlelabel,#link_row,#link,#link_label,#visible_row,#show_visible,#span_row').show();
 					$('#include_li_label').hide();
 					$('#type').val(type);
 					$('#link_label').html('<?php echo js_encode(gettext('URL')); ?>');
 					$('#titlelabel').html('<?php echo js_encode(gettext('Title')); ?>');
-					$('#XSRFToken').val('<?php echo getXSRFToken('update_menu'); ?>');
+					$('#XSRFTokenupdate_menu').val('<?php echo getXSRFToken('update_menu'); ?>');
 					switch (type) {
 						case 'all_items':
 							$('#albumselector,#pageselector,#categoryselector,#custompageselector,#titleinput,#titlelabel,#link_row,#visible_row,#span_row').hide();
@@ -182,10 +184,8 @@ $menuset = checkChosenMenuset();
 							break;
 					}
 				}
-				//]]> -->
 			</script>
-			<script type="text/javascript">
-				//<!-- <![CDATA[
+			<script>
 				$(document).ready(function() {
 <?php
 if (is_array($result)) {
@@ -204,7 +204,6 @@ if (is_array($result)) {
 						handleSelectorChange($(this).val());
 					});
 				});
-				//]]> -->
 			</script>
 			<h1>
 				<?php
@@ -275,13 +274,12 @@ if (is_array($result)) {
 				} else {
 					$add = '&amp;update';
 				}
+				if ($menuset) {
+					$add .= '&amp;menuset=' . $menuset; 
+				}
 				?>
-				<form class="dirty-check" method="post" id="add" name="add" autocomplete="off" action="menu_tab_edit.php?save<?php
-				echo $add;
-				if ($menuset)
-					echo '&amp;menuset=' . $menuset;
-				?>" style="display: none">
-							<?php XSRFToken('update_menu'); ?>
+				<form class="dirty-check" method="post" id="add" name="add" action="menu_tab_edit.php?save<?php echo $add; ?>" style="display: none" autocomplete="off">
+					<?php XSRFToken('update_menu'); ?>
 					<input type="hidden" name="update" id="update" value="<?php echo html_encode($action); ?>" />
 					<input type="hidden" name="id" id="id" value="<?php echo $id; ?>" />
 					<input type="hidden" name="link-old" id="link-old" value="<?php echo html_encode($link); ?>" />

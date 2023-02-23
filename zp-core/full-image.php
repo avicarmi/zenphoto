@@ -2,13 +2,13 @@
 
 /**
  * handles the watermarking and protecting of the full image link
- * @package core
+ * @package zpcore
  */
 // force UTF-8 Ø
 if (!defined('OFFSET_PATH'))
 	define('OFFSET_PATH', 1);
-require_once(dirname(__FILE__) . "/functions.php");
-require_once(dirname(__FILE__) . "/functions-image.php");
+require_once(dirname(__FILE__) . "/functions/functions.php");
+require_once(dirname(__FILE__) . "/functions/functions-image.php");
 
 $returnmode = isset($_GET['returnmode']);
 
@@ -42,8 +42,8 @@ if (getOption('hotlink_protection') && isset($_SERVER['HTTP_REFERER'])) {
 	}
 }
 
-$albumobj = newAlbum($album8);
-$imageobj = newImage($albumobj, $image8);
+$albumobj = AlbumBase::newAlbum($album8);
+$imageobj = Image::newImage($albumobj, $image8);
 $args = getImageArgs($_GET);
 $args[0] = 'FULL';
 $adminrequest = $args[12];
@@ -92,7 +92,7 @@ if (($hash || !$albumobj->checkAccess()) && !zp_loggedin(VIEW_FULLIMAGE_RIGHTS))
 
 	if (empty($hash) || (!empty($hash) && zp_getCookie($authType) != $hash)) {
 		require_once(dirname(__FILE__) . "/template-functions.php");
-		require_once(SERVERPATH . "/" . ZENFOLDER . '/functions-controller.php');
+		require_once(SERVERPATH . "/" . ZENFOLDER . '/functions/functions-controller.php');
 		zp_load_gallery();
 		$theme = setupTheme($albumobj);
 		$custom = $_zp_themeroot . '/functions.php';
@@ -130,8 +130,8 @@ switch ($suffix) {
 		break;
 	default:
 		if ($disposal == 'download') {
-			require_once(dirname(__FILE__) . '/lib-MimeTypes.php');
-			$mimetype = getMimeString($suffix);
+			require_once(dirname(__FILE__) . '/classes/class-mimetypes.php');
+			$mimetype = mimeTypes::getType($suffix);
 			header('Content-Disposition: attachment; filename="' . $image . '"'); // enable this to make the image a download
 			$fp = fopen($image_path, 'rb');
 			// send the right headers
@@ -156,7 +156,7 @@ if ($force_cache = getOption('cache_full_image')) {
 }
 
 $process = $rotate = false;
-if (zp_imageCanRotate()) {
+if ($_zp_graphics->imageCanRotate()) {
 	$rotate = getImageRotation($image_path);
 	$process = $rotate;
 }
@@ -223,9 +223,9 @@ if (is_null($cache_path) || !file_exists($cache_path)) { //process the image
 		//	have to create the image
 		$iMutex = new zpMutex('i', getOption('imageProcessorConcurrency'));
 		$iMutex->lock();
-		$newim = zp_imageGet($image_path);
+		$newim = $_zp_graphics->imageGet($image_path);
 		if ($rotate) {
-			$newim = zp_rotateImage($newim, $rotate);
+			$newim = $_zp_graphics->flipRotateImage($newim, $rotate);
 		}
 		if ($watermark_use_image) {
 			$watermark_image = getWatermarkPath($watermark_use_image);
@@ -235,7 +235,7 @@ if (is_null($cache_path) || !file_exists($cache_path)) { //process the image
 			$newim = addWatermark($newim, $watermark_image, $image_path);
 		} 
 		$iMutex->unlock();
-		if (!zp_imageOutput($newim, $suffix, $cache_path, $quality) && DEBUG_IMAGE) {
+		if (!$_zp_graphics->imageOutput($newim, $suffix, $cache_path, $quality) && DEBUG_IMAGE) {
 			debugLog('full-image failed to create:' . $image);
 		} 
 	}
@@ -246,8 +246,8 @@ if (!is_null($cache_path)) {
 		echo FULLWEBPATH . '/' . CACHEFOLDER . pathurlencode(imgSrcURI($cache_file));
 	} else {
 		if ($disposal == 'download' || !OPEN_IMAGE_CACHE) {
-			require_once(dirname(__FILE__) . '/lib-MimeTypes.php');
-			$mimetype = getMimeString($suffix);
+			require_once(dirname(__FILE__) . '/classes/class-mimetypes.php');
+			$mimetype = mimeTypes::getType($suffix);
 			$fp = fopen($cache_path, 'rb');
 			// send the right headers
 			header('Last-Modified: ' . gmdate('D, d M Y H:i:s') . ' GMT');

@@ -72,8 +72,7 @@
  * </ul>
  *
  * @author Stephen Billard (sbillard)
- * @package plugins
- * @subpackage mobiletheme
+ * @package zpcore\plugins\mobiletheme
  */
 
 $plugin_is_filter = 5|CLASS_PLUGIN;
@@ -163,7 +162,7 @@ class mobileTheme {
 			if (MOD_REWRITE) {
 				$link = '?mobileTheme=' . $enable;
 			} else {
-				global $_zp_gallery_page, $_zp_current_images, $_zp_current_album, $_zp_current_zenpage_news, $_zp_current_category, $_zp_current_zenpage_page;
+				global $_zp_gallery_page, $_zp_current_image, $_zp_current_album, $_zp_current_zenpage_news, $_zp_current_category, $_zp_current_zenpage_page;
 				switch ($_zp_gallery_page) {
 					case 'index.php':
 						$link = 'index.php?mobileTheme=' . $enable;

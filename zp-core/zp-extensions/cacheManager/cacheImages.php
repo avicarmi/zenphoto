@@ -3,13 +3,12 @@
  * This template is used to generate cache images. Running it will process the entire gallery,
  * supplying an album name (ex: loadAlbums.php?album=newalbum) will only process the album named.
  * Passing clear=on will purge the designated cache before generating cache images
- * @package plugins
- * @subpackage cachemanager
+ * @package zpcore\plugins\cachemanager
  */
 // force UTF-8 Ø
 define('OFFSET_PATH', 3);
 require_once("../../admin-globals.php");
-require_once(SERVERPATH . '/' . ZENFOLDER . '/functions-image.php');
+require_once(SERVERPATH . '/' . ZENFOLDER . '/functions/functions-image.php');
 require_once(SERVERPATH . '/' . ZENFOLDER . '/template-functions.php');
 
 
@@ -41,7 +40,7 @@ if ($alb) {
 	$folder = sanitize_path($alb);
 	$object = $folder;
 	$tab = 'edit';
-	$album = newAlbum($folder);
+	$album = AlbumBase::newAlbum($folder);
 	if (!$album->isMyItem(ALBUM_RIGHTS)) {
 		if (!zp_apply_filter('admin_managed_albums_access', false, $return)) {
 			redirectURL(FULLWEBPATH . '/' . ZENFOLDER . '/admin.php');
@@ -49,7 +48,7 @@ if ($alb) {
 	}
 } else {
 	$object = '<em>' . gettext('Gallery') . '</em>';
-	$zenphoto_tabs['overview']['subtabs'] = array(
+	$_zp_admin_menu['overview']['subtabs'] = array(
 			gettext('Cache images') => FULLWEBPATH .'/'. ZENFOLDER .'/' . PLUGIN_FOLDER . '/cacheManager/cacheImages.php?page=overview&tab=images',
 			gettext('Cache stored images') => FULLWEBPATH .'/'. ZENFOLDER . '/' . PLUGIN_FOLDER . '/cacheManager/cacheDBImages.php?page=overview&tab=DB&XSRFToken=' . getXSRFToken('cacheDBImages'));
 }
@@ -240,7 +239,7 @@ printAdminHeader('overview', 'images'); ?>
 				
 				// general counts
 				if ($alb) {
-					$albobj = newAlbum($alb);
+					$albobj = AlbumBase::newAlbum($alb);
 					$images_total = $albobj->getNumAllImages();
 					$imagesizes_total = $images_total * $cachesizes;
 					$albums_total = $albobj->getNumAllAlbums() + 1; // the album itself counts, too ;)
@@ -281,7 +280,7 @@ printAdminHeader('overview', 'images'); ?>
 				<?php
 				@set_time_limit(3000);
 				foreach ($allalbums as $album) {
-					$albumobj = newAlbum($album);
+					$albumobj = AlbumBase::newAlbum($album);
 					if (!$albumobj->isDynamic() || count($allalbums) == 1) {
 						cacheManager::loadAlbums($albumobj);
 					}

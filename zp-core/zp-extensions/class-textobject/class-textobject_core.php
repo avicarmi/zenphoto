@@ -57,8 +57,7 @@
  * plugin folder.
  *
  * @author Stephen Billard (sbillard)
- * @package plugins
- * @subpackage class-textobject
+ * @package zpcore\plugins\classtextobject
  *
  */
 class TextObject extends Image {
@@ -188,13 +187,14 @@ class TextObject extends Image {
 	 * @return array
 	 */
 	function getThumbDimensions() {
+		global $_zp_graphics;
 		if (!is_null($this->thumbdimensions)) {
 			return $this->thumbdimensions;
 		}
 		$imgfile = $this->getThumbImageFile();
-		$image = zp_imageGet($imgfile);
-		$width = zp_imageWidth($image);
-		$height = zp_imageHeight($image);
+		$image = $_zp_graphics->imageGet($imgfile);
+		$width = $_zp_graphics->imageWidth($image);
+		$height = $_zp_graphics->imageHeight($image);
 		return $this->thumbdimensions = array(
 				'width' => $width,
 				'height' => $height

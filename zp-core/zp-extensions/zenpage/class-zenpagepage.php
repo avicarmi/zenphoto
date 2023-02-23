@@ -4,8 +4,7 @@
  * zenpage page class
  *
  * @author Malte Müller (acrylian)
- * @package plugins
- * @subpackage zenpage
+ * @package zpcore\plugins\zenpage\classes
  */
 class ZenpagePage extends ZenpageItems {
 
@@ -159,7 +158,7 @@ class ZenpagePage extends ZenpageItems {
 			$newobj->setSortOrder(NULL);
 			$newobj->setTags($this->getTags());
 			$newobj->setDateTime(date('Y-m-d H:i:s'));
-			$newobj->setShow(0);
+			$newobj->setPublished(0);
 			$newobj->save();
 			return $newobj;
 		}
@@ -171,14 +170,15 @@ class ZenpagePage extends ZenpageItems {
 	 *
 	 */
 	function remove() {
+		global $_zp_db;
 		if ($success = parent::remove()) {
 			$sortorder = $this->getSortOrder();
 			if ($this->id) {
-				$success = $success && query("DELETE FROM " . prefix('obj_to_tag') . "WHERE `type`='pages' AND `objectid`=" . $this->id);
-				$success = $success && query("DELETE FROM " . prefix('comments') . " WHERE ownerid = " . $this->getID() . ' AND type="pages"'); // delete any comments
+				$success = $success && $_zp_db->query("DELETE FROM " . $_zp_db->prefix('obj_to_tag') . "WHERE `type`='pages' AND `objectid`=" . $this->id);
+				$success = $success && $_zp_db->query("DELETE FROM " . $_zp_db->prefix('comments') . " WHERE ownerid = " . $this->getID() . ' AND type="pages"'); // delete any comments
 				//	remove subpages
 				$mychild = strlen($sortorder) + 4;
-				$result = query_full_array('SELECT * FROM ' . prefix('pages') . " WHERE `sort_order` like '" . $sortorder . "-%'");
+				$result = $_zp_db->queryFullArray('SELECT * FROM ' . $_zp_db->prefix('pages') . " WHERE `sort_order` like '" . $sortorder . "-%'");
 				if (is_array($result)) {
 					foreach ($result as $row) {
 						if (strlen($row['sort_order']) == $mychild) {
@@ -225,7 +225,7 @@ class ZenpagePage extends ZenpageItems {
 			$parents = array();
 			$page = $this;
 			while (!is_null($page = $page->getParent())) {
-				array_unshift($parents, $page->getTitlelink());
+				array_unshift($parents, $page->getName());
 			}
 			return $this->parents = $parents;
 		} else {
@@ -254,6 +254,7 @@ class ZenpagePage extends ZenpageItems {
 	 * @param $show
 	 */
 	function checkforGuest(&$hint = NULL, &$show = NULL) {
+		global $_zp_db;
 		if (!parent::checkForGuest()) {
 			return false;
 		}
@@ -264,8 +265,8 @@ class ZenpagePage extends ZenpageItems {
 			if (empty($parentID)) {
 				$pageobj = NULL;
 			} else {
-				$sql = 'SELECT `titlelink` FROM ' . prefix('pages') . ' WHERE `id`=' . $parentID;
-				$result = query_single_row($sql);
+				$sql = 'SELECT `titlelink` FROM ' . $_zp_db->prefix('pages') . ' WHERE `id`=' . $parentID;
+				$result = $_zp_db->querySingleRow($sql);
 				$pageobj = new ZenpagePage($result['titlelink']);
 				$hash = $pageobj->getPassword();
 			}
@@ -273,7 +274,7 @@ class ZenpagePage extends ZenpageItems {
 		if (empty($hash)) { // no password required
 			return 'zp_public_access';
 		} else {
-			$authType = "zp_page_auth_" . $pageobj->getID();
+			$authType = "zpcms_auth_page_" . $pageobj->getID();
 			$saved_auth = zp_getCookie($authType);
 			if ($saved_auth == $hash) {
 				return $authType;
@@ -338,7 +339,7 @@ class ZenpagePage extends ZenpageItems {
 			}
 			$mypages = $_zp_current_admin_obj->getObjects('pages');
 			if (!empty($mypages)) {
-				if (array_search($this->getTitlelink(), $mypages) !== false) {
+				if (array_search($this->getName(), $mypages) !== false) {
 					return true;
 				}
 			}
@@ -352,7 +353,7 @@ class ZenpagePage extends ZenpageItems {
 	 * @return string
 	 */
 	function getLink() {
-		return zp_apply_filter('getLink', rewrite_path(_PAGES_ . '/' . $this->getTitlelink() . '/', '/index.php?p=pages&title=' . $this->getTitlelink()), $this, NULL);
+		return zp_apply_filter('getLink', rewrite_path(_PAGES_ . '/' . $this->getName() . '/', '/index.php?p=pages&title=' . $this->getName()), $this, NULL);
 	}
 
 }

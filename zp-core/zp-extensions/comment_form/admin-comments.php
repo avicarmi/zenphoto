@@ -1,7 +1,7 @@
 <?php
 /**
  * provides the Comments tab of admin
- * @package admin
+ * @package zpcore\plugins\commentform
  */
 // force UTF-8 Ø
 
@@ -16,14 +16,17 @@ if (isset($_GET['page'])) {
 	$page = '';
 }
 
-if (isset($_GET['fulltext']) && $_GET['fulltext'])
+if (isset($_GET['fulltext']) && $_GET['fulltext']) {
 	$fulltext = true;
-else
+} else {
 	$fulltext = false;
-if (isset($_GET['viewall']))
+}
+
+if (isset($_GET['viewall'])) {
 	$viewall = true;
-else
+} else {
 	$viewall = false;
+}
 
 /* handle posts */
 if (isset($_GET['action'])) {
@@ -89,8 +92,7 @@ if (isset($_GET['action'])) {
 printAdminHeader('comments');
 zp_apply_filter('texteditor_config', 'comments');
 ?>
-<script type="text/javascript">
-	//<!-- <![CDATA[
+<script>
 	function confirmAction() {
 		if ($('#checkallaction').val() == 'deleteall') {
 			return confirm('<?php echo js_encode(gettext("Are you sure you want to delete the checked items?")); ?>');
@@ -98,7 +100,6 @@ zp_apply_filter('texteditor_config', 'comments');
 			return true;
 		}
 	}
-	// ]]> -->
 </script>
 <?php
 zp_apply_filter('texteditor_config', 'zenphoto');
@@ -116,7 +117,7 @@ if ($page == "editcomment" && isset($_GET['id'])) {
 	<div class="box" style="padding: 10px">
 		<?php
 		$id = sanitize_numeric($_GET['id']);
-		$commentarr = query_single_row("SELECT * FROM " . prefix('comments') . " WHERE id = $id LIMIT 1");
+		$commentarr = $_zp_db->querySingleRow("SELECT * FROM " . $_zp_db->prefix('comments') . " WHERE id = $id LIMIT 1");
 		if ($commentarr) {
 			extract($commentarr);
 			$commentarr = array_merge($commentarr, getSerializedArray($commentarr['custom_data']));
@@ -250,7 +251,7 @@ if ($page == "editcomment" && isset($_GET['id'])) {
 		$fulltext = false;
 		$fulltexturl = '';
 	}
-	$allcomments = fetchComments(NULL);
+	$allcomments = getComments(NULL);
 
 	$pagenum = max((int) @$_GET['subpage'], 1);
 
@@ -311,16 +312,6 @@ if ($page == "editcomment" && isset($_GET['id'])) {
 
 	<p><?php echo gettext("You can edit or delete comments."); ?></p>
 
-	<?php
-	if ($totalpages > 1) {
-		?>
-		<div align="center">
-			<?php adminPageNav($pagenum, $totalpages, '  admin-comments.php ', $fulltexturl); ?>
-		</div>
-		<?php
-	}
-	?>
-
 	<form class="dirty-check" name="comments" id="form_commentlist" action="?action=applycomments" method="post" onsubmit="return confirmAction();" autocomplete="off">
 		<?php XSRFToken('applycomments'); ?>
 		<input type="hidden" name="subpage" value="<?php echo html_encode($pagenum) ?>" />
@@ -345,6 +336,19 @@ if ($page == "editcomment" && isset($_GET['id'])) {
 		</p>
 		<br class="clearall" /><br />
 		<table class="bordered">
+			
+				<?php
+				if ($totalpages > 1) {
+					?>
+					<tr>
+						<td id="imagenav" class="bordered" colspan="11">
+							<?php adminPageNav($pagenum, $totalpages, '  admin-comments.php ', $fulltexturl); ?>
+						</td>
+					</tr>
+					<?php
+				}
+			?>
+				
 			<tr>
 				<th colspan="11"><?php echo gettext("Edit this comment"); ?>
 					<?php
@@ -407,7 +411,7 @@ if ($page == "editcomment" && isset($_GET['id'])) {
 						}
 						break;
 				}
-				$date = myts_date('%m/%d/%Y %I:%M %p', $comment['date']);
+				$date = myts_date('m/d/Y h:i A', $comment['date']);
 				$website = $comment['website'];
 				$fullcomment = sanitize($comment['comment'], 2);
 				$shortcomment = truncate_string(getBare($fullcomment), 123);
@@ -463,10 +467,20 @@ if ($page == "editcomment" && isset($_GET['id'])) {
 																						onclick="triggerAllBox(this.form, 'ids[]', this.form.allbox);" /></td>
 				</tr>
 			<?php } ?>
-
-
+			<?php
+				if ($totalpages > 1) {
+					?>
+					<tr>
+						<td  id="imagenavb" class="bordered" colspan="11">
+							<?php adminPageNav($pagenum, $totalpages, '  admin-comments.php ', $fulltexturl); ?>
+						</td>
+					</tr>
+					<?php
+				}
+			?>
 
 		</table>
+		
 		<p class="buttons"><button type="submit"><img src="<?php echo WEBPATH . '/' . ZENFOLDER; ?>/images/pass.png" alt="" /><strong><?php echo gettext("Apply"); ?></strong></button></p>
 		<ul class="iconlegend">
 			<li><img src="<?php echo WEBPATH . '/' . ZENFOLDER; ?>/images/reset.png" alt="" /><?php echo gettext("Private message"); ?></li>
@@ -478,6 +492,7 @@ if ($page == "editcomment" && isset($_GET['id'])) {
 		</ul>
 
 	</form>
+	
 
 	<?php
 }

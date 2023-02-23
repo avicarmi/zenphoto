@@ -1,4 +1,7 @@
 <?php
+/**
+ *  @package zpcore\plugins\elfinder
+ */
 
 require_once(dirname(dirname(dirname(dirname(__FILE__)))) . '/admin-globals.php');
 XSRFdefender('elFinder');
@@ -142,7 +145,7 @@ if ($_REQUEST['origin'] == 'upload') {
 			$all_actions = $_not_upload = $_not_edit = array();
 
 			foreach ($_managed_folders as $key => $folder) {
-				$rightsalbum = newAlbum($folder);
+				$rightsalbum = AlbumBase::newAlbum($folder);
 				$modified_rights = $rightsalbum->albumSubRights();
 				if ($uploadlimit <= 0) {
 					$modified_rights = $modified_rights & ~MANAGED_OBJECT_RIGHTS_UPLOAD;
@@ -243,9 +246,9 @@ if ($_REQUEST['origin'] == 'upload') {
 		);
 		$opts['roots'][5] = array(
 						'driver'				 => 'LocalFileSystem',
-						'startPath'			 => SERVERPATH . '/' . BACKUPFOLDER . '/',
-						'path'					 => SERVERPATH . '/' . BACKUPFOLDER . '/',
-						'URL'						 => WEBPATH . '/' . BACKUPFOLDER . '/',
+						'startPath'			 => getBackupFolder(SERVERPATH),
+						'path'					 => getBackupFolder(SERVERPATH),
+						'URL'						 => getBackupFolder(WEBPATH),
 						'alias'					 => sprintf(gettext('Backup files (%s)'), BACKUPFOLDER),
 						'mimeDetect'		 => 'internal',
 						'tmbPath'				 => '.tmb',

@@ -3,7 +3,7 @@
 
 /**
  * stores all the default values for options
- * @package setup
+ * @package zpcore\setup
  */
 setup::Log(gettext('Set Zenphoto default options'), true);
 
@@ -13,11 +13,11 @@ zp_apply_filter('log_setup', true, 'install', '');
 
 /* fix for NULL theme name */
 $active = getOptionList();
-$sql = "SELECT * FROM " . prefix('options') . ' WHERE `theme` IS NULL';
-$optionlist = query_full_array($sql);
+$sql = "SELECT * FROM " . $_zp_db->prefix('options') . ' WHERE `theme` IS NULL';
+$optionlist = $_zp_db->queryFullArray($sql);
 if ($optionlist) {
 	foreach ($optionlist as $option) {
-		query('DELETE FROM ' . prefix('options') . ' WHERE `id`=' . $option['id']);
+		$_zp_db->query('DELETE FROM ' . $_zp_db->prefix('options') . ' WHERE `id`=' . $option['id']);
 		setOption($option['name'], $active[$option['name']]);
 	}
 }
@@ -35,15 +35,15 @@ purgeOption('zenphoto_install');
 setOption('zenphoto_install', serialize(installSignature()));
 setOptionDefault('setup_unprotected_by_adminrequest', 0);
 
-if (Zenphoto_Authority::$preferred_version > ($oldv = getOption('libauth_version'))) {
+if (Authority::$preferred_version > ($oldv = getOption('libauth_version'))) {
 	if (empty($oldv)) {
 		//	The password hash of these old versions did not have the extra text.
 		//	Note: if the administrators table is empty we will re-do this option with the good stuff.
 		purgeOption('extra_auth_hash_text');
 		setOptionDefault('extra_auth_hash_text', '');
 	}
-	$msg = sprintf(gettext('Migrating lib-auth data version %1$s => version %2$s'), $oldv, Zenphoto_Authority::$preferred_version);
-	if (!$_zp_authority->migrateAuth(Zenphoto_Authority::$preferred_version)) {
+	$msg = sprintf(gettext('Migrating lib-auth data version %1$s => version %2$s'), $oldv, Authority::$preferred_version);
+	if (!$_zp_authority->migrateAuth(Authority::$preferred_version)) {
 		$msg .= ': ' . gettext('failed');
 	}
 	echo $msg;
@@ -77,7 +77,7 @@ setOption('mod_rewrite_detected', 0);
 if (isset($_GET['mod_rewrite'])) {
 	if (!function_exists('curl_init')) {
 		?>
-		<script type="text/javascript">
+		<script>
 			$(function() {
 				$('img').error(function() {
 					var link = $(this).attr('src');
@@ -265,8 +265,8 @@ setOptionDefault('search_no_albums', 0);
 $admins = $_zp_authority->getAdministrators('groups');
 foreach ($admins as $group) {
 	if (is_null($group['other_credentials'])) {
-		$sql = 'UPDATE ' . prefix('administrators') . ' SET `custom_data` = NULL, `other_credentials`=' . db_quote($group['custom_data']) . ' WHERE `id`=' . $group['id'];
-		query($sql);
+		$sql = 'UPDATE ' . $_zp_db->prefix('administrators') . ' SET `custom_data` = NULL, `other_credentials`=' . $_zp_db->quote($group['custom_data']) . ' WHERE `id`=' . $group['id'];
+		$_zp_db->query($sql);
 	}
 }
 
@@ -275,7 +275,7 @@ if (!is_array($groupsdefined)) {
 	$groupsdefined = array();
 }
 if (!in_array('administrators', $groupsdefined)) {
-	$groupobj = Zenphoto_Authority::newAdministrator('administrators', 0);
+	$groupobj = Authority::newAdministrator('administrators', 0);
 	$groupobj->setName('group');
 	$groupobj->setRights(ALL_RIGHTS);
 	$groupobj->set('other_credentials', gettext('Users with full privileges'));
@@ -284,7 +284,7 @@ if (!in_array('administrators', $groupsdefined)) {
 	$groupsdefined[] = 'administrators';
 }
 if (!in_array('viewers', $groupsdefined)) {
-	$groupobj = Zenphoto_Authority::newAdministrator('viewers', 0);
+	$groupobj = Authority::newAdministrator('viewers', 0);
 	$groupobj->setName('group');
 	$groupobj->setRights(NO_RIGHTS | POST_COMMENT_RIGHTS | VIEW_ALL_RIGHTS);
 	$groupobj->set('other_credentials', gettext('Users allowed only to view zenphoto objects'));
@@ -293,7 +293,7 @@ if (!in_array('viewers', $groupsdefined)) {
 	$groupsdefined[] = 'viewers';
 }
 if (!in_array('blocked', $groupsdefined)) {
-	$groupobj = Zenphoto_Authority::newAdministrator('blocked', 0);
+	$groupobj = Authority::newAdministrator('blocked', 0);
 	$groupobj->setName('group');
 	$groupobj->setRights(0);
 	$groupobj->set('other_credentials', gettext('Banned users'));
@@ -302,7 +302,7 @@ if (!in_array('blocked', $groupsdefined)) {
 	$groupsdefined[] = 'blocked';
 }
 if (!in_array('album managers', $groupsdefined)) {
-	$groupobj = Zenphoto_Authority::newAdministrator('album managers', 0);
+	$groupobj = Authority::newAdministrator('album managers', 0);
 	$groupobj->setName('template');
 	$groupobj->setRights(NO_RIGHTS | OVERVIEW_RIGHTS | POST_COMMENT_RIGHTS | VIEW_ALL_RIGHTS | UPLOAD_RIGHTS | COMMENT_RIGHTS | ALBUM_RIGHTS | THEMES_RIGHTS);
 	$groupobj->set('other_credentials', gettext('Managers of one or more albums'));
@@ -311,7 +311,7 @@ if (!in_array('album managers', $groupsdefined)) {
 	$groupsdefined[] = 'album managers';
 }
 if (!in_array('default', $groupsdefined)) {
-	$groupobj = Zenphoto_Authority::newAdministrator('default', 0);
+	$groupobj = Authority::newAdministrator('default', 0);
 	$groupobj->setName('template');
 	$groupobj->setRights(DEFAULT_RIGHTS);
 	$groupobj->set('other_credentials', gettext('Default user settings'));
@@ -320,7 +320,7 @@ if (!in_array('default', $groupsdefined)) {
 	$groupsdefined[] = 'default';
 }
 if (!in_array('newuser', $groupsdefined)) {
-	$groupobj = Zenphoto_Authority::newAdministrator('newuser', 0);
+	$groupobj = Authority::newAdministrator('newuser', 0);
 	$groupobj->setName('template');
 	$groupobj->setRights(NO_RIGHTS);
 	$groupobj->set('other_credentials', gettext('Newly registered and verified users'));
@@ -361,7 +361,7 @@ if (file_exists(SERVERPATH . '/' . ZENFOLDER . '/Zenphoto.package')) {
 if (getOption('search_space_is_OR')) {
 	setOption('search_space_is', '|');
 }
-query('DELETE FROM ' . prefix('options') . ' WHERE `name`="search_space_is_OR"', false);
+$_zp_db->query('DELETE FROM ' . $_zp_db->prefix('options') . ' WHERE `name`="search_space_is_OR"', false);
 
 if (!file_exists(SERVERPATH . '/favicon.ico')) {
 	@copy(SERVERPATH . '/' . ZENFOLDER . '/images/favicon.ico', SERVERPATH . '/favicon.ico');
@@ -480,7 +480,7 @@ $_zp_gallery = new Gallery(); // insure we have the proper options instantiated
  * 
  * these may have been used in third party themes. Themes should cease using these options and instead use the appropriate gallery methods.
  */
-$unprotectedpages = query_full_array("SELECT name FROM " . prefix('options') . " WHERE name LIKE 'gallery_page_unprotected_%' ");
+$unprotectedpages = $_zp_db->queryFullArray("SELECT name FROM " . $_zp_db->prefix('options') . " WHERE name LIKE 'gallery_page_unprotected_%' ");
 if ($unprotectedpages) {
 	foreach ($unprotectedpages as $unprotectedpage) {
 		purgeOption($unprotectedpage['name']);
@@ -502,6 +502,15 @@ purgeOption('album_use_new_image_date');
 purgeOption('thumb_select_images');
 purgeOption('album_default');
 purgeOption('image_default');
+purgeThemeOptionTotal('display_copyright_notice');
+setOptionDefault('display_copyright_notice', 1); // enable new global one by default
+
+if(getOption('use_imagick') && $_zp_graphics->imagick_present) {
+	setOptionDefault('graphicslib_selected', 'imagick', true);
+} else {
+	setOptionDefault('graphicslib_selected', 'gd', true);
+}
+purgeOption('use_imagick');
 
 if (TEST_RELEASE) {
 	foreach ($data as $key => $option) {
@@ -515,14 +524,14 @@ if (TEST_RELEASE) {
 }
 
 //	cleanup options for missing elements
-$sql = 'SELECT DISTINCT `creator` FROM ' . prefix('options') . ' WHERE `creator` IS NOT NULL';
-$result = query_full_array($sql);
+$sql = 'SELECT DISTINCT `creator` FROM ' . $_zp_db->prefix('options') . ' WHERE `creator` IS NOT NULL';
+$result = $_zp_db->queryFullArray($sql);
 if (is_array($result)) {
 	foreach ($result as $row) {
 		$filename = $row['creator'];
 		if (!file_exists(SERVERPATH . '/' . $filename)) {
-			$sql = 'DELETE FROM ' . prefix('options') . ' WHERE `creator`=' . db_quote($filename);
-			query($sql);
+			$sql = 'DELETE FROM ' . $_zp_db->prefix('options') . ' WHERE `creator`=' . $_zp_db->quote($filename);
+			$_zp_db->query($sql);
 			if (strpos($filename, PLUGIN_FOLDER) !== false || strpos($filename, USER_PLUGIN_FOLDER) !== false) {
 				purgeOption('zp_plugin_' . stripSuffix(basename($filename)));
 			}
@@ -530,14 +539,14 @@ if (is_array($result)) {
 	}
 }
 // missing themes
-$sql = 'SELECT DISTINCT `theme` FROM ' . prefix('options') . ' WHERE `theme` IS NOT NULL';
-$result = query_full_array($sql);
+$sql = 'SELECT DISTINCT `theme` FROM ' . $_zp_db->prefix('options') . ' WHERE `theme` IS NOT NULL';
+$result = $_zp_db->queryFullArray($sql);
 if (is_array($result)) {
 	foreach ($result as $row) {
 		$filename = THEMEFOLDER . '/' . $row['theme'];
 		if ($filename && !file_exists(SERVERPATH . '/' . $filename)) {
-			$sql = 'DELETE FROM ' . prefix('options') . ' WHERE `theme`=' . db_quote($row['theme']);
-			query($sql);
+			$sql = 'DELETE FROM ' . $_zp_db->prefix('options') . ' WHERE `theme`=' . $_zp_db->quote($row['theme']);
+			$_zp_db->query($sql);
 		}
 	}
 }
@@ -549,7 +558,7 @@ setOption('last_update_check', 30);
 $autoRotate = getOption('auto_rotate');
 if (!is_null($autoRotate)) {
 	if (!$autoRotate) {
-		query('UPDATE ' . prefix('images') . ' SET `EXIFOrientation`=NULL');
+		$_zp_db->query('UPDATE ' . $_zp_db->prefix('images') . ' SET `EXIFOrientation`=NULL');
 		setOption('EXIFOrientation', 0);
 		setOption('EXIFOrientation-disabled', 1);
 	}
@@ -586,8 +595,8 @@ setOptionDefault('search_page_sort_direction', '');
 
 purgeOption('zp_plugin_releaseUpdater');
 
-query('UPDATE ' . prefix('administrators') . ' SET `passhash`=' . ((int) getOption('strong_hash')) . ' WHERE `valid`>=1 AND `passhash` IS NULL');
-query('UPDATE ' . prefix('administrators') . ' SET `passupdate`=' . db_quote(date('Y-m-d H:i:s')) . ' WHERE `valid`>=1 AND `passupdate` IS NULL');
+$_zp_db->query('UPDATE ' . $_zp_db->prefix('administrators') . ' SET `passhash`=' . ((int) getOption('strong_hash')) . ' WHERE `valid`>=1 AND `passhash` IS NULL');
+$_zp_db->query('UPDATE ' . $_zp_db->prefix('administrators') . ' SET `passupdate`=' . $_zp_db->quote(date('Y-m-d H:i:s')) . ' WHERE `valid`>=1 AND `passupdate` IS NULL');
 setOptionDefault('image_processor_flooding_protection', 1);
 setOptionDefault('codeblock_first_tab', 1);
 setOptionDefault('GD_FreeType_Path', SERVERPATH . '/' . USER_PLUGIN_FOLDER . '/gd_fonts');

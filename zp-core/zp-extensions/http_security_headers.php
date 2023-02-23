@@ -15,8 +15,7 @@
  * <ul>
  * 
  * @author Malte Müller (acrylian)
- * @package plugins
- * @subpackage http_security_headers
+ * @package zpcore\plugins\httpsecurityheaders
  * 
  */
 $plugin_is_filter = 9 | CLASS_PLUGIN;
@@ -34,11 +33,9 @@ class securityheadersOptions {
 
 	function __construct() {
 		setOptionDefault('securityheaders_csp', 1);
-		setOptionDefault('securityheaders_csp_frameancestors', 1);
-		setOptionDefault('securityheaders_csp_blockallmixedcontent', 1);
-		setOptionDefault('securityheaders_xframeoptions', 'deny');
-		setOptionDefault('securityheaders_xxssprotection_enable', 1);
-		setOptionDefault('securityheaders_referrerpolicy', 'same-origin');
+		setOptionDefault('securityheaders_xframeoptions', 'disabled');
+		setOptionDefault('securityheaders_referrerpolicy', 'disabled');
+		purgeOption('securityheaders_csp_blockallmixedcontent');
 	}
 
 	function getOptionsSupported() {
@@ -276,13 +273,6 @@ class securityheadersOptions {
 				/**
 				 * Content-Security-Policy - Other directives
 				 */
-				'Content-Security-Policy: block-all-mixed-content' => array(
-						'key' => 'securityheaders_csp_blockallmixedcontent',
-						'type' => OPTION_TYPE_CHECKBOX,
-						'order' => 18,
-						'desc' => '<p>' . gettext('Prevents http content being loaded if the site is in https mode.') . '</p>'
-						. self::getStandardDesc('https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Content-Security-Policy/block-all-mixed-content')
-				),
 				'Content-Security-Policy: upgrade-insecure-requests' => array(
 						'key' => 'securityheaders_csp_upgradeinsecurerequests',
 						'type' => OPTION_TYPE_CHECKBOX,
@@ -303,20 +293,20 @@ class securityheadersOptions {
 						'key' => 'securityheaders_hsts',
 						'type' => OPTION_TYPE_TEXTBOX,
 						'order' => 27,
-						'desc' => '<p>' . gettext('Enter the max age in seconds. Instructs the browser that the site should be accessed via https only') . '</p>'
+						'desc' => '<p>' . gettext('Enter the max age in seconds. Instructs the browser that the site should be accessed via https only.') . '</p>'
 						. self::getStandardDesc('https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Strict-Transport-Security')
 				),
 				'Strict-Transport-Security - includeSubdomains' => array(
 						'key' => 'securityheaders_hsts_includesubdomains',
 						'type' => OPTION_TYPE_CHECKBOX,
 						'order' => 28,
-						'desc' => '<p>' . gettext('Optional to include sub domains')
+						'desc' => '<p>' . gettext('Optional to include sub domains if <em>max-age</em> is set above.')
 				),
 				'Strict-Transport-Security - preload' => array(
 						'key' => 'securityheaders_hsts_preload',
 						'type' => OPTION_TYPE_CHECKBOX,
 						'order' => 29,
-						'desc' => '<p>' . gettext('Optional')
+						'desc' => '<p>' . gettext('Optional if <em>max-age</em> is set above.')
 				),
 				/*
 				 * Other partly legacy policies/headers
@@ -336,10 +326,10 @@ class securityheadersOptions {
 						. self::getStandardDesc('https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/X-Frame-Options')
 				),
 				'X-Frame-Options - allow-from hosts' => array(
-						'key' => 'securityheaders_csp_frameancestors_hosts',
+						'key' => 'securityheaders_csp_xframeoptions_allow-from_hosts',
 						'type' => OPTION_TYPE_TEXTBOX,
 						'order' => 30,
-						'desc' => gettext('Enter one or more domains if allow-from is selected above.')
+						'desc' => gettext('Enter one or more domains if <em>allow-from</em> is selected above.')
 				),
 				'X-Content-Type-Options: nosniff' => array(
 						'key' => 'securityheaders_xcontentnosniff',
@@ -484,12 +474,9 @@ class securityheadersOptions {
 	 * @return array
 	 */
 	static function getContentSecuritytPolicyPluginTypes($suffix_as_key = false) {
-		global $mime_types;
-		if(!isset($mime_types)) {
-			require_once SERVERPATH.'/'.ZENFOLDER.'/lib-MimeTypes.php';
-		}
+		require_once SERVERPATH.'/'.ZENFOLDER.'/classes/class-mimetypes.php';
 		$plugintypes = array();
-		foreach ($mime_types as $key => $val) {
+		foreach (mimeTypes::$mime_types as $key => $val) {
 			if($suffix_as_key) {
 				$key_new = $key;
 			} else {
@@ -523,7 +510,7 @@ class securityHeaders {
 	 * Sets the Content-Security-Policy header
 	 */
 	static function setContentSecurityPolicy() {
-		global $mime_types;
+		require_once SERVERPATH . '/' . ZENFOLDER . '/classes/class-mimetypes.php';
 		if (getOption('securityheaders_csp')) {
 			$reportonly = '';
 			if (getOption('securityheaders_csp_reportonly')) {
@@ -554,7 +541,12 @@ class securityHeaders {
 				if (getOption($option . '_hosts')) {
 					$value = trim(getOption($option . '_hosts'));
 					if (!empty($value)) {
-						$csp_fetch[] = $value;
+						if (empty($csp_fetch)) {
+							//if above are not set the policy name is missing here otherwise…
+							$csp_fetch[] = $policy . ' ' . $value;
+						} else {
+							$csp_fetch[] = $value;
+						}
 					}
 				}
 				if (!empty($csp_fetch)) {
@@ -567,7 +559,7 @@ class securityHeaders {
 			foreach($csp_plugintypes_options as $key => $val) {
 				$plugintype = getOption($val);
 				if($plugintype) {
-					$csp_plugintypes[] = $mime_types[$key];
+					$csp_plugintypes[] = mimeTypes::$mime_types[$key];
 				}
 			} 
 			if(!empty($csp_plugintypes)) {
@@ -595,15 +587,16 @@ class securityHeaders {
 			if (getOption('securityheaders_csp_frameancestors_hosts')) {
 				$value = trim(getOption('securityheaders_csp_frameancestors_hosts'));
 				if (!empty($value)) {
-					$csp_frameancestor_sources[] = $value;
+					if (empty($csp_frameancestor_sources)) {
+						//if above are not set the policy name is missing here otherwise…
+						$csp_frameancestor_sources[] = 'frame-ancestors ' . $value;
+					} else {
+						$csp_frameancestor_sources[] = $value;
+					}
 				}
 			}
 			if (!empty($csp_frameancestor_sources)) {
 				$csp_sources[] = implode(' ', $csp_frameancestor_sources);
-			}
-
-			if (getOption('securityheaders_csp_blockallmixedcontent')) {
-				$csp_sources[] = 'block-all-mixed-content';
 			}
 
 			if (getOption('securityheaders_csp_upgradeinsecurerequests')) {
@@ -613,7 +606,6 @@ class securityHeaders {
 			if (!empty($csp_sources)) {
 				$csp_final = implode('; ', $csp_sources);
 				$csp_header = 'Content-Security-Policy' . $reportonly . ': ' . $csp_final;
-				//echo "<pre style='color: white'>"; print_r($csp_header); echo "</pre>";
 				header($csp_header);
 			}
 		}
@@ -627,7 +619,7 @@ class securityHeaders {
 		if ($hsts) {
 			$header = 'Strict-Transport-Security: max-age=' . $hsts;
 			if (getOption('securityheaders_hsts_includesubdomains')) {
-				$header .= '; includeSubdomains';
+				$header .= '; includeSubDomains';
 			}
 			if (getOption('securityheaders_hsts_preload')) {
 				$header .= '; preload';
@@ -637,12 +629,12 @@ class securityHeaders {
 	}
 
 	/**
-	 * Sets teh X-Frame-Options header
+	 * Sets the X-Frame-Options header
 	 */
 	static function setXFrameOptions() {
 		$xframeoptions = getOption('securityheaders_xframeoptions');
-		if ($xframeoptions || $xframeoptions != 'securityheaders_xframeoptions_disabled') {
-			$allowfrom = getOption('securityheaders_xframeoptions_allow-from');
+		if ($xframeoptions && $xframeoptions != 'disabled') {
+			$allowfrom = getOption('securityheaders_csp_xframeoptions_allow-from_hosts');
 			if ($xframeoptions == 'allow-from' && $allowfrom) {
 				header('X-Frame-Options: allow-from ' . $allowfrom);
 			} else {
@@ -664,7 +656,7 @@ class securityHeaders {
 	 * Sets the X-XSS-Protection header
 	 */
 	static function setXSSProtection() {
-		if (getOption('securityheaders_xxssprotection_enabled')) {
+		if (getOption('securityheaders_xxssprotection_enable')) {
 			$header = 'X-XSS-Protection: 1';
 			if (getOption('securityheaders_xxssprotection_modeblock')) {
 				$header .= '; mode:block';
@@ -697,7 +689,7 @@ class securityHeaders {
 			$policy = '';
 			if (getOption($option)) {
 				if ($source == 'nonce-') {
-					$policies[] .= $source . getXSRFToken('security_http_headers');
+					$policies[] = $source . getXSRFToken('security_http_headers');
 				} else {
 					$policies[] = trim($source);
 				}

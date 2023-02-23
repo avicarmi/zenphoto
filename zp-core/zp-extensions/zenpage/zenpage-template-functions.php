@@ -3,8 +3,7 @@
  * zenpage template functions
  *
  * @author Malte Müller (acrylian), Stephen Billard (sbillard)
- * @package plugins
- * @subpackage zenpage
+ * @package zpcore\plugins\zenpage\template
  */
 /* * ********************************************* */
 /* ZENPAGE TEMPLATE FUNCTIONS
@@ -636,9 +635,8 @@ function printNewsArchive($class = 'archive', $yearclass = 'year', $monthclass =
 			$year = "no date";
 			$month = "";
 		} else {
-			$dt = strftime('%Y-%B', strtotime($key));
-			$year = substr($dt, 0, 4);
-			$month = substr($dt, 5);
+			$year = getFormattedLocaleDate('Y', $key);
+			$month = getFormattedLocaleDate('F', $key);
 		}
 		if ($lastyear != $year) {
 			$lastyear = $year;
@@ -652,7 +650,7 @@ function printNewsArchive($class = 'archive', $yearclass = 'year', $monthclass =
 		if ($yearsonly) {
 			$datetosearch = $key;
 		} else {
-			$datetosearch = strftime('%Y-%B', strtotime($key));
+			$datetosearch = getFormattedLocaleDate('Y-F', $key);
 		}
 		if (getCurrentNewsArchive('plain') == $datetosearch) {
 			$active = $activeclass;
@@ -676,16 +674,15 @@ function printNewsArchive($class = 'archive', $yearclass = 'year', $monthclass =
  * Gets the current select news date (year-month) or formatted
  *
  * @param string $mode "formatted" for a formatted date or "plain" for the pure year-month (for example "2008-09") archive date
- * @param string $format If $mode="formatted" how the date should be printed (see PHP's strftime() function for the requirements)
+ * @param string $format If $mode="formatted" how the date should be printed (see PHP's date() function for the requirements)
  * @return string
  */
-function getCurrentNewsArchive($mode = 'formatted', $format = '%B %Y') {
+function getCurrentNewsArchive($mode = 'formatted', $format = 'F Y') {
 	global $_zp_post_date;
 	if (in_context(ZP_ZENPAGE_NEWS_DATE)) {
 		$archivedate = $_zp_post_date;
 		if ($mode == "formatted") {
-			$archivedate = strtotime($archivedate);
-			$archivedate = strftime($format, $archivedate);
+			$archivedate = getFormattedLocaleDate($format, $archivedate);
 		}
 		return $archivedate;
 	}
@@ -697,10 +694,10 @@ function getCurrentNewsArchive($mode = 'formatted', $format = '%B %Y') {
  *
  * @param string $before What you want to print before the archive if using in a breadcrumb navigation for example
  * @param string $mode "formatted" for a formatted date or "plain" for the pure year-month (for example "2008-09") archive date
- * @param string $format If $mode="formatted" how the date should be printed (see PHP's strftime() function for the requirements)
+ * @param string $format If $mode="formatted" how the date should be printed (see PHP's date() function for the requirements)
  * @return string
  */
-function printCurrentNewsArchive($before = '', $mode = 'formatted', $format = '%B %Y') {
+function printCurrentNewsArchive($before = '', $mode = 'formatted', $format = 'F Y') {
 	if ($date = getCurrentNewsArchive($mode, $format)) {
 		if ($before) {
 			echo '<span class="beforetext">' . html_encode($before) . '</span>';
@@ -746,7 +743,7 @@ function printAllNewsCategories($newsindex = 'All news', $counter = TRUE, $css_i
 function getNewsCategoryURL($cat = NULL) {
 	global $_zp_zenpage, $_zp_current_category;
 	if (empty($cat)) {
-		$obj = $_zp_current_category->getTitlelink();
+		$obj = $_zp_current_category->getName();
 	} else {
 		$obj = new ZenpageCategory($cat);
 	}
@@ -886,8 +883,12 @@ function printPrevNewsPageLink($prev = '« prev', $class = 'disabledlink') {
  * @return bool
  */
 function hasNextNewsPage() {
-	global $_zp_zenpage, $_zp_page;
-	$total_pages = $_zp_zenpage->getTotalNewsPages();
+	global $_zp_zenpage, $_zp_current_category, $_zp_page;
+	if (in_context(ZP_ZENPAGE_NEWS_CATEGORY)) {
+		$total_pages = $_zp_current_category->getTotalNewsPages();
+	} else {
+		$total_pages = $_zp_zenpage->getTotalNewsPages();
+	}
 	return $_zp_page < $total_pages;
 }
 
@@ -945,8 +946,12 @@ function printNewsPageList($class = 'pagelist') {
  * @return string
  */
 function printNewsPageListWithNav($next, $prev, $nextprev = true, $class = 'pagelist', $firstlast = true, $navlen = 9) {
-	global $_zp_zenpage, $_zp_page;
-	$total = ceil($_zp_zenpage->getTotalArticles() / ZP_ARTICLES_PER_PAGE);
+	global $_zp_zenpage, $_zp_current_category, $_zp_page;
+	if (in_context(ZP_ZENPAGE_NEWS_CATEGORY)) {
+		$total = $_zp_current_category->getTotalNewsPages();
+	} else {
+		$total = $_zp_zenpage->getTotalNewsPages();
+	}
 	if ($total > 1) {
 		if ($navlen == 0)
 			$navlen = $total;
@@ -1013,8 +1018,12 @@ function printNewsPageListWithNav($next, $prev, $nextprev = true, $class = 'page
 }
 
 function getTotalNewsPages() {
-	global $_zp_zenpage;
-	return$_zp_zenpage->getTotalNewsPages();
+	global $_zp_zenpage, $_zp_current_category;
+	if (in_context(ZP_ZENPAGE_NEWS_CATEGORY)) {
+		return $_zp_current_category->getTotalNewsPages();
+	} else {
+		return $_zp_zenpage->getTotalNewsPages();
+	}
 }
 
 /* * ********************************************************************* */
@@ -1205,7 +1214,7 @@ function getZenpageStatistic($number = 10, $option = "all", $mode = "popular", $
 		if ($mode == 'random') {
 			shuffle($stats);
 		} else {
-			$stats = sortMultiArray($stats, $mode, $sortdir);
+			$stats = sortMultiArray($stats, $mode, $sortdirection);
 		}
 	}
 	return $stats;
@@ -1408,7 +1417,7 @@ function printNestedMenu($option = 'list', $mode = NULL, $counter = TRUE, $css_i
 				$currentitem_id = $_zp_current_category->getID();
 				$currentitem_parentid = $_zp_current_category->getParentID();
 			} else {
-				$currentitem_sortorder = NULL;
+				$currentitem_sortorder = '';
 				$currentitem_id = NULL;
 				$currentitem_parentid = NULL;
 			}
@@ -1462,11 +1471,11 @@ function printNestedMenu($option = 'list', $mode = NULL, $counter = TRUE, $css_i
 				break;
 		}
 	}
-	$baseindent = max(1, count(explode("-", $currentitem_sortorder)));
+	$baseindent = max(1, count(explode("-", strval($currentitem_sortorder))));
 	$indent = 1;
 	$open = array($indent => 0);
 	$parents = array(NULL);
-	$order = explode('-', $currentitem_sortorder);
+	$order = explode('-', strval($currentitem_sortorder));
 	$mylevel = count($order);
 	$myparentsort = array_shift($order);
 	for ($c = 0; $c <= $mylevel; $c++) {
@@ -1482,7 +1491,7 @@ function printNestedMenu($option = 'list', $mode = NULL, $counter = TRUE, $css_i
 				$itemsortorder = $pageobj->getSortOrder();
 				$itemid = $pageobj->getID();
 				$itemparentid = $pageobj->getParentID();
-				$itemtitlelink = $pageobj->getTitlelink();
+				$itemtitlelink = $pageobj->getName();
 				$itemurl = $pageobj->getLink();
 				$count = '';
 				if ($pageobj->isProtected()) {
@@ -1495,7 +1504,7 @@ function printNestedMenu($option = 'list', $mode = NULL, $counter = TRUE, $css_i
 				$itemsortorder = $catobj->getSortOrder();
 				$itemid = $catobj->getID();
 				$itemparentid = $catobj->getParentID();
-				$itemtitlelink = $catobj->getTitlelink();
+				$itemtitlelink = $catobj->getName();
 				$itemurl = $catobj->getLink();
 				$catcount = count($catobj->getArticles());
 				if ($counter) {
@@ -1509,7 +1518,7 @@ function printNestedMenu($option = 'list', $mode = NULL, $counter = TRUE, $css_i
 				break;
 		}
 		if ($catcount) {
-			$level = max(1, count(explode('-', $itemsortorder)));
+			$level = max(1, count(explode('-', strval($itemsortorder))));
 			$process = (($level <= $showsubs && $option == "list") // user wants all the pages whose level is <= to the parameter
 							|| ($option == 'list' || $option == 'list-top') && $level == 1 // show the top level
 							|| (($option == 'list' || ($option == 'omit-top' && $level > 1)) && (($itemid == $currentitem_id) // current page
@@ -1559,10 +1568,10 @@ function printNestedMenu($option = 'list', $mode = NULL, $counter = TRUE, $css_i
 				}
 				if (!is_null($_zp_current_zenpage_page)) {
 					$gettitle = $_zp_current_zenpage_page->getTitle();
-					$getname = $_zp_current_zenpage_page->getTitlelink();
+					$getname = $_zp_current_zenpage_page->getName();
 				} else if (!is_null($_zp_current_category)) {
 					$gettitle = $_zp_current_category->getTitle();
-					$getname = $_zp_current_category->getTitlelink();
+					$getname = $_zp_current_category->getName();
 				} else {
 					$gettitle = '';
 					$getname = '';
@@ -1677,7 +1686,7 @@ $_zp_zenpage_pagelist = NULL;
  * @return int
  */
 function getNumPages($total = false) {
-	global $_zp_zenpage, $_zp_zenpage_pagelist, $_zp_current_search, $_zp_current_zenpage_page;
+	global $_zp_zenpage, $_zp_zenpage_pagelist, $_zp_current_search, $_zp_current_zenpage_page, $_zp_db;
 	$addquery = '';
 	if (!$total) {
 		if (in_context(ZP_SEARCH)) {
@@ -1687,13 +1696,13 @@ function getNumPages($total = false) {
 			if (!zp_loggedin(ADMIN_RIGHTS | ZENPAGE_PAGES_RIGHTS)) {
 				$addquery = ' AND `show` = 1';
 			}
-			return db_count('pages', 'WHERE parentid=' . $_zp_current_zenpage_page->getID() . $addquery);
+			return $_zp_db->count('pages', 'WHERE parentid=' . $_zp_current_zenpage_page->getID() . $addquery);
 		}
 	}
 	if (!zp_loggedin(ADMIN_RIGHTS | ZENPAGE_PAGES_RIGHTS)) {
 		$addquery = ' WHERE `show` = 1';
 	}
-	return db_count('pages', $addquery);
+	return $_zp_db->count('pages', $addquery);
 }
 
 /**
@@ -1782,7 +1791,7 @@ function printBarePageTitle() {
 function getPageTitleLink() {
 	global $_zp_current_zenpage_page;
 	if (is_Pages()) {
-		return $_zp_current_zenpage_page->getTitlelink();
+		return $_zp_current_zenpage_page->getName();
 	}
 }
 
@@ -2111,6 +2120,7 @@ function checkForPage($titlelink) {
  * @param int $itemID the ID of the element to get the comments for if $type != "all"
  */
 function getLatestZenpageComments($number, $type = "all", $itemID = "") {
+	global $_zp_db;
 	$itemID = sanitize_numeric($itemID);
 	$number = sanitize_numeric($number);
 	$checkauth = zp_loggedin();
@@ -2121,7 +2131,7 @@ function getLatestZenpageComments($number, $type = "all", $itemID = "") {
 			$newsshow = '';
 		} else {
 			$newsshow = 'news.show=1 AND';
-			$newscheck = query_full_array("SELECT * FROM " . prefix('news') . " ORDER BY date");
+			$newscheck = $_zp_db->queryFullArray("SELECT * FROM " . $_zp_db->prefix('news') . " ORDER BY date");
 			foreach ($newscheck as $articlecheck) {
 				$obj = new ZenpageNews($articlecheck['titlelink']);
 				if ($obj->inProtectedCategory()) {
@@ -2141,7 +2151,7 @@ function getLatestZenpageComments($number, $type = "all", $itemID = "") {
 			$pagesshow = '';
 		} else {
 			$pagesshow = 'pages.show=1 AND';
-			$pagescheck = query_full_array("SELECT * FROM " . prefix('pages') . " ORDER BY date");
+			$pagescheck = $_zp_db->queryFullArray("SELECT * FROM " . $_zp_db->prefix('pages') . " ORDER BY date");
 			foreach ($pagescheck as $pagecheck) {
 				$obj = new ZenpagePage($pagecheck['titlelink']);
 				if ($obj->isProtected()) {
@@ -2170,14 +2180,14 @@ function getLatestZenpageComments($number, $type = "all", $itemID = "") {
 	$comments_news = array();
 	$comments_pages = array();
 	if ($type == "all" OR $type == "news") {
-		$comments_news = query_full_array("SELECT c.id, c.name, c.type, c.website,"
-						. " c.date, c.anon, c.comment, news.title, news.titlelink FROM " . prefix('comments') . " AS c, " . prefix('news') . " AS news "
+		$comments_news = $_zp_db->queryFullArray("SELECT c.id, c.name, c.type, c.website,"
+						. " c.date, c.anon, c.comment, news.title, news.titlelink FROM " . $_zp_db->prefix('comments') . " AS c, " . $_zp_db->prefix('news') . " AS news "
 						. $whereNews
 						. " ORDER BY c.id DESC LIMIT $number");
 	}
 	if ($type == "all" OR $type == "page") {
-		$comments_pages = query_full_array($sql = "SELECT c.id, c.name, c.type, c.website,"
-						. " c.date, c.anon, c.comment, pages.title, pages.titlelink FROM " . prefix('comments') . " AS c, " . prefix('pages') . " AS pages "
+		$comments_pages = $_zp_db->queryFullArray($sql = "SELECT c.id, c.name, c.type, c.website,"
+						. " c.date, c.anon, c.comment, pages.title, pages.titlelink FROM " . $_zp_db->prefix('comments') . " AS c, " . $_zp_db->prefix('pages') . " AS pages "
 						. $wherePages
 						. " ORDER BY c.id DESC LIMIT $number");
 	}
@@ -2206,7 +2216,7 @@ function getLatestZenpageComments($number, $type = "all", $itemID = "") {
 function zenpageAlbumImage($albumname, $imagename = NULL, $size = NULL, $linkalbum = false) {
 	global $_zp_gallery;
 	echo '<br />';
-	$album = newAlbum($albumname);
+	$album = AlbumBase::newAlbum($albumname);
 	if ($album->loaded) {
 		if (is_null($size)) {
 			$size = floor(getOption('image_size') * 0.5);
@@ -2216,7 +2226,7 @@ function zenpageAlbumImage($albumname, $imagename = NULL, $size = NULL, $linkalb
 			$linkalbum = true;
 			$image = $album->getAlbumThumbImage();
 		} else {
-			$image = newImage($album, $imagename);
+			$image = Image::newImage($album, $imagename);
 		}
 		if ($image && $image->loaded) {
 			makeImageCurrent($image);

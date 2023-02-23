@@ -1,8 +1,7 @@
 <?php
 /**
  * used in sorting the images within and album
- * @package admin
- *
+ * @package zpcore\admin
  */
 // force UTF-8 Ø
 
@@ -18,7 +17,7 @@ admin_securityChecks($localrights, $return = currentRelativeURL());
 
 if (isset($_GET['album'])) {
 	$folder = sanitize($_GET['album']);
-	$album = newAlbum($folder);
+	$album = AlbumBase::newAlbum($folder);
 	if (!$album->isMyItem(ALBUM_RIGHTS)) {
 		if (!zp_apply_filter('admin_managed_albums_access', false, $return)) {
 			redirectURL(FULLWEBPATH . '/' . ZENFOLDER . '/admin.php');
@@ -35,8 +34,8 @@ if (isset($_GET['album'])) {
 			$orderArray = explode('&', str_replace('id[]=', '', $_POST['sortableList']));
 			if (is_array($orderArray) && !empty($orderArray)) {
 				foreach ($orderArray as $key => $id) {
-					$sql = 'UPDATE ' . prefix('images') . ' SET `sort_order`=' . db_quote(sprintf('%03u', $key)) . ' WHERE `id`=' . sanitize_numeric($id);
-					query($sql);
+					$sql = 'UPDATE ' . $_zp_db->prefix('images') . ' SET `sort_order`=' . $_zp_db->quote(sprintf('%03u', $key)) . ' WHERE `id`=' . sanitize_numeric($id);
+					$_zp_db->query($sql);
 				}
 				$album->setSortType("manual");
 				$album->setSortDirection(false, 'image');
@@ -55,9 +54,9 @@ if (isset($_GET['album'])) {
 		switch ($action) {
 			case 'publish': // yeah, only one but we might extend here
 				XSRFdefender('imageedit');
-				$album = newAlbum($folder);
-				$image = newImage($album, $filename);
-				$image->setShow(sanitize_numeric($_GET['value']));
+				$album = AlbumBase::newAlbum($folder);
+				$image = Image::newImage($album, $filename);
+				$image->setPublished(sanitize_numeric($_GET['value']));
 				if ($image->hasPublishSchedule()) {
 					$image->setPublishdate(date('Y-m-d H:i:s'));
 				} else if ($image->hasExpiration() || $image->hasExpired()) {
@@ -76,12 +75,10 @@ setAlbumSubtabs($album);
 printAdminHeader('edit', 'sort');
 
 ?>
-<script type="text/javascript">
-	//<!-- <![CDATA[
+<script>
 	$(function() {
 		$('#images').sortable();
 	});
-	// ]]> -->
 </script>
 <?php
 echo "\n</head>";
@@ -154,16 +151,14 @@ echo "\n</head>";
 						}
 					} 
 					?>
-					<form class="dirty-check" action="?page=edit&amp;album=<?php echo $album->getFileName(); ?>&amp;saved&amp;tab=sort" method="post" name="sortableListForm" id="sortableListForm" autocomplete="off">
+					<form class="dirty-check" action="?page=edit&amp;album=<?php echo $album->getName(); ?>&amp;saved&amp;tab=sort" method="post" name="sortableListForm" id="sortableListForm" autocomplete="off">
 						<?php XSRFToken('save_sort'); ?>
 						<?php printBulkActions($checkarray_images, true); ?>
-						<script type="text/javascript">
-							// <!-- <![CDATA[
+						<script>
 							function postSort(form) {
 								$('#sortableList').val($('#images').sortable('serialize'));
 								form.submit();
 							}
-							// ]]> -->
 						</script>
 
 						<p class="buttons">
@@ -172,7 +167,7 @@ echo "\n</head>";
 								<img	src="images/pass.png" alt="" />
 								<strong><?php echo gettext("Apply"); ?></strong>
 							</button>
-							<a href="<?php echo WEBPATH . "/index.php?album=" . html_encode(pathurlencode($album->getFileName())); ?>">
+							<a href="<?php echo WEBPATH . "/index.php?album=" . html_encode(pathurlencode($album->getName())); ?>">
 								<img src="images/view.png" alt="" />
 								<strong><?php echo gettext('View Album'); ?></strong>
 							</a>
@@ -184,12 +179,12 @@ echo "\n</head>";
 							<?php
 							$images = $album->getImages();
 							foreach ($images as $imagename) {
-								$image = newImage($album, $imagename);
+								$image = Image::newImage($album, $imagename);
 								?>
 								<li id="id_<?php echo $image->getID(); ?>">
 									<div class="imagethumb_wrapper">
 										<?php 
-										$title_attr = $image->getTitle(). ' (' . html_encode($image->getFileName()) . ')';
+										$title_attr = $image->getTitle(). ' (' . html_encode($image->getName()) . ')';
 										printAdminThumb($image, 'small-uncropped', 'imagethumb','', $title_attr, $image->getTitle());
 										?>
 									</div>
@@ -197,7 +192,7 @@ echo "\n</head>";
 										<?php printPublishIconLinkGallery($image, true) ?>
 										<a href="<?php echo WEBPATH . "/" . ZENFOLDER; ?>/admin-edit.php?page=edit&amp;album=<?php echo pathurlencode($album->name); ?>&amp;image=<?php echo urlencode($image->filename); ?>&amp;tab=imageinfo#IT" title="<?php echo gettext('edit'); ?>"><img src="<?php echo WEBPATH . '/' . ZENFOLDER; ?>/images/pencil.png" alt=""></a>
 										<?php
-										if (isImagePhoto($image)) {
+										if ($image->isPhoto()) {
 											?>
 											<a href="<?php echo html_encode(pathurlencode($image->getFullImageURL())); ?>" class="colorbox" title="zoom"><img src="<?php echo WEBPATH . '/' . ZENFOLDER; ?>/images/magnify.png" alt=""></a>
 											<?php
@@ -223,7 +218,7 @@ echo "\n</head>";
 									<img	src="images/pass.png" alt="" />
 									<strong><?php echo gettext("Apply"); ?></strong>
 								</button>
-								<a href="<?php echo WEBPATH . "/index.php?album=" . html_encode(pathurlencode($album->getFileName())); ?>">
+								<a href="<?php echo WEBPATH . "/index.php?album=" . html_encode(pathurlencode($album->getName())); ?>">
 									<img src="images/view.png" alt="" />
 									<strong><?php echo gettext('View Album'); ?></strong>
 								</a>

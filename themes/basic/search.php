@@ -30,7 +30,7 @@ if (!defined('WEBPATH'))
 					<span>
 						<?php printHomeLink('', ' | '); printGalleryIndexURL(' | ', getGalleryTitle()); ?></a>
 					</span>
-					<?php printSearchBreadcrumb(' | '); ?>
+					<?php printSearchBreadcrumb(' | ');  printCurrentPageAppendix(); ?>
 				</h2>
 			</div>
 			<div id="padbox">
@@ -79,7 +79,7 @@ if (!defined('WEBPATH'))
 				</div>
 				<br class="clearall">
 				<?php
-				@call_user_func('printSlideShowLink');
+				callUserFunction('printSlideShowLink');
 				if ($c == 0) {
 					echo "<p>" . gettext("Sorry, no image matches found. Try refining your search.") . "</p>";
 				}

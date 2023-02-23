@@ -26,10 +26,11 @@ if (!defined('WEBPATH'))
 				<h2><?php
 					printHomeLink('', ' | ');
 					printGalleryTitle();
+					printCurrentPageAppendix(); 
 					?></h2>
 			</div>
 			<div id="padbox">
-				<?php printGalleryDesc(); ?>
+				<?php printGalleryDesc(); ?>				
 				<div id="albums">
 					<?php while (next_album()): ?>
 						<div class="album">

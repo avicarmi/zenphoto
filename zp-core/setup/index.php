@@ -1,15 +1,15 @@
 <?php
 /**
  * install routine for zenphoto
- * @package setup
+ * @package zpcore\setup
  */
 // force UTF-8 Ø
-Define('PHP_MIN_VERSION', '5.3.0');
-Define('PHP_DESIRED_VERSION', '7.4.0');
+Define('PHP_MIN_VERSION', '7.0.0');
+Define('PHP_DESIRED_VERSION', '8.0.0');
 
 // leave this as the first executable statement to avoid problems with PHP not having gettext support.
 if (!function_exists("gettext")) {
-	require_once(dirname(dirname(__FILE__)) . '/lib-gettext/gettext.php');
+	require_once(dirname(dirname(__FILE__)) . '/libs/functions-gettext.php');
 	$noxlate = -1;
 } else {
 	$noxlate = 1;
@@ -36,6 +36,7 @@ header("Expires: Thu, 19 Nov 1981 08:52:00 GMT");
 
 require_once(dirname(__FILE__) . '/class-setup.php');
 require_once(dirname(__FILE__) . '/class-setupmutex.php');
+require_once(dirname(dirname(__FILE__)) . '/classes/class-maintenancemode.php');
 //allow only one setup to run
 $setupMutex = new setupMutex();
 $setupMutex->lock();
@@ -49,7 +50,12 @@ if ($_zp_setup_debug = isset($_REQUEST['debug'])) {
 $setup_checked = isset($_GET['checked']);
 $upgrade = false;
 
-require_once(dirname(dirname(__FILE__)) . '/lib-utf8.php');
+require_once(dirname(dirname(__FILE__)) . '/libs/class-utf8.php');
+if (!function_exists('mb_internal_encoding')) {
+	require_once(dirname(dirname(__FILE__)) . '/libs/functions-utf8.php');
+}
+global $_zp_utf8;
+$_zp_utf8 = new utf8();
 
 if (isset($_REQUEST['autorun'])) {
 	if (!empty($_REQUEST['autorun'])) {
@@ -103,12 +109,12 @@ if (file_exists($oldconfig = SERVERPATH . '/' . DATA_FOLDER . '/' . CONFIGFILE))
 	setup::configMod();
 } else {
 	$newconfig = true;
-	@copy(dirname(dirname(__FILE__)) . '/zenphoto_cfg.txt', SERVERPATH . '/' . DATA_FOLDER . '/' . CONFIGFILE);
+	@copy(dirname(dirname(__FILE__)) . '/file-templates/zenphoto_cfg.txt', SERVERPATH . '/' . DATA_FOLDER . '/' . CONFIGFILE);
 }
 
 $zptime = filemtime($oldconfig = SERVERPATH . '/' . DATA_FOLDER . '/' . CONFIGFILE);
-@copy(dirname(dirname(__FILE__)) . '/dataaccess', $_zp_setup_serverpath . '/' . DATA_FOLDER . '/.htaccess');
-@copy(dirname(dirname(__FILE__)) . '/dataaccess', $_zp_setup_serverpath . '/' . BACKUPFOLDER . '/.htaccess'); 
+@copy(dirname(dirname(__FILE__)) . '/file-templates/dataaccess', $_zp_setup_serverpath . '/' . DATA_FOLDER . '/.htaccess');
+@copy(dirname(dirname(__FILE__)) . '/file-templates/dataaccess', $_zp_setup_serverpath . '/' . BACKUPFOLDER . '/.htaccess'); 
 @chmod($_zp_setup_serverpath . '/' . DATA_FOLDER . '/.htaccess', 0444);
 
 if (session_id() == '') {
@@ -121,12 +127,11 @@ if (isset($_GET['mod_rewrite'])) {
 }
 
 $zp_cfg = @file_get_contents(SERVERPATH . '/' . DATA_FOLDER . '/' . CONFIGFILE);
-$_zp_setup_xsrftoken = sha1(SERVERPATH . '/' . DATA_FOLDER . '/' . CONFIGFILE . $zp_cfg . session_id());
 
 $updatezp_config = false;
 
 if (strpos($zp_cfg, "\$conf['special_pages']") === false) {
-	$template = file_get_contents(dirname(dirname(__FILE__)) . '/zenphoto_cfg.txt');
+	$template = file_get_contents(dirname(dirname(__FILE__)) . '/file-templates/zenphoto_cfg.txt');
 	$i = strpos($template, "\$conf['special_pages']");
 	$j = strpos($template, '//', $i);
 	$k = strpos($zp_cfg, '/** Do not edit below this line. **/');
@@ -168,9 +173,14 @@ if (isset($_POST['db'])) { //try to update the zp-config file
 		$zp_cfg = updateConfigItem('mysql_prefix', str_replace(array('.', '/', '\\', '`', '"', "'"), '_', addslashes(trim(setup::sanitize($_POST['db_prefix'])))), $zp_cfg);
 	}
 	if (isset($_POST['db_port'])) {
-		$zp_cfg = updateConfigItem('mysql_port', str_replace(array('.', '/', '\\', '`', '"', "'"), '_', addslashes(trim(setup::sanitize($_POST['db_port'])))), $zp_cfg);
+		$zp_cfg = updateConfigItem('mysql_port', addslashes(trim(intval($_POST['db_port']))), $zp_cfg);
 	} else {
-		$zp_cfg = updateConfigItem('mysql_port', str_replace(array('.', '/', '\\', '`', '"', "'"), '_', "3306"), $zp_cfg);
+		$zp_cfg = updateConfigItem('mysql_port', "3306", $zp_cfg);
+	}
+	if (isset($_POST['db_socket'])) {
+		$zp_cfg = updateConfigItem('mysql_socket', addslashes(trim(intval($_POST['db_socket']))), $zp_cfg);
+	} else {
+		$zp_cfg = updateConfigItem('mysql_socket', '', $zp_cfg);
 	}
 }
 
@@ -232,14 +242,11 @@ chdir(dirname(dirname(__FILE__)));
 // Important. when adding new database support this switch may need to be extended,
 $engines = array();
 
-$preferences = array('mysqli' => 1, 'pdo_mysql' => 2, 'mysql' => 3);
-if (version_compare(PHP_VERSION, '7.0.0', '>=')) {
-	unset($preferences['mysql']);
-}
+$preferences = array('mysqli' => 1, 'pdo_mysql' => 2);
 $cur = 999999;
 $preferred = NULL;
-foreach (setup::glob('functions-db-*.php') as $key => $engineMC) {
-	$engineMC = substr($engineMC, 13, -4);
+foreach (setup::glob('classes/class-db*.php') as $key => $engineMC) {
+	$engineMC = substr($engineMC, 16, -4);
 	$engine = strtolower($engineMC);
 	if (array_key_exists($engine, $preferences)) {
 		$order = $preferences[$engine];
@@ -251,6 +258,7 @@ foreach (setup::glob('functions-db-*.php') as $key => $engineMC) {
 		$engines[$order] = array('user' => true, 'pass' => true, 'host' => true, 'database' => true, 'prefix' => true, 'engine' => $engineMC, 'enabled' => $enabled);
 	}
 }
+
 ksort($engines);
 chdir($curdir);
 
@@ -258,15 +266,15 @@ if (file_exists(SERVERPATH . '/' . DATA_FOLDER . '/' . CONFIGFILE)) {
 	unset($_zp_conf_vars);
 	require(SERVERPATH . '/' . DATA_FOLDER . '/' . CONFIGFILE);
 	if (isset($_zp_conf_vars) && !isset($conf) && isset($_zp_conf_vars['special_pages'])) {
-		if(!isset($_zp_conf_vars['special_pages']['gallery'])) {
+		if (!isset($_zp_conf_vars['special_pages']['gallery'])) {
 			$updatezp_config = true;
 		}
 		if (isset($_zp_conf_vars['db_software'])) {
-			$confDB = $_zp_conf_vars['db_software'];
-			if (empty($_POST) && empty($_GET) && ($confDB === 'MySQL' || $preferred != 'MySQL')) {
+			$confDB = strtolower($_zp_conf_vars['db_software']);
+			if (empty($_POST) && empty($_GET) && ($confDB === 'mysql' || $preferred != 'mysqli')) {
 				$confDB = NULL;
 			}
-			if (extension_loaded(strtolower($confDB)) && file_exists(dirname(dirname(__FILE__)) . '/functions-db-' . $confDB . '.php')) {
+			if (extension_loaded($confDB) && file_exists(dirname(dirname(__FILE__)) . '/classes/class-db' . strtolower($confDB) . '.php')) {
 				$selected_database = $_zp_conf_vars['db_software'];
 			} else {
 				$selected_database = $preferred;
@@ -287,10 +295,28 @@ if (file_exists(SERVERPATH . '/' . DATA_FOLDER . '/' . CONFIGFILE)) {
 			$zp_cfg = updateConfigItem('mysql_port', 3306, $zp_cfg);
 			$updatezp_config = true;
 		}
+		if (!isset($_zp_conf_vars['mysql_socket'])) { 
+			$_zp_conf_vars['mysql_socket'] = '';
+			$zp_cfg = updateConfigItem('mysql_socket', '', $zp_cfg);
+			$updatezp_config = true;
+		}
+
+		require_once(dirname(dirname(__FILE__)) . '/classes/class-dbbase.php'); // empty base db class
 		if ($selected_database) {
-			require_once(dirname(dirname(__FILE__)) . '/functions-db-' . $selected_database . '.php');
+			require_once(dirname(dirname(__FILE__)) . '/classes/class-db' . strtolower($selected_database) . '.php'); // real db handler
+			define('DATABASE_SOFTWARE', $selected_database);
+			define('DATABASE_MIN_VERSION', '5.5.3');
+			define('DATABASE_DESIRED_VERSION', '5.7.0');
+			define('DATABASE_MARIADB_MIN_VERSION', '5.5.0'); // more or less MySQL 5.5
+			define('DATABASE_MARIADB_DESIRED_VERSION', '10.1.0'); // more or less MySQL 5.7
+			$_zp_dbclass = 'db' . strtolower($_zp_conf_vars['db_software']); // global that defines the db class name to use
 		} else {
-			require_once(dirname(dirname(__FILE__)) . '/functions-db_NULL.php');
+			define('DATABASE_SOFTWARE', 'Database setup');
+			define('DATABASE_MIN_VERSION', '0.0.0');
+			define('DATABASE_DESIRED_VERSION', '0.0.0');
+			define('DATABASE_MARIADB_MIN_VERSION', '0.0.0'); 
+			define('DATABASE_MARIADB_DESIRED_VERSION', '0.0.0'); 
+			$_zp_dbclass = 'dbBase';
 		}
 	} else {
 		// There is a problem with the configuration file
@@ -309,7 +335,6 @@ if ($updatezp_config) {
 	setup::updateConfigfile($zp_cfg);
 }
 
-
 $result = true;
 $environ = false;
 $DBcreated = false;
@@ -318,46 +343,31 @@ $connection = false;
 $connectDBErr = '';
 
 if ($selected_database) {
+	$_zp_db = new $_zp_dbclass($_zp_conf_vars, false);
 	$connectDBErr = '';
-	$connection = db_connect($_zp_conf_vars, false);
+	$connection = $_zp_db->connection;
+	//$connection = db_connect($_zp_conf_vars, false);
 	if ($connection) { // got the database handler and the database itself connected
-		$result = query("SELECT `id` FROM " . $_zp_conf_vars['mysql_prefix'] . 'options' . " LIMIT 1", false);
+		$result = $_zp_db->query("SELECT `id` FROM " . $_zp_conf_vars['mysql_prefix'] . 'options' . " LIMIT 1", false);
 		if ($result) {
-			if (db_num_rows($result) > 0) {
+			if ($_zp_db->getNumRows($result) > 0) {
 				$upgrade = gettext("upgrade");
 				// apply some critical updates to the database for migration issues
-				query('ALTER TABLE ' . $_zp_conf_vars['mysql_prefix'] . 'administrators' . ' ADD COLUMN `valid` int(1) default 1', false);
-				query('ALTER TABLE ' . $_zp_conf_vars['mysql_prefix'] . 'administrators' . ' CHANGE `password` `pass` varchar(64)', false);
-				query('ALTER TABLE ' . $_zp_conf_vars['mysql_prefix'] . 'administrators' . ' ADD COLUMN `loggedin` datetime', false);
-				query('ALTER TABLE ' . $_zp_conf_vars['mysql_prefix'] . 'administrators' . ' ADD COLUMN `lastloggedin` datetime', false);
-				query('ALTER TABLE ' . $_zp_conf_vars['mysql_prefix'] . 'administrators' . ' ADD COLUMN `challenge_phrase` TEXT', false);
+				$_zp_db->query('ALTER TABLE ' . $_zp_conf_vars['mysql_prefix'] . 'administrators' . ' ADD COLUMN `valid` int(1) default 1', false);
+				$_zp_db->query('ALTER TABLE ' . $_zp_conf_vars['mysql_prefix'] . 'administrators' . ' CHANGE `password` `pass` varchar(64)', false);
+				$_zp_db->query('ALTER TABLE ' . $_zp_conf_vars['mysql_prefix'] . 'administrators' . ' ADD COLUMN `loggedin` datetime', false);
+				$_zp_db->query('ALTER TABLE ' . $_zp_conf_vars['mysql_prefix'] . 'administrators' . ' ADD COLUMN `lastloggedin` datetime', false);
+				$_zp_db->query('ALTER TABLE ' . $_zp_conf_vars['mysql_prefix'] . 'administrators' . ' ADD COLUMN `challenge_phrase` TEXT', false);
 			}
 		}
 		$environ = true;
 		require_once(dirname(dirname(__FILE__)) . '/admin-functions.php');
 	} else {
-		if ($_zp_DB_connection) { // there was a connection to the database handler but not to the database.
-			if (!empty($_zp_conf_vars['mysql_database'])) {
-				if (isset($_GET['Create_Database'])) {
-					$result = db_create();
-					if ($result && ($connection = db_connect($_zp_conf_vars, false))) {
-						$environ = true;
-						require_once(dirname(dirname(__FILE__)) . '/admin-functions.php');
-					} else {
-						if ($result) {
-							$DBcreated = true;
-						} else {
-							$connectDBErr = db_error();
-						}
-					}
-				} else {
-					$oktocreate = true;
-				}
-			}
-		} else {
-			$connectDBErr = db_error();
-		}
+		$connectDBErr = $_zp_db->getError();
+		$connection = false;
 	}
+} else {
+	$_zp_db = new dbBase($_zp_conf_vars, false);
 }
 
 if (defined('CHMOD_VALUE')) {
@@ -369,15 +379,15 @@ if (function_exists('setOption')) {
 } else { // setup a primitive environment
 	$environ = false;
 	require_once(dirname(__FILE__) . '/setup-primitive.php');
-	require_once(dirname(dirname(__FILE__)) . '/functions-filter.php');
-	require_once(dirname(dirname(__FILE__)) . '/functions-i18n.php');
+	require_once(dirname(dirname(__FILE__)) . '/functions/functions-filter.php');
+	require_once(dirname(dirname(__FILE__)) . '/functions/functions-i18n.php');
 }
 
 if ($newconfig || isset($_GET['copyhtaccess'])) {
 	if ($newconfig && !file_exists($_zp_setup_serverpath . '/.htaccess') || setup::userAuthorized()) {
 		@chmod($_zp_setup_serverpath . '/.htaccess', 0777);
 		$ht = @file_get_contents(SERVERPATH . '/.htaccess');
-		$newht = file_get_contents(SERVERPATH . '/' . ZENFOLDER . '/htaccess');
+		$newht = file_get_contents(SERVERPATH . '/' . ZENFOLDER . '/file-templates/htaccess');
 		if (setup::siteClosed($ht)) {
 			$newht = setup::closeSite($newht);
 		}
@@ -441,83 +451,12 @@ $taskDisplay = array(
 		'create' => gettext("create"),
 		'update' => gettext("update")
 );
-if ($i = getOption('zenphoto_install')) {
-	$install = unserialize($i);
-	$prevRel = $install['ZENPHOTO'];
-} else {
-	$prevRel = '';
-}
 
-if (empty($prevRel)) {
-	// pre 1.4.2 release, compute the version
-	$prevRel = getOption('zenphoto_release');
-	$zp_versions = array(
-			'1.2' => '2213',
-			'1.2.1' => '2635',
-			'1.2.2' => '2983',
-			'1.2.3' => '3427',
-			'1.2.4' => '3716',
-			'1.2.5' => '4022',
-			'1.2.6' => '4335',
-			'1.2.7' => '4741',
-			'1.2.8' => '4881',
-			'1.2.9' => '5088',
-			'1.3.0' => '5088',
-			'1.3.1' => '5736',
-			'1.4' => '6454',
-			'1.4.1' => '6506',
-			'x.x.x' => '99999999');
-	if (empty($prevRel)) {
-		$release = gettext('Upgrade from before Zenphoto v1.2');
-		$prevRel = '1.x';
-		$c = count($zp_versions);
-		$check = -1;
-	} else {
-		$c = 0;
-		foreach ($zp_versions as $rel => $build) {
-			if ($build > $prevRel) {
-				break;
-			} else {
-				$c++;
-				$release = sprintf(gettext('Upgrade from Zenphoto v%s'), $rel);
-			}
-		}
-		if ($c == count($zp_versions) - 1) {
-			$check = 1;
-			$release = gettext('Reinstalling current Zenphoto release');
-			$upgrade = gettext('reinstall');
-		} else {
-			$check = -1;
-			$c = count($zp_versions) - 1 - $c;
-		}
-	}
-} else {
-	preg_match('/[0-9,\.]*/', ZENPHOTO_VERSION, $matches);
-	$rel = explode('.', $matches[0] . '.0');
-	preg_match('/[0-9,\.]*/', $prevRel, $matches);
-	$prevRel = explode('.', $matches[0] . '.0');
-	$release = sprintf(gettext('Upgrade from Zenphoto v%s'), $matches[0]);
-	$c = ($rel[0] - $prevRel[0]) * 100 + ($rel[1] - $prevRel[1]) * 10 + ($rel[1] - $prevRel[1]);
-	if ($prevRel[0] == 1 && $prevRel[1] <= 3) {
-		$c = $c - 8; // there were only two 1.3.x releases
-	}
-	if ($prevRel[0] == 1 && $prevRel[1] <= 4) {
-		$c = $c - 10; // there were 14 1.4.x releases
-	} 
-	switch ($c) {
-		case 1:
-			$check = 1;
-			break;
-		default:
-			$check = -1;
-			break;
-	}
-}
-if ($c <= 0) {
-	$check = 1;
-	$release = gettext('Reinstalling current Zenphoto release');
-	$upgrade = gettext('reinstall');
-}
+$versioncheck = setup::checkPreviousVersion();
+$check = $versioncheck['check'];
+$release = $versioncheck['release_text'];
+$release_message = $versioncheck['message_text'];
+$upgrade = $versioncheck['upgrade_text'];
 ?>
 
 <!DOCTYPE html>
@@ -527,12 +466,14 @@ if ($c <= 0) {
 	<head>
 
 		<meta http-equiv="content-type" content="text/html; charset=utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
 		<title><?php printf('Zenphoto %s', $upgrade ? $upgrade : gettext('install')); ?></title>
 		<link rel="stylesheet" href="<?php echo WEBPATH . '/' . ZENFOLDER; ?>/admin.css" type="text/css" />
 
-		<script src="<?php echo WEBPATH . '/' . ZENFOLDER; ?>/js/jquery.js" type="text/javascript"></script>
-		<script src="<?php echo WEBPATH . '/' . ZENFOLDER; ?>/js/zenphoto.js" type="text/javascript" ></script>
-		<script type="text/javascript">
+		<script src="<?php echo WEBPATH . '/' . ZENFOLDER; ?>/js/jquery.min.js"></script>
+		<script src="<?php echo WEBPATH . '/' . ZENFOLDER; ?>/js/jquery-migrate.min.js" ></script>
+		<script src="<?php echo WEBPATH . '/' . ZENFOLDER; ?>/js/zp_general.js" ></script>
+		<script>
 			var imageErr = false;
 			function toggle_visibility(id) {
 				var e = document.getElementById(id);
@@ -559,8 +500,8 @@ if ($c <= 0) {
 				$blindInstall = $_zp_setup_warn = false;
 
 				if ($connection && !isset($_zp_options)) {
-					$sql = "SELECT `name`, `value` FROM " . prefix('options');
-					$optionlist = query_full_array($sql, false);
+					$sql = "SELECT `name`, `value` FROM " . $_zp_db->prefix('options');
+					$optionlist = $_zp_db->queryFullArray($sql, false);
 					if ($optionlist) {
 						$_zp_options = array();
 						foreach ($optionlist as $option) {
@@ -577,8 +518,13 @@ if ($c <= 0) {
 					<p>
 						<?php printf(gettext("Welcome to Zenphoto! This page will set up Zenphoto %s on your web server."), ZENPHOTO_VERSION); ?>
 					</p>
+					<?php maintenanceMode::setState('closed', $setupMutex); ?>
+					<p class="warning"><?php echo maintenanceMode::getStateNote('closed'); ?></p>
 					<h2><?php echo gettext("Systems Check:"); ?></h2>
+					<?php if($upgrade) { ?>
+						<p class="warning"><?php echo gettext('Backup your database before proceeding!'); ?></p>
 					<?php
+					}
 					/*****************************************************************************
 					 *                                                                           *
 					 *                             SYSTEMS CHECK                                 *
@@ -599,7 +545,7 @@ if ($c <= 0) {
 						?>
 						<ul>
 							<?php
-							setup::checkmark($check, $release, $release . ' ' . sprintf(ngettext('[%u release skipped]', '[%u releases skipped]', $c), $c), gettext('We do not test upgrades that skip releases. We recommend you upgrade in sequence.'));
+							setup::checkmark($check, $release, $release, $release_message);
 						} else {
 							?>
 							<ul>
@@ -633,8 +579,8 @@ if ($c <= 0) {
 								setup::checkMark(-1, '', $_SERVER['SERVER_SOFTWARE'], gettext('Server seems not to be <em>Apache</em>, <em>Nginx</em> or <em>compatible</em>. Zenphoto may not work correctly.'));
 							} 
 							
-							$err = setup::versionCheck('5.6.0', PHP_DESIRED_VERSION, PHP_VERSION);
-							$good = setup::checkMark($err, sprintf(gettext("PHP version %s"), PHP_VERSION), "", sprintf(gettext('PHP Version %1$s or greater is required. Version %2$s or greater is strongly recommended. Use earlier versions at your own risk. Zenphoto is developed on PHP 7.1+ and in any case not tested below 5.6. There will be no fixes if you encounter any issues below 5.6. Please contact your webhost about a PHP upgrade on your server.'), '5.6.0', PHP_DESIRED_VERSION), false) && $good;
+							$err = setup::versionCheck(PHP_MIN_VERSION, PHP_DESIRED_VERSION, PHP_VERSION);
+							$good = setup::checkMark($err, sprintf(gettext("PHP version %s"), PHP_VERSION), "", sprintf(gettext('PHP Version %1$s or greater is required. Version %2$s or greater is strongly recommended. Use earlier versions at your own risk. Zenphoto is developed on PHP 8+ and in any case not tested below 7.4. There will be no fixes if you encounter any issues below 7.4. Please contact your webhost about a PHP upgrade on your server.'), PHP_MIN_VERSION, PHP_DESIRED_VERSION), false) && $good;
 							
 							if ($session && session_id()) {
 								setup::checkmark(true, gettext('PHP <code>Sessions</code>.'), gettext('PHP <code>Sessions</code> [appear to not be working].'), '', true);
@@ -661,7 +607,7 @@ if ($c <= 0) {
 									$good = setup::checkMark($issue, '', gettext('<code>Suhosin</code> module [is enabled]'), sprintf(gettext('The following PHP functions are blocked: %s. Flagged functions are required by Zenphoto. Other functions in the list may be used by Zenphoto, possibly causing reduced functionality or Zenphoto failures.'), '<code>' . implode('</code>, <code>', $blacklist) . '</code>'), $abort) && $good;
 								}
 							}
-							
+		
 							switch (strtolower(@ini_get('display_errors'))) {
 								case 0:
 								case 'off':
@@ -685,19 +631,23 @@ if ($c <= 0) {
 							setup::checkmark($display, gettext('PHP <code>display_errors</code>'), sprintf(gettext('PHP <code>display_errors</code> [is enabled]'), $display), gettext('This setting may result in PHP error messages being displayed on WEB pages. These displays may contain sensitive information about your site.') . $aux, $display && !TEST_RELEASE);
 							setup::checkMark($noxlate, gettext('PHP <code>gettext()</code> support'), gettext('PHP <code>gettext()</code> support [is not present]'), gettext("Localization of Zenphoto requires native PHP <code>gettext()</code> support"));						
 							setup::checkmark(extension_loaded('curl') ? 1 : -1, gettext('PHP <code>cURL</code> support'), gettext('PHP <code>cURL</code> support [is not present]'), gettext('<code>cURL</code> support is not critical but strongely recommended.'), false);
-							setup::checkmark(extension_loaded('tidy') ? 1 : -1, gettext('PHP <code>tidy</code> support'), gettext('PHP <code>tidy</code> support [is not present]'), gettext('<code>tidy</code> support is not critical but strongely recommended for properly truncating text containing HTML markup.'));		
-							setup::checkmark(extension_loaded('zip') ? 1 : -1, gettext('PHP <code>ZipArchive</code> support'), gettext('PHP <code>ZipArchive</code> support [is not present]'), gettext('<code>ZipArchive</code> support is not critical and only required if you intend to upload zip archives with supported file types to the gallery.'));		
-							setup::checkmark(extension_loaded('json') ? 1 : -1, gettext('PHP <code>JSON</code> support'), gettext('PHP <code>JSON</code> support [is not present]'), gettext('<code>JSON</code> support is not yet critical but may become so in the future.'));
+							setup::checkmark(extension_loaded('tidy') ? 1 : -1, gettext('PHP <code>tidy</code> support'), gettext('PHP <code>tidy</code> support [is not present]'), gettext('<code>tidy</code> support is not critical but strongely recommended for properly truncating text containing HTML markup.'));
+							setup::checkmark(extension_loaded('zip') ? 1 : -1, gettext('PHP <code>ZipArchive</code> support'), gettext('PHP <code>ZipArchive</code> support [is not present]'), gettext('<code>ZipArchive</code> support is not critical and only required if you intend to upload zip archives with supported file types to the gallery.'));							
+							$good =	setup::checkmark(extension_loaded('json') ? 1 : 0, gettext('PHP <code>JSON</code> support'), gettext('PHP <code>JSON</code> support [is not present]'), gettext('<code>JSON</code> support is critical and required for some functionalty.')) && $good;						
 							setup::checkmark(extension_loaded('exif') ? 1 : -1, gettext('PHP <code>exif</code> support'), gettext('PHP <code>exif</code> support [is not present]'), gettext('<code>exif</code> support is not critical but strongely recommended for properly handling exif data of images'));
 							setup::checkmark(extension_loaded('bz2') ? 1 : -1, gettext('PHP <code>bz2</code> support'), gettext('PHP <code>bz2</code> support [is not present]'), gettext('<code>bz2</code> support is not critical but recommended for some optional bzcompression functionalty'));
 							setup::checkmark(extension_loaded('fileinfo') ? 1 : -1, gettext('PHP <code>fileinfo</code> support'), gettext('PHP <code>fileinfo</code> support [is not present]'), gettext('<code>fileinfo</code> support is not critical but strongely recommended for file system functionality'));
 							setup::checkmark(extension_loaded('intl') ? 1 : -1, gettext('PHP <code>intl</code> support'), gettext('PHP <code>intl</code> support [is not present]'), gettext('<code>intl</code> support is strongely recommended for using locale-aware functionality.'));
 							setup::checkmark(extension_loaded('xml') ? 1 : -1, gettext('PHP <code>xml</code> support'), gettext('PHP <code>xml</code> support [is not present]'), gettext('<code>xml</code> support is not criticaly but strongely recommended for some functionality for parsing XML contents like RSS feeds.'));
-							setup::checkmark(extension_loaded('dom') ? 1 : -1, gettext('PHP <code>dom</code> support'), gettext('PHP <code>dom</code> support [is not present]'), gettext('<code>dom</code> support is not criticaly but recommended for some functionality processing and modifying HTML contents.'));
+							setup::checkmark(extension_loaded('dom') ? 1 : -1, gettext('PHP <code>dom</code> support'), gettext('PHP <code>dom</code> support [is not present]'), gettext('<code>dom</code> support is not criticaly but strongely recommended for some functionality processing and modifying HTML contents.'));
 							setup::checkmark(extension_loaded('simplexml') ? 1 : -1, gettext('PHP <code>simplexml</code> support'), gettext('PHP <code>simplexml</code> support [is not present]'), gettext('<code>simplexml</code> support is not criticaly but strongely recommended for some functionality processing XML contents like RSS feeds.'));
-							
+							setup::checkmark(extension_loaded('reflection') ? 1 : -1, gettext('PHP <code>Reflection</code> support'), gettext('PHP <code>Reflection</code> support [is not present]'), gettext('<code>Reflection</code> support is not criticaly but strongely recommended for some internal functionality.'));
+							setup::checkmark(extension_loaded('ctype') ? 1 : 0, gettext('PHP <code>Ctype</code> support'), gettext('PHP <code>Ctype</code> support [is not present]'), gettext('<code>Ctype</code> support is required for internal character type checking e.g. for shortening text content.'));
+							setup::checkmark(extension_loaded('filter') ? 1 : 0, gettext('PHP <code>filter</code> support'), gettext('PHP <code>filter</code> support [is not present]'), gettext('<code>filter</code> support is required for filtering and clearing content.'));
+							setup::checkmark(extension_loaded('session') ? 1 : 0, gettext('PHP <code>session</code> support'), gettext('PHP <code>session</code> support [is not present]'), gettext('<code>session</code> support is required session handling.'));
+
 							if ($_zp_setupCurrentLocale_result === false) {
-								setup::checkMark(-1, gettext('PHP <code>setlocale()</code>'), ' ' . gettext('PHP <code>setlocale()</code> failed'), gettext("Locale functionality is not implemented on your platform or the specified locale does not exist. Language translation may not work.") . '<br />' . gettext('See the <a  href="http://www.zenphoto.org/news/problems-with-languages">user guide</a> on zenphoto.org for details.'));
+								setup::checkMark(-1, gettext('PHP <code>setlocale()</code>'), ' ' . gettext('PHP <code>setlocale()</code> failed'), gettext("Locale functionality is not implemented on your platform or the specified locale does not exist. Language translation may not work.") . '<br />' . gettext('See the <a  href="https://www.zenphoto.org/news/problems-with-languages">user guide</a> on zenphoto.org for details.'));
 							}
 							setup::primeMark(gettext('mb_strings'));
 							if (extension_loaded('mbstring') && extension_loaded('iconv')) {
@@ -707,40 +657,47 @@ if ($c <= 0) {
 								} else {
 									$mb = -1;
 								}
-								$m2 = gettext('Setting <em>mbstring.internal_encoding</em> to <strong>UTF-8</strong> in your <em>php.ini</em> file is recommended to insure accented and multi-byte characters function properly.');
+								$m2 = gettext('Setting <em>mbstring.internal_encoding</em> to <strong>UTF-8</strong> in your <em>php.ini</em> file is strongely recommended to insure accented and multi-byte characters function properly.');
 								setup::checkMark($mb, gettext("PHP <code>mbstring</code> and <code>iconv</code> packages"), sprintf(gettext('PHP <code>mbstring</code> and <code>iconv</code> packages [Your internal character set is <strong>%s</strong>]'), $charset), $m2);
 							} else {
-								$test = $_zp_UTF8->convert('test', 'ISO-8859-1', 'UTF-8');
+								$test = $_zp_utf8->convert('test', 'ISO-8859-1', 'UTF-8');
 								if (empty($test)) {
 									$m2 = gettext("You need to install the <code>mbstring</code> and <code>iconv</code> packages");
 									setup::checkMark(0, '', gettext("PHP <code>mbstring</code> and <code>iconv</code> packages [are not present]"), $m2);
 								} else {
 									$m2 = gettext("Strings generated internally by PHP may not display correctly. (e.g. dates)");
 									setup::checkMark(-1, '', gettext("PHP <code>mbstring</code> and <code>iconv</code> packages [are not present]"), $m2);
-									
 								}
 							}
 
 							if ($environ) {
 								/* Check for graphic library and image type support. */
 								setup::primeMark(gettext('Graphics library'));
-								if (function_exists('zp_graphicsLibInfo')) {
-									$graphics_lib = zp_graphicsLibInfo();
+								if ($_zp_graphics->info['Library'] != 'none') {
+									$graphics_lib = $_zp_graphics->graphicsLibInfo();
 									if (array_key_exists('Library_desc', $graphics_lib)) {
 										$library = $graphics_lib['Library_desc'];
 									} else {
 										$library = '';
 									}
-									$good = setup::checkMark(!empty($library), sprintf(gettext("Graphics support: <code>%s</code>"), $library), gettext('Graphics support [is not installed]'), gettext('You need to install a graphics support library such as the <em>GD library</em> in your PHP')) && $good;
+									$general_graphicsinfo = gettext('Graphics support:') . "<br>";
+									foreach ($_zp_graphics->generalinfo as $key => $value) { // check all available and mark currently selected
+										if ($key == $_zp_graphics->info['Library']) {
+											$general_graphicsinfo .= $value . ' ' . gettext('[enabled]') . "<br>";
+										} else {
+											$general_graphicsinfo .= $value . ' ' . gettext('[available]') . "<br>";
+										}
+									}
+									/*$good = */setup::checkMark(!empty($library), $general_graphicsinfo, gettext('Graphics support [is not installed]'), gettext('You need to install a graphics support library such as the <em>GD library</em> in your PHP')) && $good;
 									if (!empty($library)) {
 										$missing = array();
-										if (!isset($graphics_lib['JPG'])) {
+										if (!isset($_zp_graphics->info['JPG'])) {
 											$missing[] = 'JPEG';
 										}
-										if (!(isset($graphics_lib['GIF']))) {
+										if (!(isset($_zp_graphics->info['GIF']))) {
 											$missing[] = 'GIF';
 										}
-										if (!(isset($graphics_lib['PNG']))) {
+										if (!(isset($_zp_graphics->info['PNG']))) {
 											$missing[] = 'PNG';
 										}
 										if (count($missing) > 0) {
@@ -755,14 +712,14 @@ if ($c <= 0) {
 											} else {
 												$imgmissing = sprintf(gettext('Your PHP graphics library does not support %1$s, %2$s, or %3$s'), $missing[0], $missing[1], $missing[2]);
 												$err = 0;
-												$good = false;
+												//$good = false;
 												$mandate = gettext("To correct this you need to install GD with appropriate image support in your PHP");
 											}
 											setup::checkMark($err, gettext("PHP graphics image support"), '', $imgmissing .
 															"<br />" . gettext("The unsupported image types will not be viewable in your albums.") .
 															"<br />" . $mandate);
 										}
-										if (!zp_imageCanRotate()) {
+										if (!$_zp_graphics->imageCanRotate()) {
 											setup::checkMark(-1, '', gettext('Graphics Library rotation support [is not present]'), gettext('The graphics support library does not provide support for image rotation.'));
 										}
 									}
@@ -785,7 +742,7 @@ if ($c <= 0) {
 							$good = setup::checkMark($cfg, sprintf(gettext('<em>%1$s</em> file'), CONFIGFILE), sprintf(gettext('<em>%1$s</em> file [does not exist]'), CONFIGFILE), sprintf(gettext('Setup was not able to create this file. You will need to copy the <code>%1$s/zenphoto_cfg.txt</code> file to <code>%2$s/%3$s</code> then edit it as indicated in the file’s comments.'), ZENFOLDER, DATA_FOLDER, CONFIGFILE)) && $good;
 							if ($cfg) {
 								setup::primeMark(gettext('File permissions'));
-								$chmodselector = '<form action="#"><input type="hidden" name="xsrfToken" value="' . $_zp_setup_xsrftoken . '" />' .
+								$chmodselector = '<form action="#"><input type="hidden" name="xsrfToken" value="' . setup::getXSRFToken() . '" />' .
 												'<p>' . sprintf(gettext('Set File permissions to %s.'), setup::permissionsSelector($_zp_setup_permission_names, $_zp_setup_chmod)) .
 												'</p></form>';
 								if (array_key_exists($_zp_setup_chmod | 4, $_zp_setup_permission_names)) {
@@ -858,7 +815,7 @@ if ($c <= 0) {
 													break;
 											}
 											$msg2 = '<p>' . sprintf(gettext('If your server filesystem character set is different from <code>%s</code> and you create album or image filenames names containing characters with diacritical marks you may have problems with these objects.'), $charset_defined) . '</p>' .
-															'<form action="#"><input type="hidden" name="xsrfToken" value="' . $_zp_setup_xsrftoken . '" /><input type="hidden" name="charset_attempts" value="' . $tries . '" /><p>' .
+															'<form action="#"><input type="hidden" name="xsrfToken" value="' . setup::getXSRFToken() . '" /><input type="hidden" name="charset_attempts" value="' . $tries . '" /><p>' .
 															gettext('Change the filesystem character set define to %1$s') .
 															'</p></form><br class="clearall" />';
 
@@ -905,8 +862,7 @@ if ($c <= 0) {
 												$req_iso = gettext('Image URIs appear require the <em>filesystem</em> character set.');
 												$req_UTF8 = gettext('Image URIs appear to require the UTF-8 character set.');
 												?>
-												<script type="text/javascript">
-													// <!-- <![CDATA[
+												<script>
 													function uri(enable) {
 														var text;
 														if (enable) {
@@ -956,7 +912,6 @@ if ($c <= 0) {
 
 
 													});
-													// ]]> -->
 												</script>
 												<li id="UTF8_uri" class="pass"><span id="UTF8_uri_text">
 														<?php echo $req_UTF8; ?> </span>
@@ -975,11 +930,6 @@ if ($c <= 0) {
 								}
 							}
 							setup::primeMark(gettext('Database'));
-							if($_zp_conf_vars['db_software'] == 'MySQL') {		
-								?>
-								<li class="warning"><?php echo gettext('Your chosen database handler <code>MySQL</code> is deprececated and already removed in PHP 7. It will also be removed in future Zenphoto versions. Use <code>MySQLi</code> or <code>PDO_MySQL</code> instead.'); ?>
-								<?php
-							}
 							foreach ($engines as $engine) {
 								$handler = $engine['engine'];
 								if ($handler == $confDB && $engine['enabled']) {
@@ -1006,23 +956,30 @@ if ($c <= 0) {
 									}
 								}
 							}
-							$connection = db_connect($_zp_conf_vars, false);
+							$connection = $_zp_db->connection;
 							if ($connection) {
 								if (empty($_zp_conf_vars['mysql_database'])) {
 									$connection = false;
 									$connectDBErr = gettext('No database selected');
 								}
 							} else {
-								$connectDBErr = db_error();
+								$connectDBErr = $_zp_db->getError();
 							}
-							if ($_zp_DB_connection) { // connected to DB software
-								$dbsoftware = db_software();
+							if ($_zp_db->connection) { // connected to DB software
+								$dbsoftware = $_zp_db->getSoftware();
 								$dbapp = $dbsoftware['application'];
 								$dbversion = $dbsoftware['version'];
 								$required = $dbsoftware['required'];
 								$desired = $dbsoftware['desired'];
-								$sqlv = setup::versionCheck($required, $desired, $dbversion);
+								$required_mariadb = $dbsoftware['required_mariadb'];
+								$desired_mariadb = $dbsoftware['desired_mariadb'];
+								if($_zp_db->isMariaDB()) {
+									$sqlv = setup::versionCheck($required_mariadb, $desired_mariadb, $dbversion);
+								} else {
+									$sqlv = setup::versionCheck($required, $desired, $dbversion);
+								}
 								$good = setup::checkMark($sqlv, sprintf(gettext('%1$s version %2$s'), $dbapp, $dbversion), "", sprintf(gettext('%1$s Version %2$s or greater is required. Version %3$s or greater is preferred. Use a lower version at your own risk.'), $dbapp, $required, $desired), false) && $good;
+								
 							}
 							setup::primeMark(gettext('Database connection'));
 
@@ -1045,32 +1002,13 @@ if ($c <= 0) {
 									$good = setup::checkMark((bool) $connection, sprintf(gettext('Connect to %s'), DATABASE_SOFTWARE), gettext("Connect to Database [<code>CONNECT</code> query failed]"), $connectDBErr) && $good;
 								}
 							}
-				
-							if ($_zp_DB_connection) {
-								if ($connection) {
-									if ($DBcreated) {
-										setup::checkMark(1, sprintf(gettext('Database <code>%s</code> created'), $_zp_conf_vars['mysql_database']), '');
-									}
-								} else {
-									$good = 0;
-									if ($oktocreate) {
-										?>
-										<li class="note">
-											<div class="notebox">
-												<p><?php echo sprintf(gettext('Click here to attempt to create <a href="?Create_Database" >%s</a>.'), $_zp_conf_vars['mysql_database']); ?></p>
-											</div>
-										</li>
-										<?php
-									} else if (!empty($_zp_conf_vars['mysql_database'])) {
-										setup::checkMark(0, '', sprintf(gettext('Database <code>%s</code> not created [<code>CREATE DATABASE</code> query failed]'), $_zp_conf_vars['mysql_database']), $connectDBErr);
-									}
-								}
+
 								if ($environ && $connection) {
-									$oldmode = db_getSQLmode();
-									$result = db_setSQLmode();
+									$oldmode = $_zp_db->getSQLmode();
+									$result = $_zp_db->setSQLmode();
 									$msg = gettext('You may need to set <code>SQL mode</code> <em>empty</em> in your Database configuration.');
 									if ($result) {
-										$mode = db_getSQLmode();
+										$mode = $_zp_db->getSQLmode();
 										if ($mode === false) {
 											setup::checkMark(-1, '', sprintf(gettext('<code>SQL mode</code> [query failed]'), $oldmode), $msg);
 										} else {
@@ -1090,7 +1028,7 @@ if ($c <= 0) {
 									}
 
 									$dbn = "`" . $_zp_conf_vars['mysql_database'] . "`.*";
-									$db_results = db_permissions();
+									$db_results = $_zp_db->getPermissions();
 
 									$access = -1;
 									$rightsfound = 'unknown';
@@ -1144,17 +1082,13 @@ if ($c <= 0) {
 									}
 									setup::checkMark($access, sprintf(gettext('Database <code>access rights</code> for <em>%s</em>'), $_zp_conf_vars['mysql_database']), sprintf(gettext('Database <code>access rights</code> for <em>%1$s</em> [%2$s]'), $_zp_conf_vars['mysql_database'], $rightsfound), sprintf(gettext("Your Database user must have %s rights."), $neededlist) . $report);
 
-
-									$result = db_show('tables');
+									$tables = $_zp_db->getTables();
 									$tableslist = '';
-									$tables = array();
-									if ($result) {
+									if ($tables) {
 										$check = 1;
-										while ($row = db_fetch_row($result)) {
-											$tables[] = $row[0];
-											$tableslist .= "<code>" . $row[0] . "</code>, ";
+										foreach($tables as $table) {
+											$tableslist .= "<code>" . $table . "</code>, ";
 										}
-										db_free_result($result);
 									} else {
 										$check = -1;
 									}
@@ -1166,56 +1100,59 @@ if ($c <= 0) {
 										$msg2 = '';
 									}
 									setup::checkMark($check, $msg, gettext("<em>SHOW TABLES</em> [Failed]"), sprintf(gettext("The database did not return a list of the database tables for <code>%s</code>."), $_zp_conf_vars['mysql_database']) .
-													"<br />" . gettext("<strong>Setup</strong> will attempt to create all tables. This will not over write any existing tables."));
+													"<br />" . gettext("<strong>Setup</strong> will attempt to create all tables. This will not overwrite any existing tables."));
 									if (isset($_zp_conf_vars['UTF-8']) && $_zp_conf_vars['UTF-8']) {
-										$fields = 0;
-										$fieldlist = array();
-										foreach (array('images' => 1, 'albums' => 2) as $lookat => $add) {
-											if (in_array($_zp_conf_vars['mysql_prefix'] . $lookat, $tables)) {
-												$columns = db_list_fields('images');
-												if ($columns) {
-													foreach ($columns as $col => $utf8) {
-														if (isset($row['Collation']) && !is_null($row['Collation']) && $row['Collation'] != 'utf8_unicode_ci') {
-															$fields = $fields | $add;
-															$fieldlist[] = '<code>' . $lookat . '->' . $col . '</code>';
-														}
-													}
+										$dbtext = gettext('UTF8MB4 collation support');
+										$dbtext2 = gettext('UTF8MB4 collation support [is not available|');
+										$dbmsg = gettext('You should update your database to MySQL 5.5.3+ or better 5.6+ / MariaDB 5.5+ for full unicode support.');
+										if ($_zp_db->hasUtf8mb4Support('utf8mb4_520') || $_zp_db->hasUtf8mb4Support('utf8mb4')) {
+											$utf8mb4check = true;
+										} else {
+											$utf8mb4check = -1;
+										}
+										setup::checkMark($utf8mb4check, $dbtext, $dbtext2, $dbmsg, false);
+
+										if ($tables) {
+											$utf8_any_tables = $utf8_tables = $utf8mb4_tables = $non_utf8mb4_tables = $non_utf8_tables = array();
+											foreach($tables as $table) {
+												if ($_zp_db->isUTF8Table($table, 'any')) {
+													$utf8_any_tables[] = $table; // covers utf8/ut8mb4 mixed tables
+													if ($_zp_db->isUTF8Table($table, 'utf8mb4')) {
+														$utf8mb4_tables[] = $table;
+													} 
 												} else {
-													$fields = 4;
+													$non_utf8_tables[] = $table;
 												}
 											}
+												//gettext('Database <code>table and/or field collations</code>
+											$db_collations_msg = gettext('Database table and/or its field collations');
+											if ($non_utf8_tables) {
+												$non_utf8_htmllist = setup::getFilelist($non_utf8_tables);
+												$db_collations_msg2 = $db_collations_msg . gettext(' [not using any utf8 collations]');
+												$db_collations_details  = sprintf(gettext('The following tables are not or not completely UTF-8: %s'), $non_utf8_htmllist);
+												$db_collations_details .=  ' ' . gettext('You should consider porting your data to UTF-8 and changing the collation of the database fields to <code>utf8_unicode_ci</code> or better <code>utf8mb4_unicode_ci</code> respectively <code>utf8mb4_unicode_520_ci</code>');
+												setup::checkmark(-1, $db_collations_msg, $db_collations_msg2, $db_collations_details);
+											}
+											if ($utf8_any_tables) {
+												if (count($utf8_any_tables) > count($utf8mb4_tables)) {
+													$non_utf8mb4_tables = array_diff($utf8_any_tables, $utf8mb4_tables);
+													$non_utf8mb4_htmllist = setup::getFilelist($non_utf8mb4_tables);
+													$db_collations_msg2 = $db_collations_msg . gettext(' [not completely using utf8mb4_* collations]');
+													$db_collations_details = sprintf(gettext('The following tables use UTF-8 but not or not completely full UTF-8 (utf8mb4): %s  Since they are UTF-8 Zenphoto will attempt to convert the table and field collations to <code>utf8mb4_unicode_ci</code> respectively <code>utf8mb4_unicode_520_ci</code>'), $non_utf8mb4_htmllist);
+													setup::checkmark(-2, $db_collations_msg, $db_collations_msg2, $db_collations_details); 
+												} 
+											}
 										}
-										$err = -1;
-										switch ($fields) {
-											case 0: // all is well
-												$msg2 = '';
-												$err = 1;
-												break;
-											case 1:
-												$msg2 = gettext('Database <code>field collations</code> [Image table]');
-												break;
-											case 2:
-												$msg2 = gettext('Database <code>field collations</code> [Album table]');
-												break;
-											case 3:
-												$msg2 = gettext('Database <code>field collations</code> [Image and Album tables]');
-												break;
-											default:
-												$msg2 = gettext('Database <code>field collations</code> [SHOW COLUMNS query failed]');
-												break;
-										}
-										setup::checkmark($err, gettext('Database <code>field collations</code>'), $msg2, sprintf(ngettext('%s is not UTF-8. You should consider porting your data to UTF-8 and changing the collation of the database fields to <code>utf8_unicode_ci</code>', '%s are not UTF-8. You should consider porting your data to UTF-8 and changing the collation of the database fields to <code>utf8_unicode_ci</code>', count($fieldlist)), implode(', ', $fieldlist)));
 									} else {
-										setup::checkmark(-1, '', gettext('Database <code>$conf["UTF-8"]</code> [is not set <em>true</em>]'), gettext('You should consider porting your data to UTF-8 and changing the collation of the database fields to <code>utf8_unicode_ci</code> and setting this <em>true</em>. Zenphoto works best with pure UTF-8 encodings.'));
+										setup::checkmark(-1, '', gettext('Database <code>$conf["UTF-8"]</code> [is not set <em>true</em>]'), gettext('You should consider porting your data to UTF-8 and changing the collation of the database fields to <code>utf8_unicode_ci</code> or better <code>utf8mb4_unicode_ci</code> respectively <code>utf8mb4_unicode_520_ci</code> and setting this <em>true</em>. Zenphoto works best with pure UTF-8 encodings.'));
 									}
 								}
-							}
 							if(!$good) {
 								setup::printFooter();
 								exit();
 							}
 							setup::primeMark(gettext('Zenphoto files'));
-							@set_time_limit(120);
+							@set_time_limit(180);
 							$lcFilesystem = file_exists(strtoupper(__FILE__));
 							$base = $_zp_setup_serverpath . '/';
 							setup::getResidentZPFiles(SERVERPATH . '/' . ZENFOLDER, $lcFilesystem);
@@ -1380,7 +1317,7 @@ if ($c <= 0) {
 										$phi_ini_count++;
 									} else if (defined('TEST_RELEASE') && TEST_RELEASE || (strpos($extra, '/.svn') === false)) {
 										$systemlist[] = $extra;
-										$filelist[] = $_zp_UTF8->convert(str_replace($base, '', $extra), FILESYSTEM_CHARSET, 'UTF-8');
+										$filelist[] = $_zp_utf8->convert(str_replace($base, '', $extra), FILESYSTEM_CHARSET, 'UTF-8');
 									} else {
 										$svncount++;
 									}
@@ -1421,7 +1358,7 @@ if ($c <= 0) {
 															'<p class="buttons"><a href="?delete_extra' . ($_zp_setup_debug ? '&amp;debug' : '') . '">' . gettext("Delete extra files") . '</a></p><br class="clearall" /><br class="clearall" />');
 										}
 									}
-									setup::checkMark($permissions, gettext("Zenphoto core file permissions"), gettext("Zenphoto core file permissions [not correct]"), gettext('Setup could not set the one or more components to the selected permissions level. You will have to set the permissions manually. See the <a href="http://www.zenphoto.org/news/permissions-for-zenphoto-files-and-folders">Troubleshooting guide</a> for details on Zenphoto permissions requirements.'));
+									setup::checkMark($permissions, gettext("Zenphoto core file permissions"), gettext("Zenphoto core file permissions [not correct]"), gettext('Setup could not set the one or more components to the selected permissions level. You will have to set the permissions manually. See the <a href="https://www.zenphoto.org/news/permissions-for-zenphoto-files-and-folders">Troubleshooting guide</a> for details on Zenphoto permissions requirements.'));
 								}
 							}
 							$msg = gettext("<em>.htaccess</em> file");
@@ -1445,7 +1382,7 @@ if ($c <= 0) {
 								} else if (setup::getServerSoftware() == 'nginx') {
 									$err = gettext("Server seems to be <em>nginx</em>");
 									$mod = "&amp;mod_rewrite"; //	enable test to see if it works.
-									$desc = gettext('If you wish to create cruft-free URLs, you will need to configuring <a href="http://www.zenphoto.org/news/nginx-rewrite-rules-tutorial"><em>URL rewriting for NGINX servers</em></a>.') . ' ' .
+									$desc = gettext('If you wish to create cruft-free URLs, you will need to configuring <a href="https://www.zenphoto.org/news/nginx-rewrite-rules-tutorial"><em>URL rewriting for NGINX servers</em></a>.') . ' ' .
 													'<br /><br />' . gettext('You can ignore this warning if you do not intend to set the <code>mod_rewrite</code> option.');
 								} else {
 									$mod = "&amp;mod_rewrite"; //	enable test to see if it works.
@@ -1462,7 +1399,7 @@ if ($c <= 0) {
 								$d = rtrim(str_replace('\\', '/', dirname(dirname(dirname($_SERVER['SCRIPT_NAME'])))), '/') . '/';
 								$d = str_replace(' ', '%20', $d); //	apache appears to trip out if there is a space in the rewrite base
 								if (!$ch) { // wrong version
-									$oht = trim(@file_get_contents(SERVERPATH . '/' . ZENFOLDER . '/oldhtaccess'));
+									$oht = trim(@file_get_contents(SERVERPATH . '/' . ZENFOLDER . '/file-templates/oldhtaccess'));
 									//fix the rewritebase
 									$i = strpos($oht, 'RewriteBase /zenphoto');
 									$oht = substr($oht, 0, $i) . "RewriteBase $d" . substr($oht, $i + 21);
@@ -1471,13 +1408,12 @@ if ($c <= 0) {
 									}
 									$oht = trim($oht);
 									if ($oht == $ht) { // an unmodified .htaccess file, we can just replace it
-										$ht = trim(file_get_contents(SERVERPATH . '/' . ZENFOLDER . '/htaccess'));
+										$ht = trim(file_get_contents(SERVERPATH . '/' . ZENFOLDER . '/file-templates/htaccess'));
 										$i = strpos($ht, 'RewriteBase /zenphoto');
 										$ht = substr($ht, 0, $i) . "RewriteBase $d" . substr($ht, $i + 21);
 										if ($closed) {
 											$ht = setup::closeSite($ht);
 										}
-
 										$htu = strtoupper($ht);
 										@chmod($htfile, 0777);
 										@unlink($htfile);
@@ -1539,12 +1475,12 @@ if ($c <= 0) {
 									$b = sprintf(gettext("<em>.htaccess</em> RewriteBase is <code>%s</code> (fixed)"), $d);
 								}
 								// upgrade the site closed rewrite rules
-								preg_match_all('|[# ][ ]*RewriteRule(.*)plugins/site_upgrade/closed\.php|', $ht, $matches);
+								preg_match_all('|[# ][ ]*RewriteRule(.*)plugins/site_upgrade/closed\.htm|', $ht, $matches);
 								$siteupdate = false;
 								foreach ($matches[0] as $match) {
 									if (strpos($match, 'index\.php$') !== false) {
 										$match1 = str_replace('index\.php$', 'index\.php(.*)$', $match);
-										$match1 = str_replace('closed.php', 'closed.php%1', $match1);
+										$match1 = str_replace('closed.htm', 'closed.htm%1', $match1);
 										$ht = str_replace($match, $match1, $ht);
 										$siteupdate = $save = true;
 									}
@@ -1567,7 +1503,7 @@ if ($c <= 0) {
 								}
 							}
 							//robots.txt file
-							$robots = file_get_contents(dirname(dirname(__FILE__)) . '/example_robots.txt');
+							$robots = file_get_contents(dirname(dirname(__FILE__)) . '/file-templates/example_robots.txt');
 							if ($robots === false) {
 								setup::checkmark(-1, gettext('<em>robots.txt</em> file'), gettext('<em>robots.txt</em> file [Not created]'), gettext('Setup could not find the  <em>example_robots.txt</em> file.'));
 							} else {
@@ -1648,11 +1584,11 @@ if ($c <= 0) {
 								?>
 								<div class="error">
 									<?php
-									if (zp_loggedin()) {
-										echo gettext("You need <em>USER ADMIN</em> rights to run setup.");
-									} else {
-										echo gettext('You must be logged in to run setup.');
-									}
+										if (zp_loggedin()) {
+											echo gettext("You need <em>USER ADMIN</em> rights to run setup.");
+										} else {
+											echo gettext('You must be logged in to run setup.');
+										}
 									?>
 								</div>
 								<?php
@@ -1677,10 +1613,8 @@ if ($c <= 0) {
 					if (file_exists(SERVERPATH . '/' . DATA_FOLDER . '/' . CONFIGFILE)) {
 
 						require(SERVERPATH . '/' . DATA_FOLDER . '/' . CONFIGFILE);
-						require_once(dirname(dirname(__FILE__)) . '/functions.php');
-						
-						echo '<p>'. gettext('Checking the database') . '</p>';
-						
+						require_once(dirname(dirname(__FILE__)) . '/functions/functions.php');
+						echo '<p>' . gettext('Checking the database') . '</p>';
 						$task = '';
 						if (isset($_GET['create'])) {
 							$task = 'create';
@@ -1690,38 +1624,18 @@ if ($c <= 0) {
 							$task = 'update';
 						}
 
-						if (db_connect($_zp_conf_vars) && empty($task)) {
-							$result = db_show('tables');
+						if ($_zp_db->connection && empty($task)) {
+							$alltables = $_zp_db->getTables();
 							$tables = array();
-							$prefix = $_zp_conf_vars['mysql_prefix'];
-							$prefixLC = strtolower($prefix);
+							$prefixLC = strtolower($_zp_conf_vars['mysql_prefix']);
 							$prefixUC = strtoupper($prefixLC);
-							if ($result) {
-								while ($row = db_fetch_row($result)) {
-									$key = $row[0];
+							if ($alltables) {
+								foreach($alltables as $key) {
 									$key = str_replace(array($prefixLC, $prefixUC), $_zp_conf_vars['mysql_prefix'], $key);
 									$tables[$key] = 'update';
 								}
-								db_free_result($result);
 							}
-							$expected_tables = array(
-											$_zp_conf_vars['mysql_prefix'] . 'options', 
-											$_zp_conf_vars['mysql_prefix'] . 'albums',
-											$_zp_conf_vars['mysql_prefix'] . 'images', 
-											$_zp_conf_vars['mysql_prefix'] . 'comments',
-											$_zp_conf_vars['mysql_prefix'] . 'administrators', 
-											$_zp_conf_vars['mysql_prefix'] . 'admin_to_object',
-											$_zp_conf_vars['mysql_prefix'] . 'tags', 
-											$_zp_conf_vars['mysql_prefix'] . 'obj_to_tag',
-											$_zp_conf_vars['mysql_prefix'] . 'captcha',
-											$_zp_conf_vars['mysql_prefix'] . 'pages', 
-											$_zp_conf_vars['mysql_prefix'] . 'news2cat',
-											$_zp_conf_vars['mysql_prefix'] . 'news_categories', 
-											$_zp_conf_vars['mysql_prefix'] . 'news',
-											$_zp_conf_vars['mysql_prefix'] . 'menu', 
-											$_zp_conf_vars['mysql_prefix'] . 'plugin_storage',
-											$_zp_conf_vars['mysql_prefix'] . 'search_cache'
-							);
+							$expected_tables = $_zp_db->getExpectedTables($_zp_conf_vars['mysql_prefix']);
 
 							// v1.3.2 handle zenpage table name change transition:
 							//				if the old table exists it gets updated instead of a new one being created
@@ -1752,27 +1666,27 @@ if ($c <= 0) {
 						}
 
 						// Prefix the table names. These already have `backticks` around them!
-						$tbl_albums = prefix('albums');
-						$tbl_comments = prefix('comments');
-						$tbl_images = prefix('images');
-						$tbl_options = prefix('options');
-						$tbl_administrators = prefix('administrators');
-						$tbl_admin_to_object = prefix('admin_to_object');
-						$tbl_tags = prefix('tags');
-						$tbl_obj_to_tag = prefix('obj_to_tag');
-						$tbl_captcha = prefix('captcha');
-						$tbl_news = prefix('news');
-						$tbl_pages = prefix('pages');
-						$tbl_news_categories = prefix('news_categories');
-						$tbl_news2cat = prefix('news2cat');
-						$tbl_menu_manager = prefix('menu');
-						$tbl_plugin_storage = prefix('plugin_storage');
-						$tbl_searches = prefix('search_cache');
+						$tbl_albums = $_zp_db->prefix('albums');
+						$tbl_comments = $_zp_db->prefix('comments');
+						$tbl_images = $_zp_db->prefix('images');
+						$tbl_options = $_zp_db->prefix('options');
+						$tbl_administrators = $_zp_db->prefix('administrators');
+						$tbl_admin_to_object = $_zp_db->prefix('admin_to_object');
+						$tbl_tags = $_zp_db->prefix('tags');
+						$tbl_obj_to_tag = $_zp_db->prefix('obj_to_tag');
+						$tbl_captcha = $_zp_db->prefix('captcha');
+						$tbl_news = $_zp_db->prefix('news');
+						$tbl_pages = $_zp_db->prefix('pages');
+						$tbl_news_categories = $_zp_db->prefix('news_categories');
+						$tbl_news2cat = $_zp_db->prefix('news2cat');
+						$tbl_menu_manager = $_zp_db->prefix('menu');
+						$tbl_plugin_storage = $_zp_db->prefix('plugin_storage');
+						$tbl_searches = $_zp_db->prefix('search_cache');
 
 						// Prefix the constraint names:
 						$db_schema = array();
 						$sql_statements = array();
-						$collation = db_collation();
+						$collation = $_zp_db->getCollationSetClause();
 
 						/***********************************************************************************
 						  Add new fields in the upgrade section. This section should remain static except for new
@@ -1780,17 +1694,17 @@ if ($c <= 0) {
 						 *********************************************************************************** */
 
 						//v1.2
-						if (isset($create[$_zp_conf_vars['mysql_prefix'] . 'captcha'])) {
-							$db_schema[] = "CREATE TABLE IF NOT EXISTS $tbl_captcha (
+	if (isset($create[$_zp_conf_vars['mysql_prefix'] . 'captcha'])) {
+		$db_schema[] = "CREATE TABLE IF NOT EXISTS $tbl_captcha (
 		`id` int(11) UNSIGNED NOT NULL auto_increment,
 		`ptime` int(32) UNSIGNED NOT NULL,
 		`hash` varchar(255) NOT NULL,
 		PRIMARY KEY (`id`)
 		)	$collation;";
-						}
-						//v1.1.7
-						if (isset($create[$_zp_conf_vars['mysql_prefix'] . 'options'])) {
-							$db_schema[] = "CREATE TABLE IF NOT EXISTS $tbl_options (
+	}
+	//v1.1.7
+	if (isset($create[$_zp_conf_vars['mysql_prefix'] . 'options'])) {
+		$db_schema[] = "CREATE TABLE IF NOT EXISTS $tbl_options (
 		`id` int(11) UNSIGNED NOT NULL auto_increment,
 		`ownerid` int(11) UNSIGNED NOT NULL DEFAULT 0,
 		`name` varchar(191) NOT NULL,
@@ -1798,30 +1712,30 @@ if ($c <= 0) {
 		`theme` varchar (127) NOT NULL,
 		`creator` varchar (255) DEFAULT NULL,
 		PRIMARY KEY (`id`),
-		UNIQUE (`name`, `ownerid`, `theme`)
+		UNIQUE KEY (name(95), `ownerid`, theme(95))
 		)	$collation;";
-						}
-						if (isset($create[$_zp_conf_vars['mysql_prefix'] . 'tags'])) {
-							$db_schema[] = "CREATE TABLE IF NOT EXISTS $tbl_tags (
+	}
+	if (isset($create[$_zp_conf_vars['mysql_prefix'] . 'tags'])) {
+		$db_schema[] = "CREATE TABLE IF NOT EXISTS $tbl_tags (
 		`id` int(11) UNSIGNED NOT NULL auto_increment,
 		`name` varchar(255) NOT NULL,
 		PRIMARY KEY (`id`),
-		UNIQUE (`name`)
+		UNIQUE KEY (name(191))
 		)	$collation;";
-						}
-						if (isset($create[$_zp_conf_vars['mysql_prefix'] . 'obj_to_tag'])) {
-							$db_schema[] = "CREATE TABLE IF NOT EXISTS $tbl_obj_to_tag (
+	}
+	if (isset($create[$_zp_conf_vars['mysql_prefix'] . 'obj_to_tag'])) {
+		$db_schema[] = "CREATE TABLE IF NOT EXISTS $tbl_obj_to_tag (
 		`id` int(11) UNSIGNED NOT NULL auto_increment,
 		`tagid` int(11) UNSIGNED NOT NULL,
 		`type` tinytext,
 		`objectid` int(11) UNSIGNED NOT NULL,
 		PRIMARY KEY (`id`)
 		)	$collation;";
-						}
+	}
 
-						// v. 1.1.5
-						if (isset($create[$_zp_conf_vars['mysql_prefix'] . 'administrators'])) {
-							$db_schema[] = "CREATE TABLE IF NOT EXISTS $tbl_administrators (
+	// v. 1.1.5
+	if (isset($create[$_zp_conf_vars['mysql_prefix'] . 'administrators'])) {
+		$db_schema[] = "CREATE TABLE IF NOT EXISTS $tbl_administrators (
 		`id` int(11) UNSIGNED NOT NULL auto_increment,
 		`user` varchar(64) NOT NULL,
 		`pass` varchar(64) NOT NULL,
@@ -1842,11 +1756,11 @@ if ($c <= 0) {
 		`other_credentials` TEXT,
 		`challenge_phrase` TEXT,
 		PRIMARY KEY (`id`),
-		UNIQUE (`user`,`valid`)
+		UNIQUE KEY (`user`,`valid`)
 		)	$collation;";
-						}
-						if (isset($create[$_zp_conf_vars['mysql_prefix'] . 'admin_to_object'])) {
-							$db_schema[] = "CREATE TABLE IF NOT EXISTS $tbl_admin_to_object (
+	}
+	if (isset($create[$_zp_conf_vars['mysql_prefix'] . 'admin_to_object'])) {
+		$db_schema[] = "CREATE TABLE IF NOT EXISTS $tbl_admin_to_object (
 		`id` int(11) UNSIGNED NOT NULL auto_increment,
 		`adminid` int(11) UNSIGNED NOT NULL,
 		`objectid` int(11) UNSIGNED NOT NULL,
@@ -1854,12 +1768,12 @@ if ($c <= 0) {
 		`edit` int(11) DEFAULT 32767,
 		PRIMARY KEY (`id`)
 		)	$collation;";
-						}
+	}
 
 
-						// base implementation
-						if (isset($create[$_zp_conf_vars['mysql_prefix'] . 'albums'])) {
-							$db_schema[] = "CREATE TABLE IF NOT EXISTS $tbl_albums (
+	// base implementation
+	if (isset($create[$_zp_conf_vars['mysql_prefix'] . 'albums'])) {
+		$db_schema[] = "CREATE TABLE IF NOT EXISTS $tbl_albums (
 		`id` int(11) UNSIGNED NOT NULL auto_increment,
 		`parentid` int(11) unsigned default NULL,
 		`folder` varchar(255) NOT NULL default '',
@@ -1898,12 +1812,12 @@ if ($c <= 0) {
 		`owner` varchar(64) DEFAULT NULL,
 		`codeblock` text,
 		PRIMARY KEY (`id`),
-		UNIQUE `folder` (`folder`)
+		UNIQUE KEY (folder(191))
 		)	$collation;";
-						}
+	}
 
-						if (isset($create[$_zp_conf_vars['mysql_prefix'] . 'comments'])) {
-							$db_schema[] = "CREATE TABLE IF NOT EXISTS $tbl_comments (
+	if (isset($create[$_zp_conf_vars['mysql_prefix'] . 'comments'])) {
+		$db_schema[] = "CREATE TABLE IF NOT EXISTS $tbl_comments (
 		`id` int(11) UNSIGNED NOT NULL auto_increment,
 		`ownerid` int(11) unsigned NOT NULL default '0',
 		`name` varchar(255) NOT NULL default '',
@@ -1920,10 +1834,10 @@ if ($c <= 0) {
 		PRIMARY KEY (`id`),
 		KEY `ownerid` (`ownerid`)
 		)	$collation;";
-						}
+	}
 
-						if (isset($create[$_zp_conf_vars['mysql_prefix'] . 'images'])) {
-							$db_schema[] = "CREATE TABLE IF NOT EXISTS $tbl_images (
+	if (isset($create[$_zp_conf_vars['mysql_prefix'] . 'images'])) {
+		$db_schema[] = "CREATE TABLE IF NOT EXISTS $tbl_images (
 		`id` int(11) UNSIGNED NOT NULL auto_increment,
 				`albumid` int(11) unsigned NOT NULL default '0',
 		`filename` varchar(255) NOT NULL default '',
@@ -1966,13 +1880,13 @@ if ($c <= 0) {
 		`password_hint` text,
 		PRIMARY KEY (`id`),
 		KEY (`albumid`),
-		UNIQUE `filename` (`filename`,`albumid`)
+		UNIQUE KEY (filename(191), albumid)
 		)	$collation;";
-						}
+	}
 
-						//v1.2.4
-						if (isset($create[$_zp_conf_vars['mysql_prefix'] . 'news'])) {
-							$db_schema[] = "CREATE TABLE IF NOT EXISTS " . prefix('news') . " (
+	//v1.2.4
+	if (isset($create[$_zp_conf_vars['mysql_prefix'] . 'news'])) {
+		$db_schema[] = "CREATE TABLE IF NOT EXISTS " . $_zp_db->prefix('news') . " (
 		`id` int(11) UNSIGNED NOT NULL auto_increment,
 		`title` text,
 		`content` longtext,
@@ -1998,12 +1912,12 @@ if ($c <= 0) {
 		`custom_data` text,
 		`truncation` int(1) unsigned default 0,
 		PRIMARY KEY (`id`),
-		UNIQUE (`titlelink`)
+		UNIQUE KEY (titlelink(191))
 		) $collation;";
-						}
+	}
 
-						if (isset($create[$_zp_conf_vars['mysql_prefix'] . 'news_categories'])) {
-							$db_schema[] = "CREATE TABLE IF NOT EXISTS " . prefix('news_categories') . " (
+	if (isset($create[$_zp_conf_vars['mysql_prefix'] . 'news_categories'])) {
+		$db_schema[] = "CREATE TABLE IF NOT EXISTS " . $_zp_db->prefix('news_categories') . " (
 		`id` int(11) UNSIGNED NOT NULL auto_increment,
 		`title` text,
 		`titlelink` varchar(255) NOT NULL,
@@ -2018,21 +1932,21 @@ if ($c <= 0) {
 		`custom_data` text,
 		`show` int(1) unsigned NOT NULL default '1',
 		PRIMARY KEY (`id`),
-		UNIQUE (`titlelink`)
+		UNIQUE KEY (titlelink(191))
 		) $collation;";
-						}
+	}
 
-						if (isset($create[$_zp_conf_vars['mysql_prefix'] . 'news2cat'])) {
-							$db_schema[] = "CREATE TABLE IF NOT EXISTS " . prefix('news2cat') . " (
+	if (isset($create[$_zp_conf_vars['mysql_prefix'] . 'news2cat'])) {
+		$db_schema[] = "CREATE TABLE IF NOT EXISTS " . $_zp_db->prefix('news2cat') . " (
 		`id` int(11) UNSIGNED NOT NULL auto_increment,
 		`cat_id` int(11) unsigned NOT NULL,
 		`news_id` int(11) unsigned NOT NULL,
 		PRIMARY KEY (`id`)
 		) $collation;";
-						}
+	}
 
-						if (isset($create[$_zp_conf_vars['mysql_prefix'] . 'pages'])) {
-							$db_schema[] = "CREATE TABLE IF NOT EXISTS " . prefix('pages') . " (
+	if (isset($create[$_zp_conf_vars['mysql_prefix'] . 'pages'])) {
+		$db_schema[] = "CREATE TABLE IF NOT EXISTS " . $_zp_db->prefix('pages') . " (
 		`id` int(11) UNSIGNED NOT NULL auto_increment,
 		`parentid` int(11) unsigned default NULL,
 		`title` text,
@@ -2062,12 +1976,12 @@ if ($c <= 0) {
 		`custom_data` text,
 		`truncation` int(1) unsigned default 0,
 		PRIMARY KEY (`id`),
-		UNIQUE (`titlelink`)
+		UNIQUE KEY (titlelink(191))
 		) $collation;";
-						}
+	}
 
-						if (isset($create[$_zp_conf_vars['mysql_prefix'] . 'menu'])) {
-							$db_schema[] = "CREATE TABLE IF NOT EXISTS " . prefix('menu') . " (
+	if (isset($create[$_zp_conf_vars['mysql_prefix'] . 'menu'])) {
+		$db_schema[] = "CREATE TABLE IF NOT EXISTS " . $_zp_db->prefix('menu') . " (
 		`id` int(11) UNSIGNED NOT NULL auto_increment,
 		`parentid` int(11) unsigned default NULL,
 		`title` text,
@@ -2081,32 +1995,32 @@ if ($c <= 0) {
 		`span_id` varchar(32) default NULL,
 		PRIMARY KEY (`id`)
 		) $collation;";
-						}
-						// v 1.3.2
-						if (isset($create[$_zp_conf_vars['mysql_prefix'] . 'plugin_storage'])) {
-							$db_schema[] = "CREATE TABLE IF NOT EXISTS " . prefix('plugin_storage') . " (
+	}
+	// v 1.3.2
+	if (isset($create[$_zp_conf_vars['mysql_prefix'] . 'plugin_storage'])) {
+		$db_schema[] = "CREATE TABLE IF NOT EXISTS " . $_zp_db->prefix('plugin_storage') . " (
 		`id` int(11) UNSIGNED NOT NULL auto_increment,
 		`type` varchar(32) NOT NULL,
 		`aux` varchar(255),
 		`data` longtext,
 		PRIMARY KEY (`id`),
 		KEY `type` (`type`),
-		KEY `aux` (`aux`)
+		KEY aux(aux(191))
 		) $collation;";
-						}
-						// v 1.4.2
-						if (isset($create[$_zp_conf_vars['mysql_prefix'] . 'search_cache'])) {
-							$db_schema[] = "CREATE TABLE IF NOT EXISTS " . prefix('search_cache') . " (
+	}
+	// v 1.4.2
+	if (isset($create[$_zp_conf_vars['mysql_prefix'] . 'search_cache'])) {
+		$db_schema[] = "CREATE TABLE IF NOT EXISTS " . $_zp_db->prefix('search_cache') . " (
 		`id` int(11) UNSIGNED NOT NULL auto_increment,
 		`criteria` TEXT,
 		`date` datetime default NULL,
 		`data` longtext,
-		KEY (`criteria`(255)),
+		KEY (`criteria`(191)),
 		PRIMARY KEY (`id`)
 		) $collation;";
-						}
+	}
 
-						/****************************************************************************************
+	/****************************************************************************************
 						 * *****                             UPGRADE SECTION                                ******
 						 * *****                                                                            ******
 						 * *****                          Add all new fields below                          ******
@@ -2114,10 +2028,10 @@ if ($c <= 0) {
 						 * ***************************************************************************************/
 
 						//v1.3.2
-						$sql_statements[] = "RENAME TABLE " . prefix('zenpage_news') . " TO $tbl_news," .
-										prefix('zenpage_news2cat') . " TO $tbl_news2cat," .
-										prefix('zenpage_news_categories') . " TO $tbl_news_categories," .
-										prefix('zenpage_pages') . " TO $tbl_pages";
+						$sql_statements[] = "RENAME TABLE " . $_zp_db->prefix('zenpage_news') . " TO $tbl_news," .
+										$_zp_db->prefix('zenpage_news2cat') . " TO $tbl_news2cat," .
+										$_zp_db->prefix('zenpage_news_categories') . " TO $tbl_news_categories," .
+										$_zp_db->prefix('zenpage_pages') . " TO $tbl_pages";
 
 						// v. 1.0.0b
 						$sql_statements[] = "ALTER TABLE $tbl_albums ADD COLUMN `sort_type` varchar(20);";
@@ -2180,10 +2094,10 @@ if ($c <= 0) {
 						$sql_statements[] = "ALTER TABLE $tbl_comments CHANGE `imageid` `ownerid` int(11) UNSIGNED NOT NULL default '0';";
 						//	$sql_statements[] = "ALTER TABLE $tbl_comments DROP INDEX `imageid`;";
 						$sql = "SHOW INDEX FROM `" . $_zp_conf_vars['mysql_prefix'] . "comments`";
-						$result = query($sql, false);
+						$result = $_zp_db->query($sql, false);
 						$hasownerid = false;
 						if ($result) {
-							while ($row = db_fetch_row($result)) {
+							while ($row = $_zp_db->fetchRow($result)) {
 								if ($row[2] == 'ownerid') {
 									$hasownerid = true;
 								} else {
@@ -2192,7 +2106,7 @@ if ($c <= 0) {
 									}
 								}
 							}
-							db_free_result($result);
+							$_zp_db->freeResult($result);
 						}
 						if (!$hasownerid) {
 							$sql_statements[] = "ALTER TABLE $tbl_comments ADD INDEX (`ownerid`);";
@@ -2221,14 +2135,14 @@ if ($c <= 0) {
 						$sql_statements[] = "ALTER TABLE $tbl_options CHANGE `name` `name` varchar(255) " . $collation;
 						$hastagidindex = false;
 						$sql = "SHOW INDEX FROM `" . $_zp_conf_vars['mysql_prefix'] . "obj_to_tag`";
-						$result = query($sql, false);
+						$result = $_zp_db->query($sql, false);
 						if ($result) {
-							while ($row = db_fetch_row($result)) {
+							while ($row = $_zp_db->fetchRow($result)) {
 								if ($row[2] == 'tagid') {
 									$hastagidindex = true;
 								}
 							}
-							db_free_result($result);
+							$_zp_db->freeResult($result);
 						}
 						if (!$hastagidindex) {
 							$sql_statements[] = "ALTER TABLE $tbl_obj_to_tag ADD INDEX (`tagid`)";
@@ -2248,12 +2162,12 @@ if ($c <= 0) {
 						$sql_statements[] = "ALTER TABLE $tbl_images ADD COLUMN `thumbH` int(10) UNSIGNED default NULL;";
 
 						//v1.2.4
-						$sql_statements[] = 'ALTER TABLE ' . $tbl_news_categories . ' DROP INDEX `titlelink`;';
-						$sql_statements[] = 'ALTER TABLE ' . $tbl_news_categories . ' ADD UNIQUE (`titlelink`);';
-						$sql_statements[] = 'ALTER TABLE ' . $tbl_news . ' DROP INDEX `titlelink`;';
-						$sql_statements[] = 'ALTER TABLE ' . $tbl_news . ' ADD UNIQUE (`titlelink`);';
-						$sql_statements[] = 'ALTER TABLE ' . $tbl_pages . ' DROP INDEX `titlelink`;';
-						$sql_statements[] = 'ALTER TABLE ' . $tbl_pages . ' ADD UNIQUE (`titlelink`);';
+						$sql_statements[] = 'ALTER TABLE ' . $tbl_news_categories . ' DROP INDEX `titlelink`;'; 
+						$sql_statements[] = 'ALTER TABLE ' . $tbl_news_categories . ' ADD UNIQUE INDEX titlelink(titlelink(191));'; // utf8mb4 limit added as required for utf8mb4 in v1.6
+						$sql_statements[] = 'ALTER TABLE ' . $tbl_news . ' DROP INDEX `titlelink`;'; 
+						$sql_statements[] = 'ALTER TABLE ' . $tbl_news . ' ADD UNIQUE INDEX titlelink(titlelink(191));'; // utf8mb4 limit added as required for utf8mb4 in v1.6
+						$sql_statements[] = 'ALTER TABLE ' . $tbl_pages . ' DROP INDEX `titlelink`;'; 
+						$sql_statements[] = 'ALTER TABLE ' . $tbl_pages . ' ADD UNIQUE INDEX titlelink(titlelink(191));'; // utf8mb4 limit added as required for utf8mb4 in v1.6
 						$sql_statements[] = 'ALTER TABLE ' . $tbl_comments . ' CHANGE `comment` `comment` TEXT;';
 						$sql_statements[] = 'ALTER TABLE ' . $tbl_news . ' CHANGE `title` `title` TEXT;';
 						$sql_statements[] = 'ALTER TABLE ' . $tbl_news_categories . ' CHANGE `titlelink` `titlelink` varchar(255);';
@@ -2295,16 +2209,16 @@ if ($c <= 0) {
 						$sql_statements[] = 'ALTER TABLE ' . $tbl_administrators . ' ADD COLUMN `valid` int(1) NOT NULL DEFAULT 1';
 						$sql_statements[] = 'ALTER TABLE ' . $tbl_administrators . ' ADD COLUMN `group` varchar(64)';
 						$sql = 'SHOW INDEX FROM ' . $tbl_administrators;
-						$result = query($sql, false);
+						$result = $_zp_db->query($sql, false);
 						if ($result) {
-							while ($row = db_fetch_row($result)) {
+							while ($row = $_zp_db->fetchRow($result)) {
 								if ($row[2] == 'user') {
 									$sql_statements[] = "ALTER TABLE $tbl_administrators DROP INDEX `user`";
 									$sql_statements[] = "ALTER TABLE $tbl_administrators ADD UNIQUE (`valid`, `user`)";
 									break;
 								}
 							}
-							db_free_result($result);
+							$_zp_db->freeResult($result);
 						}
 						$sql_statements[] = 'ALTER TABLE ' . $tbl_albums . ' ADD COLUMN `watermark` varchar(255) DEFAULT NULL';
 						$sql_statements[] = 'ALTER TABLE ' . $tbl_pages . ' CHANGE `commentson` `commentson` int(1) UNSIGNED default 0';
@@ -2313,8 +2227,8 @@ if ($c <= 0) {
 						$sql_statements[] = "ALTER TABLE $tbl_albums CHANGE `album_theme` `album_theme` varchar(127) DEFAULT NULL";
 						$sql_statements[] = "ALTER TABLE $tbl_options ADD COLUMN `theme` varchar(127) NOT NULL";
 						$sql_statements[] = "ALTER TABLE $tbl_options CHANGE `name` `name` varchar(191) DEFAULT NULL";
-						$sql_statements[] = "ALTER TABLE $tbl_options DROP INDEX `unique_option`";
-						$sql_statements[] = "ALTER TABLE $tbl_options ADD UNIQUE `unique_option` (`name`, `ownerid`, `theme`)";
+						$sql_statements[] = "ALTER TABLE $tbl_options DROP INDEX `unique_option`"; 
+						$sql_statements[] = "ALTER TABLE $tbl_options ADD UNIQUE `unique_option` (name(95), `ownerid`, theme(95))"; // utf8mb4 limit added as required for utf8mb4 in v1.6
 						$sql_statements[] = 'ALTER TABLE ' . $tbl_images . ' DROP COLUMN `EXIFValid`';
 						$sql_statements[] = 'ALTER TABLE ' . $tbl_images . ' ADD COLUMN `hasMetadata` int(1) default 0';
 						$sql_statements[] = 'UPDATE ' . $tbl_images . ' SET `date`=NULL WHERE `date`="0000-00-00 00:00:00"'; // empty dates should be NULL
@@ -2335,7 +2249,7 @@ if ($c <= 0) {
 						$sql_statements[] = "ALTER TABLE $tbl_news_categories ADD COLUMN `password_hint` text;";
 
 						//v1.3.1
-						$sql_statements[] = 'RENAME TABLE ' . prefix('admintoalbum') . ' TO ' . $tbl_admin_to_object;
+						$sql_statements[] = 'RENAME TABLE ' . $_zp_db->prefix('admintoalbum') . ' TO ' . $tbl_admin_to_object;
 						$sql_statements[] = 'ALTER TABLE ' . $tbl_admin_to_object . ' ADD COLUMN `type` varchar(32) DEFAULT "album";';
 						$sql_statements[] = 'ALTER TABLE ' . $tbl_admin_to_object . ' CHANGE `albumid` `objectid` int(11) UNSIGNED NOT NULL';
 						$sql_statements[] = 'ALTER TABLE ' . $tbl_administrators . ' CHANGE `albums` `objects` varchar(64)';
@@ -2353,6 +2267,7 @@ if ($c <= 0) {
 						$sql_statements[] = "ALTER TABLE $tbl_images ADD COLUMN `password_hint` text;";
 						$sql_statements[] = "ALTER TABLE $tbl_news_categories CHANGE `cat_name` `title` TEXT";
 						$sql_statements[] = "ALTER TABLE $tbl_news_categories CHANGE `cat_link` `titlelink` varchar(255) NOT NULL";
+						$sql_statements[] = 'ALTER TABLE ' . $tbl_news_categories . ' DROP INDEX `cat_link`;'; 
 						$sql_statements[] = 'UPDATE ' . $tbl_obj_to_tag . ' SET `type`="news" WHERE `type`="zenpage_news"';
 						$sql_statements[] = 'UPDATE ' . $tbl_obj_to_tag . ' SET `type`="pages" WHERE `type`="zenpage_pages"';
 						$sql_statements[] = 'ALTER TABLE ' . $tbl_administrators . ' ADD COLUMN `language` VARCHAR(5)';
@@ -2377,7 +2292,6 @@ if ($c <= 0) {
 						$sql_statements[] = 'ALTER TABLE ' . $tbl_news_categories . ' DROP INDEX `title`';
 						$sql_statements[] = 'ALTER TABLE ' . $tbl_news_categories . ' CHANGE `titlelink` `titlelink` VARCHAR(255) NOT NULL';
 						$sql_statements[] = 'ALTER TABLE ' . $tbl_news_categories . ' CHANGE `title` `title` TEXT';
-						$sql_statements[] = 'ALTER TABLE ' . $tbl_news_categories . ' ADD UNIQUE `titlelink` (`titlelink`)';
 						$sql_statements[] = "ALTER TABLE $tbl_news_categories ADD COLUMN `show` int(1) unsigned NOT NULL default '1'";
 						//v1.4.2
 						$sql_statements[] = 'ALTER TABLE ' . $tbl_administrators . ' ADD COLUMN `challenge_phrase` TEXT';
@@ -2405,10 +2319,10 @@ if ($c <= 0) {
 						$sql_statements[] = "ALTER TABLE $tbl_news ADD COLUMN `truncation` int(1) unsigned NOT NULL default '0'";
 						$sql_statements[] = "ALTER TABLE $tbl_pages ADD COLUMN `truncation` int(1) unsigned NOT NULL default '0'";
 						$sql_statements[] = "CREATE INDEX `albumid` ON $tbl_images (`albumid`)";
-						$sql_statements[] = "ALTER TABLE $tbl_albums DROP INDEX `folder`";
-						$sql_statements[] = "ALTER TABLE $tbl_albums ADD UNIQUE `folder` (`folder`)";
-						$sql_statements[] = "ALTER TABLE $tbl_images DROP INDEX `filename`";
-						$sql_statements[] = "ALTER TABLE $tbl_images ADD UNIQUE `filename` (`filename`, `albumid`)";
+						$sql_statements[] = "ALTER TABLE $tbl_albums DROP INDEX `folder`"; 
+						$sql_statements[] = "ALTER TABLE $tbl_albums ADD UNIQUE INDEX folder(folder(191))"; // utf8mb4 limit added as required for utf8mb4 in v1.6
+						$sql_statements[] = "ALTER TABLE $tbl_images DROP INDEX `filename`"; 
+						$sql_statements[] = "ALTER TABLE $tbl_images ADD UNIQUE INDEX filename(filename(191), albumid)"; // utf8mb4 limit added as required for utf8mb4 in v1.6
 			
 						//1.5.2
 						$sql_statements[] = "ALTER TABLE $tbl_images ADD COLUMN `lastchange` datetime default NULL";
@@ -2432,7 +2346,14 @@ if ($c <= 0) {
 						//1.5.8
 						$sql_statements[] = "ALTER TABLE $tbl_administrators ADD COLUMN `lastvisit` datetime default NULL";
 						$sql_statements[] = "ALTER TABLE $tbl_pages CHANGE `sort_order` `sort_order` varchar(48) DEFAULT NULL";
-
+						
+						//1.6 - utf8mb4 index limitation on some db configs
+						//Note: More 1.6 changes required had to be incorporated in earlier update queries above
+					
+						$sql_statements[] = "ALTER TABLE $tbl_plugin_storage DROP INDEX aux, ADD INDEX aux(aux(191))";
+						$sql_statements[] = "ALTER TABLE $tbl_tags DROP INDEX name, ADD UNIQUE INDEX name(name(191))";
+						$sql_statements[] = "ALTER TABLE $tbl_searches DROP INDEX criteria, ADD UNIQUE INDEX criteria(criteria(191))";
+						
 						// do this last incase there are any field changes of like names!
 						foreach ($_zp_exifvars as $key => $exifvar) {
 							if ($s = $exifvar[6]) {
@@ -2466,7 +2387,7 @@ if ($c <= 0) {
 						 * *****
 						 * ************************************************************************************* */
 						$createTables = true;
-						if (isset($_GET['create']) || isset($_GET['update']) || isset($_GET['protect_files']) && db_connect($_zp_conf_vars)) {
+						if (isset($_GET['create']) || isset($_GET['update']) || isset($_GET['protect_files']) && $_zp_db->connection) {
 							if (!isset($_GET['protect_files'])) {
 								if ($taskDisplay[substr($task, 0, 8)] == 'create') {
 									echo "<p>" . gettext("About to create database tables") . "...</p>";
@@ -2479,11 +2400,11 @@ if ($c <= 0) {
 									setup::log($message);
 									foreach ($db_schema as $sql) {
 										$message = '';
-										@set_time_limit(60);
-										$result = db_create_table($sql);
+										@set_time_limit(180);
+										$result = $_zp_db->createTable($sql);
 										if (!$result) {
 											$createTables = false;
-											$message = sprintf(gettext('Table creation failure:<br />Query: %1$s<br />Error: %2$s'), $sql, db_error());
+											$message = sprintf(gettext('Table creation failure:<br />Query: %1$s<br />Error: %2$s'), $sql, $_zp_db->getError());
 											echo '<p class="error"><img src="'.FULLWEBPATH . '/' . ZENFOLDER . '/images/fail.png" alt="failure">'. $message . '</p>';
 											setup::log($message);
 										} else {
@@ -2496,10 +2417,10 @@ if ($c <= 0) {
 								echo '<p>'.gettext("Begin table updates").'</p>';
 								setup::log(gettext("Begin table updates"));
 								foreach ($sql_statements as $sql) {
-									@set_time_limit(60);
-									$result = db_table_update($sql);
+									@set_time_limit(180);
+									$result = $_zp_db->tableUpdate($sql);
 									if (!$result) {
-										$error = db_error();
+										$error = $_zp_db->getError();
 										$reset = strpos($error, 'syntax');
 										$message = sprintf(gettext('Query %1$s Failed. Error: %2$s'), $sql, $error);
 										if($reset) { 
@@ -2511,6 +2432,22 @@ if ($c <= 0) {
 										setup::log(sprintf(gettext('Query ( %s ) Success.'), $sql));
 									}
 								}
+								echo '<p>'.gettext("Begin converting UTF-8 tables to utf8mb4 collation").'</p>';
+								$alltables = $_zp_db->getTables();
+								if($alltables) {
+									foreach($alltables as $table) {
+										$success = $_zp_db->convertTableToUtf8mb4($table);
+										$convert_error = $_zp_db->getError();
+										if ($success) {
+											echo '<img src="'.FULLWEBPATH . '/' . ZENFOLDER . '/images/pass.png" alt="">';
+											setup::log(sprintf(gettext('UTF-8 Table %s and its columns converted to utf8mb4 collation.'), $table));
+										} else if ($convert_error) {
+											echo '<img src="'.FULLWEBPATH . '/' . ZENFOLDER . '/images/fail.png" alt="">';
+											setup::log(sprintf(gettext('ERROR: UTF-8 table %1$s and/or its columns could not be converted to utf8mb4 collation: %2$s'), $table, $convert_error));
+										}
+									}
+								}
+								
 								echo "<p>";
 								if ($taskDisplay[substr($task, 0, 8)] == 'create') {
 									if ($createTables) {
@@ -2548,22 +2485,22 @@ if ($c <= 0) {
 
 								if ($_zp_setup_debug == 'base64') {
 									// update zenpage codeblocks--remove the base64 encoding
-									$sql = 'SELECT `id`, `codeblock` FROM ' . prefix('news') . ' WHERE `codeblock` NOT REGEXP "^a:[0-9]+:{"';
-									$result = query_full_array($sql, false);
+									$sql = 'SELECT `id`, `codeblock` FROM ' . $_zp_db->prefix('news') . ' WHERE `codeblock` NOT REGEXP "^a:[0-9]+:{"';
+									$result = $_zp_db->queryFullArray($sql, false);
 									if (is_array($result)) {
 										foreach ($result as $row) {
 											$codeblock = base64_decode($row['codeblock']);
-											$sql = 'UPDATE ' . prefix('news') . ' SET `codeblock`=' . db_quote($codeblock) . ' WHERE `id`=' . $row['id'];
-											query($sql);
+											$sql = 'UPDATE ' . $_zp_db->prefix('news') . ' SET `codeblock`=' . $_zp_db->quote($codeblock) . ' WHERE `id`=' . $row['id'];
+											$_zp_db->query($sql);
 										}
 									}
-									$sql = 'SELECT `id`, `codeblock` FROM ' . prefix('pages') . ' WHERE `codeblock` NOT REGEXP "^a:[0-9]+:{"';
-									$result = query_full_array($sql, false);
+									$sql = 'SELECT `id`, `codeblock` FROM ' . $_zp_db->prefix('pages') . ' WHERE `codeblock` NOT REGEXP "^a:[0-9]+:{"';
+									$result = $_zp_db->queryFullArray($sql, false);
 									if (is_array($result)) {
 										foreach ($result as $row) {
 											$codeblock = base64_decode($row['codeblock']);
-											$sql = 'UPDATE ' . prefix('pages') . ' SET `codeblock`=' . db_quote($codeblock) . ' WHERE `id`=' . $row['id'];
-											query($sql);
+											$sql = 'UPDATE ' . $_zp_db->prefix('pages') . ' SET `codeblock`=' . $_zp_db->quote($codeblock) . ' WHERE `id`=' . $row['id'];
+											$_zp_db->query($sql);
 										}
 									}
 								}
@@ -2579,7 +2516,7 @@ if ($c <= 0) {
 
 							if ($createTables) {
 								if ($_zp_loggedin == ADMIN_RIGHTS) {
-									$filelist = safe_glob(SERVERPATH . "/" . BACKUPFOLDER . '/*.zdb');
+									$filelist = safe_glob(getBackupFolder(SERVERPATH) . '*.zdb');
 									if (count($filelist) > 0) {
 										$link = sprintf(gettext('You may <a href="%1$s">set your admin user and password</a> or <a href="%2$s">run backup-restore</a>'), WEBPATH . '/' . ZENFOLDER . '/admin-users.php?page=users', WEBPATH . '/' . ZENFOLDER . '/' . UTILITIES_FOLDER . '/backup_restore.php');
 										$_zp_setup_autorun = false;
@@ -2593,6 +2530,9 @@ if ($c <= 0) {
 									$link = sprintf(gettext('You can now <a href="%1$s">administer your gallery</a>.'), WEBPATH . '/' . ZENFOLDER . '/admin.php');
 								}
 								setOption('setup_unprotected_by_adminrequest', 0, true, null);
+								if (getOption('maintenance_mode_auto-open')) {
+									maintenanceMode::setState('open', $setupMutex);
+								}
 								?>
 								<p id="golink" class="delayshow" style="display:none;"><?php echo $link; ?></p>
 								<?php
@@ -2607,7 +2547,7 @@ if ($c <= 0) {
 										break;
 								}
 								?>
-								<script type="text/javascript">
+								<script>
 									window.onload = function() {
 										$('.delayshow').show();
 			<?php
@@ -2624,7 +2564,7 @@ if ($c <= 0) {
 								</script>
 								<?php
 							}
-						} else if (db_connect($_zp_conf_vars)) {
+						} else if ($_zp_db->connection) {
 							$task = '';
 							if (setup::userAuthorized() || $blindInstall) {
 								if (!empty($dbmsg)) {
@@ -2702,7 +2642,7 @@ if ($c <= 0) {
 								<div class="warning" id="dbrestructure">
 									<p><?php echo gettext('<strong>Warning!</strong> This upgrade makes structural changes to the database which are not easily reversed. Be sure you have a database backup before proceeding.'); ?></p>
 									<form>
-										<input type="hidden" name="xsrfToken" value="<?php echo $_zp_setup_xsrftoken ?>" />
+										<input type="hidden" name="xsrfToken" value="<?php echo setup::getXSRFToken(); ?>" />
 										<p><?php printf(gettext('%s I acknowledge that proceeding will restructure my database.'), '<input type="checkbox" id="agree" value="0" onclick="javascript:$(\'#setup\').show();$(\'#agree\').attr(\'checked\',\'checked\')" />')
 								?></p>
 									</form>
@@ -2750,7 +2690,7 @@ if ($c <= 0) {
 								echo $task . $mod;
 								?>" method="post"<?php echo $hideGoButton; ?> >
 									<input type="hidden" name="setUTF8URI" id="setUTF8URI" value="dont" />
-									<input type="hidden" name="xsrfToken" value="<?php echo $_zp_setup_xsrftoken ?>" />
+									<input type="hidden" name="xsrfToken" value="<?php echo setup::getXSRFToken(); ?>" />
 									<?php
 									if (isset($_REQUEST['autorun'])) {
 										if (!empty($_REQUEST['autorun'])) {
@@ -2771,7 +2711,7 @@ if ($c <= 0) {
 							}
 							if ($_zp_setup_autorun) {
 								?>
-								<script type="text/javascript">
+								<script>
 									$('#submitbutton').hide();
 									$('#setup').submit();
 								</script>
