@@ -175,6 +175,7 @@ echo "\n</head>";
 						<br class="clearall" /><br />
 						<p><?php echo gettext("Set the image order by dragging them to the positions you desire."); ?></p>
 
+<div style="width:800px;"> <!-- AVI CUSTOM -->
 						<ul id="images">
 							<?php
 							$images = $album->getImages();
@@ -185,7 +186,7 @@ echo "\n</head>";
 									<div class="imagethumb_wrapper">
 										<?php 
 										$title_attr = $image->getTitle(). ' (' . html_encode($image->getName()) . ')';
-										printAdminThumb($image, 'small-uncropped', 'imagethumb','', $title_attr, $image->getTitle());
+										printAdminThumb($image, 'large-uncropped', 'imagethumb','', $title_attr, $image->getTitle()); // AVI CUSTOM large-uncropped
 										?>
 									</div>
 									<p>
