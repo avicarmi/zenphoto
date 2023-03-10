@@ -337,7 +337,13 @@ define('THUMB_WATERMARK', getOption('Image_watermark'));
 define('OPEN_IMAGE_CACHE', !getOption('protected_image_cache'));
 define('IMAGE_CACHE_SUFFIX', getOption('image_cache_suffix'));
 
-define('DATE_FORMAT', convertStrftimeFormat(getOption('date_format')));
+$date_format = getOption('date_format');
+$time_format = getOption('time_format');
+if (getOption('date_format_localized') && in_array($date_format, array('locale_preferreddate_time','locale_preferreddate_notime'))) {
+	define('DATE_FORMAT', $date_format);
+} else {
+	define('DATE_FORMAT', strval(trim($date_format . ' ' . $time_format)));
+}
 
 define('IM_SUFFIX', getOption('mod_rewrite_image_suffix'));
 define('UTF8_IMAGE_URI', getOption('UTF8_image_URI'));
@@ -512,8 +518,8 @@ function loadLocalOptions($albumid, $theme) {
  * Replaces/renames an option. If the old option exits, it creates the new option with the old option's value as the default 
  * unless the new option has already been set otherwise. Independently it always deletes the old option.
  * 
- * @since Zenphoto 1.5.1
- * @since ZenphotoCMS 1.5.8 - renamed from replaceOption() to renameOption()
+ * @since 1.5.1
+ * @since 1.5.8 - renamed from replaceOption() to renameOption()
  * 
  * @param string $oldkey Old option name
  * @param string $newkey New option name
@@ -1008,7 +1014,7 @@ function getImageArgs($set) {
  * @param array $watermarks
  * @return array
  * 
- * @since Zenphoto 1.5.1 Moved from cacheManager/functions.php
+ * @since 1.5.1 Moved from cacheManager/functions.php
  */
 function getImageProcessorURIFromCacheName($match, $watermarks) {
 	$set = array();
@@ -1118,41 +1124,38 @@ function getImageFlipRotate($rotation) {
 	if ($rotation) {
 		switch ($rotation) {
 			default:
-			case 0:
 			case 1:
-			case 9:
-				// none or not set - nothing to do here
+				// Horizontal (normal) or not set -> nothing to do
 				return false;
 			case 2:
-				// mirrored
+				// Mirror horizontal
 				$flip_rotate['flip'] = 'horizontal';
 				break;
 			case 3:
-				// upside-down
+				// Rotate 180
 				$flip_rotate['rotate'] = 180;
 				break;
 			case 4:
-				// upside-down mirrored
-				$flip_rotate['rotate'] = 180;
-				$flip_rotate['flip'] = 'horizontal';
+				// Mirror vertical
+				$flip_rotate['flip'] = 'vertical';
 				break;
 			case 5:
-				// 90 CCW mirrored
-				$flip_rotate['rotate'] = 270;
+				// Mirror horizontal and rotate 270 CW
 				$flip_rotate['flip'] = 'horizontal';
+				$flip_rotate['rotate'] = 270;
 				break;
 			case 6:
-				// 90 CCW
-				$flip_rotate['rotate'] = 270;
+				// Rotate 90 CW
+				$flip_rotate['rotate'] = 90;
 				break;
 			case 7:
-				// 90 CW mirrored
-				$flip_rotate['rotate'] = 90;
+				// Mirror horizontal and rotate 90 CW
 				$flip_rotate['flip'] = 'horizontal';
+				$flip_rotate['rotate'] = 90;
 				break;
 			case 8:
-				// 90 CW
-				$flip_rotate['rotate'] = 90;
+				// Rotate 270 CW
+				$flip_rotate['rotate'] = 270;
 				break;
 		}
 	}
@@ -1356,7 +1359,7 @@ function getAlbumFolder($root = SERVERPATH) {
 /**
  * Returns the fully qualified path to the backup folder
  * 
- * @since ZenphotoCMS 1.6
+ * @since 1.6
  * 
  * @param string $root the base from whence the path dereives
  * @return string
@@ -1368,7 +1371,7 @@ function getBackupFolder($root = SERVERPATH) {
 /**
  * Returns the fully qualified path to the root albums or backup folder
  * 
- * @since ZenphotoCMS 1.6
+ * @since 1.6
  * 
  * @param string $folder The folder path to get: "albumfolder" or "backupfolder"
  * @param string $root the base from whence the path dereives
@@ -1676,7 +1679,7 @@ function getWatermarkPath($wm) {
 /**
  * Checks to see if access was through a secure protocol
  * 
- * @since Zenphoto 1.5.1 Extended/adapted from WordPress' `is_ssl()` function: https://developer.wordpress.org/reference/functions/is_ssl/
+ * @since 1.5.1 Extended/adapted from WordPress' `is_ssl()` function: https://developer.wordpress.org/reference/functions/is_ssl/
  * 
  * @return bool
  */
@@ -1994,7 +1997,7 @@ function httpsRedirect($type = 'backend') {
 /**
  * General url redirection handler using header()
  * 
- * @since ZenphotoCMS 1.5.2
+ * @since 1.5.2
  * 
  * @param string $url A full qualified url
  * @param string $statuscode Default null (no status header). Enter the status header code to send. Currently supported: 
@@ -2079,7 +2082,7 @@ function sanitizeRedirect($redirectTo) {
  * 
  * Note: Invalid static calls to non static class methods cannot be catched unless the native PHP extension Reflection is available.
  * 
- * @since ZenphotoCMS 1.6
+ * @since 1.6
  *
  * @param string|array $function A function name, static class method calls like classname::methodname, an array with a class name and static method name or a cass object and a non static class name
  * @param array $parameter Parameters of the function/method as one dimensional array
@@ -2139,7 +2142,7 @@ function callUserFunction($function, $parameter = array()) {
 /**
  * Logs a deprecated notice including traces in the debuglog
  * 
- * @since ZenphotoCMS 1.6 - based on deprecated_functions::notify() from the deprecated_functions plugin written by sbillard 
+ * @since 1.6 - based on deprecated_functions::notify() from the deprecated_functions plugin written by sbillard 
  * 
  * @param string $use Additional message, e.g. what to use instead
  * @param bool|string $parameter Set to true if this should notify about deprecated parameter usage (default false), You can also set the name of the parameter if you want to notify about a specific parameter change only
@@ -2192,7 +2195,7 @@ function deprecationNotice($use, $parameter = false) {
  * 
  * zpFormattedDate() can handle these internally
  * 
- * @since ZenphotoCMS 1.6
+ * @since 1.6
  * 
  * @param string $format strftime() date format string
  * @return string

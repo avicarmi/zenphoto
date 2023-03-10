@@ -3,7 +3,7 @@
 /**
  * class for image handling using the GD library
  * 
- * @since ZenphotoCMS 1.6 - reworked as class
+ * @since 1.6 - reworked as class
  * 
  * @package zpcore\classes\graphics
  */
@@ -305,7 +305,7 @@ class graphicsGD extends graphicsBase {
 	 * 
 	 * Note: You have to apply zp_resampleImage() afterwards as the function does not handle this internally
 	 * 
-	 * @since ZenphotoCMS 1.5.2
+	 * @since 1.5.2
 	 * 
 	 * @param image $src
 	 * @param int $w
@@ -333,19 +333,20 @@ class graphicsGD extends graphicsBase {
 	 * Rotates an image resource according to its Orientation
 	 * NB: requires the imagarotate function to be configured
 	 *
-	 * @param resource $im
-	 * @param int $rotate
+	 * @param object $im GD image object
+	 * @param int $rotate Rotation degree clock wise! GD required counter clockwise calcuation is done internally
 	 * @return resource
 	 */
 	function rotateImage($im, $rotate) {
-		$newim_rot = imagerotate($im, $rotate, 0);
+		$ccw_rotate = graphicsBase::getCounterClockwiseRotation($rotate);
+		$newim_rot = imagerotate($im, $ccw_rotate, 0);
 		imagedestroy($im);
 		return $newim_rot;
 	}
 	
 	/**
 	 * Flips (mirrors) an image
-	 * @since ZenphotoCMS 1.6
+	 * @since 1.6
 	 * @param image $im 
 	 * @param string $mode "horizontal" (default) or "vertical"
 	 * @return object

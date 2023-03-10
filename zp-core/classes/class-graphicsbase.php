@@ -4,7 +4,7 @@
  * Base class that kicks in if neither GD or Imagick are available for image handling
  * Provides basic check method to see what library is available
  * 
- * @since ZenphotoCMS 1.6 - reworked as class
+ * @since 1.6 - reworked as class
  * 
  * @package zpcore\classes\graphics
  */
@@ -121,13 +121,32 @@ class graphicsBase {
 	 * @return object|false
 	 */
 	function flipRotateImage($im, $rotate) {
-		if ($rotate['rotate']) {
-			$im = $this->rotateImage($im, $rotate['rotate']);
-		}
 		if ($rotate['flip']) {
 			$im = $this->flipImage($im, $rotate['flip']);
 		}
+		if ($rotate['rotate']) {
+			$im = $this->rotateImage($im, $rotate['rotate']);
+		}
 		return $im;
+	}
+	
+	/**
+	 * Returns  the counter clockwise rotation degree the GD library requires
+	 * 
+	 * @since 1.6.1
+	 * 
+	 * Adapted from anonymous comment on https://www.php.net/manual/en/imagick.rotateimage
+	 * @param int $degree Rotation degree clockwise
+	 * @return int
+	 */
+	static function getCounterClockwiseRotation($degree) {
+		if ($degree == 0 || $degree == 180) {
+			return $degree;
+		}
+		if ($degree < 0 || $degree > 360) {
+			$degree = 90;
+		}
+		return intval(360 - $degree);
 	}
 
 	function imageDims($filename) {
