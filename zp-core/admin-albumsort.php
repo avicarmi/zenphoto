@@ -185,7 +185,7 @@ echo "\n</head>";
 									<div class="imagethumb_wrapper">
 										<?php 
 										$title_attr = $image->getTitle(). ' (' . html_encode($image->getName()) . ')';
-										printAdminThumb($image, 'small-uncropped', 'imagethumb','', $title_attr, $image->getTitle());
+										printAdminThumb($image, 'large-uncropped', 'imagethumb','', $title_attr, $image->getTitle()); // AVI CUSTOM large-uncropped
 										?>
 									</div>
 									<p>

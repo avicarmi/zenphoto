@@ -4639,7 +4639,7 @@ function getPluginTabs() {
 function getAdminThumb($imageobj, $size = 'small') {
 	switch ($size) {
 		case 'large':
-			return $imageobj->getCustomImage(80, NULL, NULL, 80, 80, NULL, NULL, -1);
+			return $imageobj->getCustomImage(120, NULL, NULL, 120, 120, NULL, NULL, -1);  // AVI CUSTOM 120
 		case 'small':
 		default:
 			return $imageobj->getCustomImage(40, NULL, NULL, 40, 40, NULL, NULL, -1);
