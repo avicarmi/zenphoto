@@ -33,6 +33,7 @@ em {
 	color: black;
 }
 
+
 .inlinecode {
 	color: #00008B;
 	font-size: 12px;
@@ -751,8 +752,8 @@ div.outerbox {
 }
 
 .imagethumb_wrapper {
-	width: 135px; /* AVI CUSTOM 135px */
-	height: 135px; /* AVI CUSTOM 135px */
+	width: 110px;
+	height: 110px;
 	background: #e8e8e8;
 	border: 1px solid lightgray;
 	padding: 1px;
@@ -1343,6 +1344,10 @@ button.positive,.buttons a.positive {
 .box-edit .buttons a,
 .theme_links .buttons a{
 	width: 90% !important;
+}
+
+.box-edit select {
+	max-width: 100%;
 }
 
 
@@ -2700,8 +2705,6 @@ Tooltip styling
 	float: left;
 	margin: 0 8px 8px 0;
 	position: relative;
-	height: 175px; /* AVI CUSTOM 135px */
-	width: 175px; /* AVI CUSTOM 135px */
 }
 
 #images li p {

@@ -287,13 +287,62 @@ function lookupSortKey($sorttype, $default, $table) {
 /**
  * Returns a formatted date for output
  *
- * @param string $format a date() compatible format string
- * @param string|int $dt the date to be output. Can be a date string or a timestamp
+ * @param string $format a datetime compatible format string. Leave empty to use the option value.
+ *							NOTE: If $localize_date = true you need to provide a ICU dateformat string instead of a datetime format string 
+ *							unless you pass the DATE_FORMAT constant using one of the standard formats.
+ *							You can then also submit these custom formats 'locale_preferreddate_time' and 'locale_preferreddate_notime'
+ * @param string|int $datetime the date to be formatted. Can be a date string or a timestamp.  
+ * @param boolean $localized_date Default null to use the related option setting. Set to true to use localized dates. PHP intl extension required 
  * @return string
  */
-function zpFormattedDate($format, $dt) {
+function zpFormattedDate($format = '', $datetime = '', $localized_date = null) {
 	global $_zp_utf8;
-	$fdate = getFormattedLocaleDate($format, $dt);
+	if (empty($format)) {
+		$format = DATE_FORMAT;
+	}
+	$format_converted = convertStrftimeFormat($format);
+	if ($format_converted != $format) {
+		deprecationNotice(gettext('Using strftime() based date formats strings is deprecated. Use standard date() compatible formatting or a timestamp instead.'), true);
+	}
+	if (empty($datetime)) {
+		$datetime = 'now';
+	}
+	if (is_null($localized_date)) {
+		$localized_date = (bool) getOption('date_format_localized');
+	}
+	$locale_preferred = array(
+			'locale_preferreddate_time',
+			'locale_preferreddate_notime'
+	);
+	if ($localized_date) {
+		$datetime_formats = getStandardDateFormats();
+		$date_formats = getStandardDateFormats('date');
+		$time_formats = getStandardDateFormats('time');
+		if (in_array($format_converted, $locale_preferred)) {
+			//special format getFormattedLocaleDate() needs to internally
+			$localized_format = $format_converted;
+		} else if (array_key_exists($format_converted, $datetime_formats)) {
+			//one of the predefined datetime ICU formats
+			$localized_format = $datetime_formats[$format_converted];
+		} else if(array_key_exists($format_converted, $date_formats)) {
+			// one of the predefined date ICU formats
+			$localized_format = $date_formats[$format_converted];
+		} else if(array_key_exists($format_converted, $time_formats)) {
+			//one of the predefined time ICU format
+			$localized_format = $time_formats[$format_converted];
+		} else {
+			//custom date we expect to be ICU format already
+			$localized_format = $format_converted;
+		}
+		$fdate = getFormattedLocaleDate($localized_format, $datetime);
+	} else {
+		// no support for preferred locale dates here so use generic fallback
+		if (in_array($format_converted, $locale_preferred)) { 
+			$format_converted = 'Y-m-d';
+		}
+		$dateobj = getDatetimeObject($datetime);
+		$fdate = $dateobj->format($format_converted);
+	}
 	$charset = 'UTF-8';
 	$outputset = LOCAL_CHARSET;
 	if (function_exists('mb_internal_encoding')) {
@@ -302,6 +351,89 @@ function zpFormattedDate($format, $dt) {
 		}
 	}
 	return $_zp_utf8->convert($fdate, $charset, $outputset);
+}
+
+/**
+/**
+ * Returns a datetime object
+ * 
+ * @since 1.6.1
+ * 
+* @param string|int $datetime the date to be output. Can be a date string or a timestamp. If empty "now" is used
+ * @return object
+ */
+function getDatetimeObject($datetime = '') {
+	// Check if datetime string or timstamp integer (to cover if passed as a string)
+	if (empty($datetime)) {
+		$datetime = 'now';
+	}
+	if (is_string($datetime) && strtotime($datetime) !== false) {
+		$date = new DateTime($datetime);
+	} else {
+		$timestamp = intval($datetime); // to be sure…
+		$dateobj = new DateTime();
+		$date = $dateobj->setTimestamp($timestamp);
+		if (!$date) { // fallback for invalid timestamp
+			$date = new DateTime('now');
+		}
+	}
+	return $date;
+}
+
+/**
+ * Returns an array with datetime (keys) and ICU date format (values) strings
+ * 
+ * @since 1.6.1
+ * 
+ * @param string $type "date" for date formats without time, "time" for time formats, "datetime" for both combined
+ * 
+ * @return array
+ */
+function getStandardDateFormats($type = "datetime") {
+	$dateformats = array(
+			'm/d/y' => 'MM/dd/yy', //02/25/08
+			'm/d/Y' => 'MM/dd/yyyy', //02/25/2008
+			'm-d-y' => 'MM-dd-yy', //02-25-08
+			'm-d-Y' => 'MM-dd-yyyy', //02-25-2008
+			'Y. F d.' => 'yyyy. MMMM dd.', //2008. February 25.
+			'Y-m-d' => 'yyyy-MM-dd', //2008-02-25
+			'd M Y' => 'dd MMM yyyy', //25 Feb 2008
+			'd F Y' => 'dd MMMM yyyy', //25 February 2008
+			'd. M Y' => 'dd. MMM yyyy', //25. Feb 2008
+			'd. M y' => 'dd. MMM yy', //25. Feb. 08
+			'd. F Y' => 'dd. MMMM yyyy', //25. February 2008
+			'd.m.y' => 'dd.MM.yy', //25.02.08
+			'd.m.Y' => 'dd.MM.yyyy', //25.02.2008
+			'j.n.Y' => 'd.M.yyyy', //25.2.2008
+			'd-m-y' => 'dd-MM-yy', //25-02-08
+			'd-m-Y' => 'dd-MM-yyyy', //25-02-2008
+			'd-M-y' => 'dd-MMM-yy', //25-Feb-08
+			'd-M-Y' => 'dd-MMM-yyyy', //25-Feb-2008
+			'M d, Y' => 'MMM dd, yyyy', //Feb 25, 2008
+			'F d, Y' => 'MMMM dd, yyyy' //February 25, 2008
+	);
+	$timeformats = array(
+			'H:i'			=> 'H:mm', //15:30 / 03:30
+			'H:i:s'			=> 'H:mm:ss', //15:30:30 / 03:30:30
+			'G:i'			=> 'k:mm', //15:30 / 3:30
+			'G:i:s'			=> 'k:mm:ss', //15:30:30 / 3:30:30
+			'g:i A'		=> 'h:mm a', //3:30 PM	
+			'g:i:s A'		=> 'h:mm:ss a' //3:30:30 PM	
+	);
+	switch ($type) {
+		case 'date':
+			return $dateformats;
+		case 'time':
+			return $timeformats;
+		case 'datetime':
+			$datetime_formats = array();
+			foreach($dateformats as $datetime => $icudate) {
+				foreach($timeformats as $time => $icutime) {
+					$datetime_formats[$datetime . ' ' . $time] = $icudate . ' ' . $icutime;
+				}
+			}
+			return array_merge($datetime_formats, $dateformats);
+	}
 }
 
 /**
@@ -341,7 +473,7 @@ function myts_date($format, $mytimestamp) {
  * @return string
  *
  * @author Todd Papaioannou (lucky@luckyspin.org)
- * @since  1.0.0
+ * @since 1.0.0
  */
 function zp_mail($subject, $message, $email_list = NULL, $cc_addresses = NULL, $bcc_addresses = NULL, $replyTo = NULL) {
 	global $_zp_authority, $_zp_gallery, $_zp_utf8;
@@ -674,7 +806,7 @@ function enableExtension($extension, $priority, $persistent = true) {
  * @param string $extension
  * @param bool $persistent
  * 
- * @since ZenphotoCMS 1.5.2
+ * @since 1.5.2
  */
 function disableExtension($extension, $persistent = true) {
 	setOption('zp_plugin_' . $extension, 0, $persistent);
@@ -1264,7 +1396,7 @@ function generateListFromFiles($currentValue, $root, $suffix, $descending = fals
  * break for example JS event handlers. Do this in your attribute definition array as needed.
  * Attributes with an empty value are skipped except the alt attribute or known boolean attributes (see in function definition)
  * 
- * @since ZenphotoCMS 1.5.8
+ * @since 1.5.8
  * @param array $attributes key => value pairs of element attribute name and value. e.g. array('class' => 'someclass', 'id' => 'someid');
  * @param array $exclude Names of attributes to exclude (in case already set otherwise)
  * @return string
@@ -1461,7 +1593,7 @@ function sortMultiArray($array, $index, $descending = false, $natsort = true, $c
  * 
  * The function follows native PHP array sorting functions (natcasesort() etc.) and uses the array by reference and returns true or false on success or failure.
  * 
- * @since ZenphotoCMS 1.5.8
+ * @since 1.5.8
  * 
  * @param array $array The array to sort. The array is passed by reference
  * @param string  $descending true for descending sorts (default false)
@@ -1595,7 +1727,7 @@ function safe_fnmatch($pattern, $string) {
  * Returns true if the mail address passed is valid. 
  * It uses PHP's internal `filter_var` functions to validate the syntax but not the existence.
  * 
- * @since ZenphotoCMS 1.5.2
+ * @since 1.5.2
  * 
  * @param string $email An email address
  * @return boolean
@@ -1968,7 +2100,7 @@ function setThemeOption($key, $value, $album, $theme, $default = false) {
  * @param string $oldkey Old option name
  * @param string $newkey New option name
  * 
- * @since Zenphoto 1.5.1
+ * @since 1.5.1
  */
 function replaceThemeOption($oldkey, $newkey) {
 	$oldoption = getThemeOption($oldkey);
@@ -1984,7 +2116,7 @@ function replaceThemeOption($oldkey, $newkey) {
  * @global array $_zp_options
  * @param string $key
  * 
- * @since Zenphoto 1.5.1
+ * @since 1.5.1
  */
 function purgeThemeOption($key, $album = NULL, $theme = NULL, $allthemes = false) {
 	global $_zp_set_theme_album, $_zp_gallery, $_zp_db;
@@ -2007,7 +2139,7 @@ function purgeThemeOption($key, $album = NULL, $theme = NULL, $allthemes = false
 /**
  * Deletes a theme option for all themes present or not
  * 
- * @since ZenphotoCMS 1.6
+ * @since 1.6
  * 
  * @global obj $_zp_db
  * @param string $key
@@ -2947,7 +3079,7 @@ function removeTrailingSlash($string) {
  * 	'linktext' => '<The defined text>'
  * )
  * 
- * @since Zenphoto 1.5
+ * @since 1.5
  * 
  * @return array
  */
@@ -2982,7 +3114,7 @@ function getDataUsageNotice() {
  * Prints the data privacy policy page and the data usage confirmation text as defined on Options > Security
  * If there is no page defined it only prints the default text.
  * 
- * @since Zenphoto 1.5
+ * @since 1.5
  */
 function printDataUsageNotice() {
 	$data = getDataUsageNotice();
@@ -2995,7 +3127,7 @@ function printDataUsageNotice() {
 /**
  * Returns an array with predefined info about general cookies set by the system and/or plugins
  * 
- * @since ZenphotoCMS 1.5.8
+ * @since 1.5.8
  * 
  * @param string $section Name of the section to get: 'authenticaion', 'search', 'admin', 'cookie', 'various' or null (default) for the full array
  * @return array
@@ -3065,7 +3197,7 @@ function getCookieInfoData($section = null) {
 /**
  * Returns a definition list with predefined info about general cookies set by the system and/or plugins as a string
  * 
- * @since ZenphotoCMS 1.5.8
+ * @since 1.5.8
  * 
  * @param string $section Name of the section to get: 'authenticaion', 'search', 'admin', 'cookie', 'various' or null (default) for the full array
  * @param string $sectionheadline Add h2 to h6 to print as the section headline, h2 default.
@@ -3097,7 +3229,7 @@ function getCookieInfoHTML($section = null, $sectionheadline = 'h2') {
 /**
  * Prints a definition list with predefined info about general cookies set by the system and/or plugins
  * 
- * @since ZenphotoCMS 1.5.8
+ * @since 1.5.8
  * 
  * @param string $section Name of the section to get: 'authenticaion', 'search', 'admin', 'cookie', 'various' or null (default) for the full array
  * @param string $sectionheadline Add h2 to h6 to print as the section headline, h2 default.
@@ -3122,6 +3254,7 @@ function getCookieInfoMacro($macros) {
 	);
 	return $macros;
 }
+
 
 
 setexifvars();

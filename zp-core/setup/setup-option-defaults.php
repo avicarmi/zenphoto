@@ -220,7 +220,8 @@ if ($protection) {
 }
 
 setOptionDefault('locale', '');
-setOptionDefault('date_format', '%x');
+setOptionDefault('date_format', 'Y-m-d');
+setOptionDefault('date_format_localized', 0);
 
 setOptionDefault('use_lock_image', 1);
 setOptionDefault('search_user', '');
@@ -505,10 +506,10 @@ purgeOption('image_default');
 purgeThemeOptionTotal('display_copyright_notice');
 setOptionDefault('display_copyright_notice', 1); // enable new global one by default
 
-if(getOption('use_imagick') && $_zp_graphics->imagick_present) {
-	setOptionDefault('graphicslib_selected', 'imagick', true);
+if (getOption('use_imagick') && $_zp_graphics->imagick_present) {
+	setOptionDefault('graphicslib_selected', 'imagick');
 } else {
-	setOptionDefault('graphicslib_selected', 'gd', true);
+	setOptionDefault('graphicslib_selected', 'gd');
 }
 purgeOption('use_imagick');
 

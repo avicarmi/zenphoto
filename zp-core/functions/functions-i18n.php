@@ -366,7 +366,7 @@ function setupCurrentLocale($override = NULL) {
  * Converts underscore locales like "en_US" to valid IANA/BCP 47 hyphen locales like "en-US"
  * Needed for example in JS or HTML "lang" attributes.
  * 
- * @since ZenphotoCMS 1.5.7
+ * @since 1.5.7
  * 
  * @param string $locale a locale like "en_US", if empty the current locale is used
  * @return string
@@ -697,7 +697,7 @@ function getLanguageText($loc = NULL, $separator = NULL) {
  * @param bool $plainarray Default false for a multidimensial array grouped by locale base. Set to true to generate a single dimensional array with all locales. 
  * 
  * @author Stephen Billard (sbillard), Malte Müller (acrylian) - adapted from the old former unsupported tool `list_locales.php`
- * @since ZenphotoCMS 1.5.2
+ * @since 1.5.2
  * @return array
  */
 function getSystemLocales($plainarray = false) {
@@ -723,7 +723,7 @@ function getSystemLocales($plainarray = false) {
  * If available it will use the native PHP Locale class. It returns the name in the language/locale currently set.
  * Otherwise the far more limited internal Zenphoto catalogue stored in getLanguageArray() will be used.
  * 
- * @since ZenphotoCMS 1.5.2
+ * @since 1.5.2
  * 
  * @param string $locale A vaild locale.
  * @return string
@@ -742,7 +742,7 @@ function getLanguageDisplayName($locale) {
 /**
  * Prints the lang="" attribute for the main <html> element.
  * 
- * @since ZenphotoCMS 1.5.7
+ * @since 1.5.7
  * 
  * @param string $locale Default null so the current locale is used. Or a locale like "en_US" which will get the underscores replaced by hyphens to be valid
  */
@@ -754,115 +754,57 @@ function printLangAttribute($locale = null) {
  * Returns a locale aware - e.g. translated day and month names -  formatted date. Requires the PHP intl extension to work properly
  * Otherwise returns standard formatted date.
  * 
- * @since ZenphotoCMS 1.6
+ * @since 1.6
+ * @since 1.6.1 Parameter value requirements changed
  * 
- * @param string $format A compatible date format string like Y-m-d (default)
+ * @param string $format An ICU dateformat string 
+ *										or one of the custom formats 'locale_preferreddate_time' and 'locale_preferreddate_notime'
  * @param string|int $datetime A date() compatible string or a timestamp. If empty "now" is used
  * @return string
  */
-function getFormattedLocaleDate($format = 'Y-m-d', $datetime = '') {
+function getFormattedLocaleDate($format = 'Y-m-dd', $datetime = '') {
 	global $_zp_server_timezone;
 	$locale = getUserLocale();
-	if (empty($datetime)) {
-		$datetime = 'now';
-	}
-	// Fallback for deprecated strftime() format
-	$format_converted = convertStrftimeFormat($format);
-	if ($format_converted != $format) {
-		deprecationNotice(gettext('Using strftime() based date formats strings is deprecated. Use standard date() compatible formatting or a timestamp instead.'), true);
-	}
+
 	// Check if datetime string or timstamp integer (to cover if passed as a string)
-	if (is_string($datetime) && strtotime($datetime) !== false) {
-		if (extension_loaded('intl')) {
-			$date = new DateTimeImmutable($datetime);
-		} else {
-			$date = new DateTime($datetime);
-		}
-	} else {
-		$timestamp = intval($datetime); // to be sure…
-		if (extension_loaded('intl')) {
-			$date = new DateTimeImmutable();
-		} else {
-			$date = new DateTime();
-		}
-		$date = $date->setTimestamp($timestamp);
-	} 
+	$date = getDatetimeObject($datetime);
 	if (DEBUG_LOCALE) {
 		debuglog('Datetime object: ' . print_r($date, true));
 	}
 	$locale_preferred = array(
 			'locale_preferreddate_time',
-			'locale_preferreddate_notime'	
+			'locale_preferreddate_notime'
 	);
-	if (in_array($format_converted, $locale_preferred)) {
-		if (extension_loaded('intl')) {
-			switch($format_converted) {
-				case 'locale_preferreddate_time':
-					$formatter = new IntlDateFormatter(
-							$locale,
-							IntlDateFormatter::SHORT, 
-							IntlDateFormatter::SHORT);
-					break;
-				case 'locale_preferreddate_notime':
-					$formatter = new IntlDateFormatter(
-							$locale,
-							IntlDateFormatter::SHORT, 
-							IntlDateFormatter::NONE);
-					break;
-			}
-			$fdate = $formatter->format($date);
-		} else {
-			//fallback international date Y-m-d
-			$fdate = $date->format('Y-m-d');
+	if (in_array($format, $locale_preferred)) {
+		switch ($format) {
+			case 'locale_preferreddate_time':
+				$formatter = new IntlDateFormatter(
+								$locale,
+								IntlDateFormatter::SHORT,
+								IntlDateFormatter::SHORT);
+				break;
+			case 'locale_preferreddate_notime':
+				$formatter = new IntlDateFormatter(
+								$locale,
+								IntlDateFormatter::SHORT,
+								IntlDateFormatter::NONE);
+				break;
 		}
+		$fdate = $formatter->format($date);
 	} else {
-		if (extension_loaded('intl')) {
-			$catalogue = array(
-					'M' => 'MMM', // Abbreviated month name, based on the locale (an alias of %b) Jan through Dec
-					'm' => 'MM', // Numeric representation of a month, with leading zeros
-					'n' => 'M', // Numeric representation of a month, without leading zeros
-					'A' => 'a', // Uppercase AM and PM
-					'w' => 'e', // Numeric representation of the day of the week. 0 (for Sunday) through 6 (for Saturday)
-					'N' => 'e', // Numeric representation of the day of the week. 1 (for Monday) through 7 (for Sunday)
-					'D' => 'EEE', // An abbreviated textual representation of the day	Sun through Sat
-					'z' => 'D', // The day of the year (starting from 0)
-					'e' => 'z', // Timezone identifier Examples: UTC, GMT
-					'W' => 'w', // Week number of year, weeks starting on Monday
-					'l' => 'EEEE', // A full textual representation of the day Sunday through Saturday
-					'F' => 'MMMM', // Full month name, based on the locale January through December
-					'h' => 'hh', // Hour 0-12 with leading zero
-					'i' => 'mm', // Minute in hour…
-					's' => 'ss', // Seconds with leading zeros
-					'd' => 'dd', // Month day number with leading zero
-					'j' => 'd', // Month day number without leading zero	
-					'g' => 'h', // Hour 0-12 without leading zero
-					'y' => 'yy', // Year two digits
-					'o' => 'yyyy', // Year four digits. This has the same value as Y, except that if the ISO week number (W) belongs to the previous or next year, that year is used instead				
-					'P' => 'xxx' // Difference to Greenwich time (GMT) with colon between hours and minutes
-			);
-			$catalogue_old = array_keys($catalogue);
-			$format_intl = str_replace($catalogue_old, $catalogue, $format_converted);
-			if (DEBUG_LOCALE) {
-				debuglog('format standard (intl extension): ' . $format_converted);
-				debuglog('Format converted locale aware (intl extension): ' . $format_intl);
-			}
-			if ($format_intl != $format_converted) {
-				$dateformat = new IntlDateFormatter(
-					$locale,
-					IntlDateFormatter::FULL,
-					IntlDateFormatter::FULL,
-					$_zp_server_timezone,
-					IntlDateFormatter::GREGORIAN,
-					$format_intl
-				);
-				$fdate = $dateformat->format($date);
-			} else {
-				$fdate = $date->format($format_converted); 
-			}
-		} else {
-			$fdate = $date->format($format_converted); 
-			
-		}
+		$dateformat = new IntlDateFormatter(
+						$locale,
+						IntlDateFormatter::FULL,
+						IntlDateFormatter::FULL,
+						$_zp_server_timezone,
+						IntlDateFormatter::GREGORIAN,
+						$format
+		);
+		$fdate = $dateformat->format($date);
+	}
+	//fallback to hopefully always have some kind of date…
+	if (!$fdate) {
+		$fdate = $date->format('Y-m-d');
 	}
 	return $fdate;
 }
