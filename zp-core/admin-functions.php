@@ -4629,7 +4629,7 @@ function getPluginTabs() {
 	return array($tabs, $default, $currentlist, $paths, $member);
 }
 
-/**
+/** Has AVI CUSTOM 120
  * Gets the URL of the adminthumb
  * 
  * @param obj $image The image object
@@ -4639,6 +4639,7 @@ function getPluginTabs() {
 function getAdminThumb($imageobj, $size = 'small') {
 	switch ($size) {
 		case 'large':
+/* AVI CUSTOM 120 */
 			return $imageobj->getCustomImage(120, NULL, NULL, 120, 120, NULL, NULL, -1);  // AVI CUSTOM 120
 		case 'small':
 		default:
