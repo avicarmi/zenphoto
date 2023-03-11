@@ -1,5 +1,5 @@
 <?php
-/**
+/** Has AVI CUSTOM getAdminThumb 120
  * support functions for Admin
  * @package zpcore\admin\functions
  */
