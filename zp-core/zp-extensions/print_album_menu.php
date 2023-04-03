@@ -1,5 +1,5 @@
 <?php
-/**
+/** Has AVI CUSTOM hidden invisible album
  * Prints a list of all albums context sensitive.
  *
  * Menu types:
@@ -287,7 +287,10 @@ function printAlbumMenuListAlbum($albums, $folder, $option, $showcount, $showsub
 			} else {
 				$link = '<li class="' . $current . '"><a href="' . html_encode($albumobj->getLink(1)) . '" title="' . html_encode($title) . '">' . html_encode($display) . '</a>' . $count;
 			}
-			echo $link;
+/* AVI CUSTOM */
+			if (strpos($albumobj->getCustomData(),"Hidden Invisible Album") === false) { // AVI CUSTOM ADDED if to hide "."
+			    echo $link;
+			}
 		}
 		if ($process) { // listing subalbums
 			$subalbums = $albumobj->getAlbums();
