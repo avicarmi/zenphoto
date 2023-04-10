@@ -1,0 +1,53 @@
+Steps to merge changes from an upstream branch to your forked branch using GitHub Desktop:
+
+1. Open GitHub Desktop and select your forked repository.
+
+2. Click on the "Fetch origin" button to fetch any changes made to the upstream branch.
+
+3. Create a new branch by clicking on the "Current Branch" dropdown and selecting "New Branch".
+
+4. Name your new branch and select "Create Branch".
+
+5. Switch to your new branch by clicking on the "Current Branch" dropdown and selecting your new branch.
+
+6. Click on the "Branch" dropdown and select "Merge into current branch".
+
+7. Select the upstream branch you want to merge with your forked branch.
+
+8. Click on the "Merge" button.
+
+This should merge the changes from the upstream branch into your forked branch without overwriting your custom changes.
+
+======
+
+To merge changes from an upstream branch to your forked branch, you can follow these steps:
+
+1. First, ensure that your working tree is clean (commit/stash/revert any changes).
+
+2. Then, fetch the new upstream branch into your local repo using `git fetch upstream`.
+
+3. Create and switch to a local version of the new upstream branch using `git checkout -b newbranch upstream/newbranch`.
+
+4. Merge the new upstream branch with your local forked branch using `git merge upstream/master`. If you have conflicts, fix them and commit the changes.
+
+This should merge the changes from the upstream branch into your forked branch without overwriting your custom changes¹². I hope this helps!
+
+
+======
+
+git diff --relative upstream/master master -- zp-core
+
+To create a patch file for only one subfolder of a Git branch, you can use the git diff command with the `--relative` option². Here's how you can do it:
+
+```git diff --relative <branch1> <branch2> -- <subfolder> > <patch_filename>.patch```
+
+This will create a patch file named `<patch_filename>.patch` containing the differences between `<branch1>` and `<branch2>` for only the `<subfolder>` directory².
+
+======
+
+To apply a Git patch file to a branch, you can use the `git am` command¹. Here's how you can do it:
+
+```git am <patch_file>```
+
+This will apply the changes contained in the patch file to your local repository¹. Make sure that you are checked out on the branch where you want to apply the patch².
+

@@ -1,0 +1,140 @@
+diff --git a/zp-core/admin-albumsort.php b/zp-core/admin-albumsort.php
+index c167f04e7..2ba3a186c 100755
+--- a/zp-core/admin-albumsort.php
++++ b/zp-core/admin-albumsort.php
+@@ -1,6 +1,6 @@
+ <?php
+-/**
+- * used in sorting the images within and album
++/** Has AVI CUSTOM large uncropped
++ * used in sorting the images within and album 
+  * @package zpcore\admin
+  */
+ // force UTF-8 Ø
+@@ -175,6 +175,7 @@ echo "\n</head>";
+ 						<br class="clearall" /><br />
+ 						<p><?php echo gettext("Set the image order by dragging them to the positions you desire."); ?></p>
+ 
++<!-- AVI CUSTOM --><div style="width:800px;"> <!-- AVI CUSTOM -->
+ 						<ul id="images">
+ 							<?php
+ 							$images = $album->getImages();
+@@ -185,7 +186,7 @@ echo "\n</head>";
+ 									<div class="imagethumb_wrapper">
+ 										<?php 
+ 										$title_attr = $image->getTitle(). ' (' . html_encode($image->getName()) . ')';
+-										printAdminThumb($image, 'small-uncropped', 'imagethumb','', $title_attr, $image->getTitle());
++/* AVI CUSTOM */										printAdminThumb($image, 'large-uncropped', 'imagethumb','', $title_attr, $image->getTitle()); // AVI CUSTOM large-uncropped
+ 										?>
+ 									</div>
+ 									<p>
+@@ -205,6 +206,8 @@ echo "\n</head>";
+ 							}
+ 							?>
+ 						</ul>
++<!-- AVI CUSTOM --></div> <!-- AVI CUSTOM -->
++
+ 						<br class="clearall" />
+ 
+ 						<div>
+diff --git a/zp-core/admin-functions.php b/zp-core/admin-functions.php
+index b2d330b0f..1101246fa 100755
+--- a/zp-core/admin-functions.php
++++ b/zp-core/admin-functions.php
+@@ -1,5 +1,5 @@
+ <?php
+-/**
++/** Has AVI CUSTOM getAdminThumb 120
+  * support functions for Admin
+  * @package zpcore\admin\functions
+  */
+@@ -4629,7 +4629,7 @@ function getPluginTabs() {
+ 	return array($tabs, $default, $currentlist, $paths, $member);
+ }
+ 
+-/**
++/** Has AVI CUSTOM 120
+  * Gets the URL of the adminthumb
+  * 
+  * @param obj $image The image object
+@@ -4639,7 +4639,8 @@ function getPluginTabs() {
+ function getAdminThumb($imageobj, $size = 'small') {
+ 	switch ($size) {
+ 		case 'large':
+-			return $imageobj->getCustomImage(80, NULL, NULL, 80, 80, NULL, NULL, -1);
++/* AVI CUSTOM 120 */
++			return $imageobj->getCustomImage(120, NULL, NULL, 120, 120, NULL, NULL, -1);  // AVI CUSTOM 120
+ 		case 'small':
+ 		default:
+ 			return $imageobj->getCustomImage(40, NULL, NULL, 40, 40, NULL, NULL, -1);
+diff --git a/zp-core/admin.css b/zp-core/admin.css
+index 4395a6dd3..9a3473e2f 100755
+--- a/zp-core/admin.css
++++ b/zp-core/admin.css
+@@ -1,4 +1,4 @@
+-/*
++/* Has AVI CUSTOM imagethumb_wrapper image_li height/width
+ 	Zen Photo Admin
+ */
+ 
+@@ -752,8 +752,8 @@ div.outerbox {
+ }
+ 
+ .imagethumb_wrapper {
+-	width: 110px;
+-	height: 110px;
++	width: 135px; /* AVI CUSTOM 135px */
++	height: 135px; /* AVI CUSTOM 135px */
+ 	background: #e8e8e8;
+ 	border: 1px solid lightgray;
+ 	padding: 1px;
+@@ -2705,6 +2705,8 @@ Tooltip styling
+ 	float: left;
+ 	margin: 0 8px 8px 0;
+ 	position: relative;
++	height: 175px; /* AVI CUSTOM 135px */
++	width: 175px; /* AVI CUSTOM 135px */
+ }
+ 
+ #images li p {
+diff --git a/zp-core/zp-extensions/print_album_menu.php b/zp-core/zp-extensions/print_album_menu.php
+index cfca444c7..63fe991fd 100755
+--- a/zp-core/zp-extensions/print_album_menu.php
++++ b/zp-core/zp-extensions/print_album_menu.php
+@@ -1,5 +1,5 @@
+ <?php
+-/**
++/** Has AVI CUSTOM hidden invisible album
+  * Prints a list of all albums context sensitive.
+  *
+  * Menu types:
+@@ -287,7 +287,10 @@ function printAlbumMenuListAlbum($albums, $folder, $option, $showcount, $showsub
+ 			} else {
+ 				$link = '<li class="' . $current . '"><a href="' . html_encode($albumobj->getLink(1)) . '" title="' . html_encode($title) . '">' . html_encode($display) . '</a>' . $count;
+ 			}
+-			echo $link;
++/* AVI CUSTOM */
++			if (strpos($albumobj->getCustomData(),"Hidden Invisible Album") === false) { // AVI CUSTOM ADDED if to hide "."
++			    echo $link;
++			}
+ 		}
+ 		if ($process) { // listing subalbums
+ 			$subalbums = $albumobj->getAlbums();
+diff --git a/zp-core/zp-extensions/slideshow2/slideshow2.css b/zp-core/zp-extensions/slideshow2/slideshow2.css
+index e4865da24..d9272f6a6 100755
+--- a/zp-core/zp-extensions/slideshow2/slideshow2.css
++++ b/zp-core/zp-extensions/slideshow2/slideshow2.css
+@@ -1,11 +1,11 @@
+ @import url("fonts/style.css");
+ 
+-/* Slideshow 
++/* Slideshow Has AVI CUSTOM color black
+ **************/
+ 
+ .slideshow {
+  font-size: 13px;
+- color: white;
++ color: black;  /* AVI CUSTOM black */
+  font-family: Arial, sans-serif;
+  clear: both;
+  height: auto;
