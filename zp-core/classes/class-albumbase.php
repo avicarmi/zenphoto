@@ -13,6 +13,7 @@ class AlbumBase extends MediaObject {
 	public $parent = null; // The parent album name
 	public $parentalbum = null; // The parent album's album object (lazy)
 	public $parentalbums = null; // Array of objects of parent albums (lazy)
+	public $urparentalbum = null; // The ur parent album's album object (lazy)
 	public $sidecars = array(); // keeps the list of suffixes associated with this album
 	public $manage_rights = MANAGE_ALL_ALBUM_RIGHTS;
 	public $manage_some_rights = ALBUM_RIGHTS;
@@ -25,7 +26,6 @@ class AlbumBase extends MediaObject {
 	protected $subrights = NULL; //	cache for album subrights
 	protected $num_allalbums = null; // count of all subalbums of all sublevels
 	protected $num_allimages = null; // count of all images of all sublevels
-	protected $is_public = null;
 	protected $firstpageimages = null;
 	protected $firstpageimages_oneimagepage = null;
 
@@ -116,7 +116,7 @@ class AlbumBase extends MediaObject {
 	/**
 	 * Returns the folder on the filesystem
 	 * 
-	 * @deprecated ZenphotoCMS 2.0 – Use getName() instead
+	 * @deprecated 2.0 – Use getName() instead
 	 *
 	 * @return string
 	 */
@@ -128,7 +128,7 @@ class AlbumBase extends MediaObject {
 	/**
 	 * Returns the folder on the filesystem
 	 * 
-	 * @deprecated ZenphotoCMS 2.0 – Use getName() instead
+	 * @deprecated 2.0 – Use getName() instead
 	 * 
 	 * @return string
 	 */
@@ -140,7 +140,7 @@ class AlbumBase extends MediaObject {
 	/**
 	 * Returns The parent Album of this Album. NULL if this is a top-level album.
 	 *
-	 * @return object
+	 * @return object|null
 	 */
 	function getParent() {
 		if (is_null($this->parentalbum)) {
@@ -149,7 +149,7 @@ class AlbumBase extends MediaObject {
 				$parent = substr($this->name, 0, $slashpos);
 				$parentalbum = AlbumBase::newAlbum($parent, true, true);
 				if ($parentalbum->exists) {
-					return $parentalbum;
+					return $this->parentalbum = $parentalbum;
 				}
 			}
 		} else if ($this->parentalbum->exists) {
@@ -157,7 +157,7 @@ class AlbumBase extends MediaObject {
 		}
 		return NULL;
 	}
-	
+
 	/**
 	 * Gets an array of parent album objects
 	 * 
@@ -167,6 +167,12 @@ class AlbumBase extends MediaObject {
 	 */
 	function getParents() {
 		if (is_null($this->parentalbums)) {
+			$albumarray = getAlbumArray($this->name, false);
+			if (count($albumarray) == 1) {
+				$parent = $this->getParent();
+				$this->urparentalbum = $parent;
+				return $this->parentalbums = array($parent);
+			}
 			$parents = array();
 			$album = $this;
 			while (!is_null($album = $album->getParent())) {
@@ -176,29 +182,55 @@ class AlbumBase extends MediaObject {
 		} else {
 			return $this->parentalbums;
 		}
+		return $this->parentalbums = array();
 	}
-
 
 	function getParentID() {
 		return $this->get('parentid');
 	}
 	
 	/**
+	 * Returns the oldest ancestor of an album. Returns the object of the album itself if there is no urparent
+	 *
+	 * @since 1.6.1 Replaces getUrAlbum() to align all classes
+	 * 
+	 * @return object
+	 */
+	function getUrParent() {
+		if (is_null($this->urparentalbum)) {
+			if (!$this->getParentID()) {
+				return $this->urparentalbum = $this;
+			}
+			if (is_null($this->parentalbums)) {
+				$albumarray = getAlbumArray($this->name, false);
+				if (count($albumarray) == 1) {
+					$urparent = $this->getParent();
+					$this->parentalbums = array($urparent);
+					return $this->urparentalbum = $urparent;
+				}
+				$urparent = AlbumBase::newAlbum($albumarray[0], true, true);
+				if ($urparent->exists) {
+					return $this->urparentalbum = $urparent;
+				}
+			} else {
+				return $this->urlparentalbum = $this->parentalbums[0];
+			}
+		} else {
+			return $this->urparentalbum;
+		}
+	}
+
+	/**
 	 * Returns the oldest ancestor of an alubm;
 	 *
+	 * @deprecated 2.0 Use getUrParent() instead
 	 * @since 1.6
 	 * 
 	 * @return object
 	 */
 	function getUrAlbum() {
-		$album = $this;
-		while (true) {
-			$parent = $album->getParent();
-			if (is_null($parent)) {
-				return $album;
-			}
-			$album = $parent;
-		}
+		deprecationNotice(gettext('Use getUrParent() instead'));
+		return $this->getUrParent();
 	}
 
 	/**
@@ -582,7 +614,7 @@ class AlbumBase extends MediaObject {
 		$nullimage = SERVERPATH . '/' . ZENFOLDER . '/images/imageDefault.png';
 		// check for theme imageDefault.png
 		$theme = '';
-		$uralbum = $this->getUralbum();
+		$uralbum = $this->getUrParent();
 		$albumtheme = $uralbum->getAlbumTheme();
 		if (!empty($albumtheme)) {
 			$theme = $albumtheme;
@@ -622,21 +654,21 @@ class AlbumBase extends MediaObject {
 	 * Returns an URL to the album, including the current page number
 	 *
 	 * @param string $page if not null, apppend as page #
+	 * @param string $path Default null, optionally pass a path constant like WEBPATH or FULLWEBPATH
 	 * @return string
 	 */
-	function getLink($page = NULL) {
-		global $_zp_current_album;
-		global $_zp_page;
+	function getLink($page = NULL, $path = null) {
+		global $_zp_current_album, $_zp_page;
 		if (is_null($page) && $_zp_current_album && $_zp_current_album->name == $this->name) {
 			$page = $_zp_page;
 		}
 		$rewrite = pathurlencode($this->linkname) . '/';
 		$plain = '/index.php?album=' . pathurlencode($this->name);
 		if ($page > 1) {
-			$rewrite .=_PAGE_ . '/' . $page . '/';
+			$rewrite .= _PAGE_ . '/' . $page . '/';
 			$plain .= "&page=$page";
 		}
-		return zp_apply_filter('getLink', rewrite_path($rewrite, $plain), $this, $page);
+		return zp_apply_filter('getLink', rewrite_path($rewrite, $plain, $path), $this, $page);
 	}
 
 	/**
@@ -893,7 +925,7 @@ class AlbumBase extends MediaObject {
 	/**
 	 * Removes the cache folder of the album including all contents
 	 * 
-	 * @since  1.6.1
+	 * @since 1.6.1
 	 */
 	function removeCacheFolder() {
 		removeDir($this->getCacheFolder(), true);
@@ -975,11 +1007,11 @@ class AlbumBase extends MediaObject {
 
 	/**
 	 * checks access to the album
-	 * @param bit $action What the requestor wants to do
+	 * @param bit $action User rights level, default LIST_RIGHTS
 	 *
 	 * returns true of access is allowed
 	 */
-	function isMyItem($action) {
+	function isMyItem($action = LIST_RIGHTS) {
 		global $_zp_loggedin;
 		if ($parent = parent::isMyItem($action)) {
 			return $parent;
@@ -988,7 +1020,7 @@ class AlbumBase extends MediaObject {
 			$subRights = $this->albumSubRights();
 			if (is_null($subRights)) {
 // no direct rights, but if this is a private gallery and the album is published he should be allowed to see it
-				if (GALLERY_SECURITY != 'public' && $this->isPublished() && $action == LIST_RIGHTS) {
+				if (GALLERY_SECURITY != 'public' && $this->isPublic() && $action == LIST_RIGHTS) {
 					return LIST_RIGHTS;
 				}
 			} else {
@@ -1011,6 +1043,8 @@ class AlbumBase extends MediaObject {
 
 	/**
 	 * Checks if guest is loggedin for the album
+	 * 
+
 	 * @param unknown_type $hint
 	 * @param unknown_type $show
 	 */
@@ -1018,18 +1052,53 @@ class AlbumBase extends MediaObject {
 		if (!parent::checkForGuest()) {
 			return false;
 		}
-		return checkAlbumPassword($this, $hint);
+		global $_zp_pre_authorization, $_zp_gallery;
+		if (isset($_zp_pre_authorization[$this->getName()])) {
+			return $_zp_pre_authorization[$this->getName()];
+		}
+		$hash = $this->getPassword();
+		if (empty($hash)) {
+			$album = $this->getParent();
+			while (!is_null($album)) {
+				$hash = $album->getPassword();
+				$authType = "zpcms_auth_album_" . $album->getID();
+				$saved_auth = zp_getCookie($authType);
+
+				if (!empty($hash)) {
+					if ($saved_auth == $hash) {
+						$_zp_pre_authorization[$album->getName()] = $authType;
+						return $authType;
+					} else {
+						$hint = $album->getPasswordHint();
+						return false;
+					}
+				}
+				$album = $album->getParent();
+			}
+			// revert all tlhe way to the gallery
+			$hash = $_zp_gallery->getPassword();
+			$authType = 'zpcms_auth_gallery';
+			$saved_auth = zp_getCookie($authType);
+			if (empty($hash)) {
+				$authType = 'zp_public_access';
+			} else {
+				if ($saved_auth != $hash) {
+					$hint = $_zp_gallery->getPasswordHint();
+					return false;
+				}
+			}
+		} else {
+			$authType = "zpcms_auth_album_" . $this->getID();
+			$saved_auth = zp_getCookie($authType);
+			if ($saved_auth != $hash) {
+				$hint = $this->getPasswordHint();
+				return false;
+			}
+		}
+		$_zp_pre_authorization[$this->getName()] = $authType;
+		return $authType;
 	}
 
-	/**
-	 *
-	 * returns true if there is any protection on the album
-	 */
-	function isProtected() {
-		return $this->checkforGuest() != 'zp_public_access';
-	}
-	
-		
 	/**
 	 * Returns true if this album is published and also all of its parents.
 	 * 
@@ -1480,6 +1549,17 @@ class AlbumBase extends MediaObject {
 			}
 			return $this->firstpageimages = Gallery::getFirstPageImages($this, $one_image_page);
 		}
+	}
+	
+	/**
+	 * Gets the level based on the folder name(s) as freshly discovered albums from the file system may not have a proper sortorder set
+	 * 
+	 * @since 1.6.1
+	 * 
+	 * @return int
+	 */
+	function getLevel() {
+		return substr_count($this->getName(), '/') + 1;
 	}
 
 }

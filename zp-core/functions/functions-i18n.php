@@ -796,7 +796,7 @@ function getFormattedLocaleDate($format = 'Y-m-dd', $datetime = '') {
 						$locale,
 						IntlDateFormatter::FULL,
 						IntlDateFormatter::FULL,
-						$_zp_server_timezone,
+						null,
 						IntlDateFormatter::GREGORIAN,
 						$format
 		);

@@ -189,6 +189,7 @@ $general_tags = "a => (href =>() title =>() target=>() class=>() id=>() rel=>() 
 setOption('allowed_tags_default', $style_tags . $general_tags);
 setOptionDefault('allowed_tags', $style_tags . $general_tags);
 setOptionDefault('style_tags', strtolower($style_tags));
+setOptionDefault('daily_logs', 0);
 
 setOptionDefault('full_image_quality', 75);
 
@@ -264,6 +265,7 @@ setOptionDefault('sharpen_threshold', 3);
 
 setOptionDefault('search_space_is_or', 0);
 setOptionDefault('search_no_albums', 0);
+setOptionDefault('search_fieldsselector_enabled', 1);
 
 //	 update group descriptions location
 $admins = $_zp_authority->getAdministrators('groups');

@@ -61,7 +61,7 @@ class dbBase {
 			$config_valid += 1;
 		}
 		if (isset($config['mysql_pass']) && !empty($config['mysql_pass'])) {
-			$this->mysql_pass = $config['mysql_pass'];
+			$this->mysql_pass = str_replace('$', '\$', $config['mysql_pass']);
 			$config_valid += 1;
 		}
 		if ($config_valid == 4) {
@@ -81,7 +81,7 @@ class dbBase {
 	}
 	
 	/**
-	 * @deprecated ZenphotoCMS 2.0 - Use the class property $connection instead
+	 * @deprecated 2.0 - Use the class property $connection instead
 	 * @return object|false
 	 */
 	function connect() {
@@ -446,7 +446,7 @@ class dbBase {
 	}
 
 	/**
-	 * @deprecated ZenphotoCMS 2.0 - Use the method getFields() instead
+	 * @deprecated 2.0 - Use the method getFields() instead
 	 */
 	function listFields($table) {
 		deprecationNotice('Use the method getFields() instead');

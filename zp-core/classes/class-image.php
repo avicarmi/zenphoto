@@ -25,7 +25,6 @@ class Image extends MediaObject {
 	// Plugin handler support
 	public $objectsThumb = NULL; // Thumbnail image for the object
 	public $thumbdimensions = null;
-	protected $is_public = null;
 	public $encwebpath = '';
 	public $imagetype = '';
 
@@ -240,7 +239,7 @@ class Image extends MediaObject {
 	/**
 	 * Returns the image filename
 	 * 
-	 * @deprecated ZenphotoCMS 2.0 - User getName() instead
+	 * @deprecated 2.0 - User getName() instead
 	 *
 	 * @return string
 	 */
@@ -985,10 +984,10 @@ class Image extends MediaObject {
 	 * @since 1.5.8
 	 */
 	function getCopyrightRightsholder() {
-		$rightsholder = trim(getOption('copyright_image_rightsholder'));
+		$rightsholder = trim(strval(getOption('copyright_image_rightsholder')));
 		if ($rightsholder && $rightsholder != 'none') {
 			if ($rightsholder == 'custom') {
-				$rightsholder = trim(getOption('copyright_image_rightsholder_custom'));
+				$rightsholder = trim(strval(getOption('copyright_image_rightsholder_custom')));
 			} else {
 				$rightsholder = Administrator::getNameByUser($rightsholder);
 			}
@@ -1283,14 +1282,13 @@ class Image extends MediaObject {
 		}
 	}
 
-	/*	 * ** Image Methods *** */
-
 	/**
 	 * Returns a path urlencoded image page link for the image
-	 *
+	 * 
+	 * @param string $path Default null, optionally pass a path constant like WEBPATH or FULLWEBPATH
 	 * @return string
 	 */
-	function getLink() {
+	function getLink($path = null) {
 		if (is_array($this->filename)) {
 			$albumq = $album = dirname($this->filename['source']);
 			$image = basename($this->filename['source']);
@@ -1299,7 +1297,7 @@ class Image extends MediaObject {
 			$albumq = $this->albumnamealbum->name;
 			$image = $this->filename;
 		}
-		return zp_apply_filter('getLink', rewrite_path(pathurlencode($album) . '/' . urlencode($image) . IM_SUFFIX, '/index.php?album=' . pathurlencode($albumq) . '&image=' . urlencode($image)), $this, NULL);
+		return zp_apply_filter('getLink', rewrite_path(pathurlencode($album) . '/' . urlencode($image) . IM_SUFFIX, '/index.php?album=' . pathurlencode($albumq) . '&image=' . urlencode($image), $path), $this, NULL);
 	}
 
 	/**
@@ -1326,9 +1324,10 @@ class Image extends MediaObject {
 
 	/**
 	 * returns URL to the original image
+	 * @param string $path the "path" to the image. Defaults to the simple WEBPATH
 	 */
-	function getFullImageURL() {
-		return $this->getFullImage(WEBPATH);
+	function getFullImageURL($path = WEBPATH) {
+		return $this->getFullImage($path);
 	}
 
 	/**
@@ -1629,8 +1628,13 @@ class Image extends MediaObject {
 	function setOwner($owner) {
 		$this->set('owner', $owner);
 	}
-
-	function isMyItem($action) {
+	/**
+	 * checks access to the album
+	 * @param bit $action User rights level, default LIST_RIGHTS
+	 *
+	 * returns true of access is allowed
+	 */
+	function isMyItem($action = LIST_RIGHTS) {
 		$album = $this->album;
 		return $album->isMyItem($action);
 	}
@@ -1641,9 +1645,9 @@ class Image extends MediaObject {
 	function checkAccess(&$hint = NULL, &$show = NULL) {
 		$album = $this->getAlbum();
 		if ($album->isMyItem(LIST_RIGHTS)) {
-			return $this->isPublished() || $album->albumSubRights() & (MANAGED_OBJECT_RIGHTS_EDIT | MANAGED_OBJECT_RIGHTS_VIEW);
+			return $this->isPublic() || $album->albumSubRights() & (MANAGED_OBJECT_RIGHTS_EDIT | MANAGED_OBJECT_RIGHTS_VIEW);
 		}
-		return $album->checkforGuest($hint, $show) && $this->isPublished() && $album->isPublished();
+		return $album->checkforGuest($hint, $show) && $this->isPublic();
 	}
 
 	/**
@@ -1657,14 +1661,6 @@ class Image extends MediaObject {
 		}
 		$album = $this->getAlbum();
 		return $album->checkforGuest($hint, $show);
-	}
-	
-	/**
-	 *
-	 * returns true if there is any protection on the image
-	 */
-	function isProtected() {
-		return $this->checkforGuest() != 'zp_public_access';
 	}
 	
 	/**
@@ -1736,6 +1732,27 @@ class Image extends MediaObject {
 	 */
 	function isVideo() {
 		return strtolower(get_class($this)) == 'video';
+	}
+	
+	/**
+	 * Calculate the aspect ratio from width and height
+	 * 
+	 * @source https://stackoverflow.com/a/71730390
+	 * 
+	 * @since 1.6.1
+	 * 
+	 * @param int $width
+	 * @param int $height
+	 * @param string $separator Separator for the aspect ratio. Defaul ":"
+	 */
+	static function calculateAspectRatio($width = null, $height = null, $separator = ':') {
+		$ratio = [$width, $height];
+		for ($x = $ratio[1]; $x > 1; $x--) {
+			if (($ratio[0] % $x) == 0 && ($ratio[1] % $x) == 0) {
+				$ratio = [$ratio[0] / $x, $ratio[1] / $x];
+			}
+		}
+		return implode($separator, $ratio);
 	}
 
 }

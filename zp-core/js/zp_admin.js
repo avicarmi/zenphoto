@@ -328,7 +328,7 @@ function zp_gotoLink(form) {
  * 
  * The toggle is performed by adding/removing the class "hidden". 
  * 
- * @since ZenphotoCMS 1.5.8
+ * @since 1.5.8
  * 
  * @param {string} element_to_check The selector element to trigger the onchange event (inlcuding # or .!)
  * @param {string} value_to_trigger The selector value to trigger the toggle on
@@ -347,6 +347,20 @@ function toggleElementsBySelector(element_to_check, value_to_trigger, element_to
 		} else if(hide_no_trigger === true) {
 			jQuery(element_to_toggle).addClass('hidden');
 		}
+	});
+}
+
+/**
+ * Confirm a click
+ * 
+ * @since 1.6.1
+ * @param {string} element CSS class or id of the element (".someclass" or "#someid")
+ * @param {string} message Text message
+ * @returns {bool}
+ */
+function confirmClick(element, message) {
+	$(element).click(function (event) {
+		return confirm(message);
 	});
 }
 

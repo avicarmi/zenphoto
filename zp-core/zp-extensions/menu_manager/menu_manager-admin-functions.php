@@ -468,6 +468,7 @@ function addItem(&$reports) {
 	$result['show'] = getCheckboxState('show');
 	$result['include_li'] = getCheckboxState('include_li');
 	$result['id'] = 0;
+	$result['open_newtab'] = getCheckboxState('open_newtab');
 	if (getCheckboxState('span')) {
 		$result['span_id'] = sanitize($_POST['span_id']);
 		$result['span_class'] = sanitize($_POST['span_class']);
@@ -497,6 +498,10 @@ function addItem(&$reports) {
 			$reports[] = "<p class = 'messagebox fade-message'>" . gettext("Menu items for all Zenpage pages added.") . " </p>";
 			return NULL;
 		case 'all_zenpagecategorys':
+		case 'all_zenpagecategories':
+			if ($type == 'all_zenpagecategorys') {
+				deprecationNotice(gettext('The menu item type all_zenpagecategorys is deprecated. Use all_zenpagecategories instead'));
+			}
 			addCategoriesToDatabase($menuset);
 			$reports[] = "<p class = 'messagebox fade-message'>" . gettext("Menu items for all Zenpage categories added.") . " </p>";
 			return NULL;
@@ -615,7 +620,7 @@ function addItem(&$reports) {
 	}
 	$count = $_zp_db->count('menu', 'WHERE menuset=' . $_zp_db->quote($menuset));
 	$order = sprintf('%03u', $count);
-	$sql = "INSERT INTO " . $_zp_db->prefix('menu') . " ( `title`, `link`, `type`, `show`, `menuset`, `sort_order`, `include_li`, `span_id`, `span_class`) " .
+	$sql = "INSERT INTO " . $_zp_db->prefix('menu') . " ( `title`, `link`, `type`, `show`, `menuset`, `sort_order`, `include_li`, `span_id`, `span_class`, `open_newtab`) " .
 					"VALUES (" 
 					. $_zp_db->quote($result['title']) . ", " 
 					. $_zp_db->quote($result['link']) . ", " 
@@ -625,9 +630,9 @@ function addItem(&$reports) {
 					. $_zp_db->quote($order) . ", " 
 					. $result['include_li'] . ", " 
 					. $_zp_db->quote($result['span_id']) . ", " 
-					. $_zp_db->quote($result['span_class']) .
+					. $_zp_db->quote($result['span_class']) . ", " 
+					. $_zp_db->quote($result['open_newtab']) .
 					")";
-	debuglog(print_r($sql, true));
 	if ($_zp_db->query($sql, true)) {
 		$reports[] = "<p class = 'messagebox fade-message'>" . $successmsg . "</p>";
 		//echo "<pre>"; print_r($result); echo "</pre>";
@@ -656,6 +661,7 @@ function updateMenuItem(&$reports) {
 	$result['type'] = sanitize($_POST['type']);
 	$result['title'] = process_language_string_save("title", 2);
 	$result['include_li'] = getCheckboxState('include_li');
+	$result['open_newtab'] = getCheckboxState('open_newtab');
 	if (getCheckboxState('span')) {
 		$result['span_id'] = sanitize($_POST['span_id']);
 		$result['span_class'] = sanitize($_POST['span_class']);
@@ -768,11 +774,16 @@ function updateMenuItem(&$reports) {
 			break;
 	}
 	// update the category in the category table
-	$sql = "UPDATE " . $_zp_db->prefix('menu') . " SET title = " . $_zp_db->quote($result['title']) .
+	$sql = "UPDATE " . $_zp_db->prefix('menu') . 
+					" SET title = " . $_zp_db->quote($result['title']) .
 					", link = " . $_zp_db->quote($result['link']) .
-					", type = " . $_zp_db->quote($result['type']) . ", `show` = " . $_zp_db->quote($result['show']) .
-					", menuset = " . $_zp_db->quote($menuset) . ", include_li = " . $result['include_li'] .
-					", span_id = " . $_zp_db->quote($result['span_id']) . ", span_class = " . $_zp_db->quote($result['span_class']) .
+					", type = " . $_zp_db->quote($result['type']) . 
+					", `show` = " . $_zp_db->quote($result['show']) .
+					", menuset = " . $_zp_db->quote($menuset) . 
+					", include_li = " . $result['include_li'] .
+					", span_id = " . $_zp_db->quote($result['span_id']) . 
+					", span_class = " . $_zp_db->quote($result['span_class']) .
+					", open_newtab = " . $_zp_db->quote($result['open_newtab']) .
 					" WHERE `id` = " . $result['id'];
 	if ($_zp_db->query($sql)) {
 		if (isset($_POST['title']) && empty($result['title'])) {
@@ -822,9 +833,9 @@ function printAlbumsSelector($current) {
 			} else {
 				$selected = '';
 			}
-			$level = substr_count($albumname, "/");
+			$level = $albumobj->getLevel(); 
 			$arrow = "";
-			for ($count = 1; $count <= $level; $count++) {
+			for ($count = 1; $count < $level; $count++) {
 				$arrow .= "–&nbsp;";
 			}
 			echo "<option value = '" . html_encode($albumobj->name) . "'" . $selected . '>';
@@ -857,10 +868,10 @@ function printZenpagePagesSelector($current) {
 				$selected = '';
 			}
 			$pageobj = new ZenpagePage($page['titlelink']);
-			$level = substr_count($pageobj->getSortOrder(), "-");
+			$level = $pageobj->getLevel();
 			$arrow = "";
-			for ($count = 1; $count <= $level; $count++) {
-				$arrow .= "» ";
+			for ($count = 1; $count < $level; $count++) {
+				$arrow .= "–&nbsp;";
 			}
 			echo "<option value = '" . html_encode($pageobj->getName()) . "'" . $selected . '>';
 			echo $arrow . $pageobj->getTitle() . unpublishedZenphotoItemCheck($pageobj) . "</option>";

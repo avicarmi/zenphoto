@@ -19,7 +19,6 @@ class ZenpageNews extends ZenpageItems {
 	public $view_rights = ALL_NEWS_RIGHTS;
 	public $categories = NULL;
 	public $index = NULL;
-	protected $is_public = null;
 
 	function __construct($titlelink, $allowCreate = NULL) {
 		if (is_array($titlelink)) {
@@ -130,36 +129,53 @@ class ZenpageNews extends ZenpageItems {
 
 	/**
 	 * Checks if an article is in a password protected category and returns TRUE or FALSE
-	 * NOTE: This function does not check if the password has been entered! Use checkAccess() for that.
+	 * 	
+	 * @param bool $only set to true to know if the news article belongs only to protected categories
 	 *
-	 * @param bool $only set to true to know if the news article belongs only to protected categories (i.e. it is protected)
-	 *
-	 * @return array
+	 * @return boolean
 	 */
 	function inProtectedCategory($only = false) {
-		$categories = $this->getCategories();
+		$categories = $this->getCategories(false, null, null, false);
+		$protected_cats = '';
 		if (!empty($categories)) {
+			$catcount = count($categories);
 			foreach ($categories as $cat) {
 				$catobj = new ZenpageCategory($cat['titlelink']);
-				$password = $catobj->getPassword();
-				if (!empty($password)) {
-					if (!$only)
+				if ($catobj->isProtected()) {
+					if ($only) {
+						$protected_cats++;
+					} else {
 						return true;
-				} else {
-					if ($only)
-						return false;
+					}
 				}
 			}
-			return $only;
+			return ($catcount == $protected_cats);
 		}
 		return false;
 	}
-	
+
 	/**
-	 * returns true if the article resides only in protected categories
+	 * Returns true if the article is protected by a category
+	 * @since 1.6.1 Returns true if the article is in any protected category instead if protected categories only
+	 * @return bool
 	 */
 	function isProtected() {
-		return $this->inProtectedCategory(true);
+		if (is_null($this->is_protected)) {
+			return $this->is_protected = $this->inProtectedCategory();
+		}
+		return $this->is_protected;
+	}
+
+	/**
+	 * Returns true if not protected but protection is inherited by a parent 
+	 * Note: Here the same as isProtected() to align with other objects
+	 * 
+	 * @since 1.6.1 
+	 * 
+	 * @return bool
+	 */
+	function isProtectedByParent() {
+		return $this->isProtected();
 	}
 	
 	/**
@@ -174,17 +190,6 @@ class ZenpageNews extends ZenpageItems {
 			if(!$this->isPublished()) {
 				return $this->is_public = false;
 			}
-			$categories = $this->getCategories();
-			$catcheck = true;
-			if (count($categories) > 0) {
-				foreach ($categories as $cat) {
-					$catobj = new ZenpageCategory($cat);
-					if (!$catobj->isPublic()) {
-						$catcheck = $catcheck && false;
-					}
-				}
-				return $this->is_public = $catcheck;
-			}
 			return $this->is_public = true;
 		} else {
 			return $this->is_public;
@@ -195,7 +200,7 @@ class ZenpageNews extends ZenpageItems {
 	 *
 	 * returns true if the article exists in any published category (or in no categories)
 	 * 
-	 * @deprecated Zenphoto 2.0 Use if($obj->isPublic() || zp_loggedin(ALL_NEWS_RIGHTS)) { … } for a equivalent check instead.
+	 * @deprecated 2.0 Use if($obj->isPublic() || zp_loggedin(ALL_NEWS_RIGHTS)) { … } for a equivalent check instead.
 	 */
 	function categoryIsVisible() {
 		if (zp_loggedin(ALL_NEWS_RIGHTS))
@@ -239,11 +244,11 @@ class ZenpageNews extends ZenpageItems {
 
 	/**
 	 * Checks if user is news author
-	 * @param bit $action what the caller wants to do
+	 * @param bit $action User rights level, default LIST_RIGHTS
 	 *
 	 * returns true of access is allowed
 	 */
-	function isMyItem($action) {
+	function isMyItem($action = LIST_RIGHTS) {
 		global $_zp_current_admin_obj;
 		if (parent::isMyItem($action)) {
 			return true;
@@ -329,11 +334,11 @@ class ZenpageNews extends ZenpageItems {
 	/**
 	 * Returns the url to a news article
 	 *
-	 *
+	 * @param string $path Default null, optionally pass a path constant like WEBPATH or FULLWEBPATH
 	 * @return string
 	 */
-	function getLink() {
-		return zp_apply_filter('getLink', rewrite_path(_NEWS_ . '/' . $this->getName() . '/', '/index.php?p=news&title=' . $this->getName()), $this, NULL);
+	function getLink($path = null) {
+		return zp_apply_filter('getLink', rewrite_path(_NEWS_ . '/' . $this->getName() . '/', '/index.php?p=news&title=' . $this->getName(), $path), $this, NULL);
 	}
 
 	/**
@@ -391,5 +396,3 @@ class ZenpageNews extends ZenpageItems {
 	}
 
 }
-// zenpage news class end
-?>

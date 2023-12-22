@@ -709,7 +709,7 @@ echo "\n</head>";
 					<div id="tab_albuminfo" class="tabbox">
 						<?php 
 						consolidatedEditMessages('albuminfo');
-						printScheduledPublishingNotes($album);
+						printStatusNotes($album);
 						?>
 						<form class="dirty-check" name="albumedit1" id="form_albumedit" autocomplete="off" action="?page=edit&amp;action=save<?php echo "&amp;album=" . pathurlencode($album->name); ?>" method="post">
 							<?php XSRFToken('albumedit'); ?>
@@ -1006,7 +1006,7 @@ echo "\n</head>";
 												<table style="border:none" class="formlayout" id="image-<?php echo $currentimage; ?>">
 													<?php if(checkSchedulePublishingNotes($image)) { ?>
 														<tr>
-															<td colspan="5"><?php printScheduledPublishingNotes($image); ?></td>
+															<td colspan="5"><?php printStatusNotes($image); ?></td>
 														</tr>
 													<?php } ?>
 													<tr>
@@ -1243,11 +1243,18 @@ echo "\n</head>";
 																<br class="clearall" />
 																<hr />
 																<div class="button buttons tooltip" title="<?php printf(gettext('Refresh %s metadata'), $image->filename); ?>">
-																	<a href="admin-edit.php?action=refresh&amp;album=<?php echo html_encode(pathurlencode($album->name)); ?>&amp;image=<?php echo urlencode($image->filename); ?>&amp;subpage=<?php echo $pagenum; ?>&amp;tagsort=<?php echo html_encode($tagsort); ?>&amp;XSRFToken=<?php echo getXSRFToken('imagemetadata'); ?>" >
+																	<a href="admin-edit.php?action=refresh&amp;album=<?php echo html_encode(pathurlencode($album->name)); ?>&amp;image=<?php echo urlencode($image->filename); ?>&amp;subpage=<?php echo $pagenum; ?>&amp;tagsort=<?php echo html_encode($tagsort); ?>&amp;XSRFToken=<?php echo getXSRFToken('imagemetadata'); ?>" class="js_confirm_metadata_refresh_<?php echo $currentimage; ?>">
 																		<img src="images/cache.png" alt="" /><?php echo gettext("Refresh Metadata"); ?>
 																	</a>
 																	<br class="clearall" />
 																</div>
+																<script>
+																	$( document ).ready(function() {
+																		var element = '.js_confirm_metadata_refresh_<?php echo $currentimage; ?>';
+																		var message = '<?php echo js_encode(gettext('Refreshing metadata will overwrite existing data. This cannot be undone!')); ?>';
+																		confirmClick(element, message);
+																	});
+																</script>
 																<?php
 																if (($image->isPhoto() || !is_null($image->objectsThumb)) && getOption('thumb_crop')) {
 																	?>
@@ -1654,7 +1661,7 @@ echo "\n</head>";
 						}
 						?>
 						<p>
-							<?php printf(gettext('Current sort: <em>%1s%2$s</em>.'), $sorttype, $dir); ?>
+							<?php printf(gettext('Current sort: <em>%1$s%2$s</em>.'), $sorttype, $dir); ?>
 						</p>
 						<p>
 							<?php echo gettext('Drag the albums into the order you wish them displayed.'); ?>

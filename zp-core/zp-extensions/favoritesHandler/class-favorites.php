@@ -299,7 +299,7 @@ class favorites extends AlbumBase {
 		return $zf;
 	}
 
-	function getLink($page = NULL, $instance = NULL) {
+	function getLink($page = NULL, $instance = NULL, $path = null) {
 		$link = _FAVORITES_ . '/';
 		$link_no = 'index.php?p=favorites';
 		if (is_null($instance))
@@ -313,7 +313,7 @@ class favorites extends AlbumBase {
 			$link .= $page . '/';
 			$link_no .= '&page=' . $page;
 		}
-		return zp_apply_filter('getLink', rewrite_path($link, $link_no), 'favorites.php', $page);
+		return zp_apply_filter('getLink', rewrite_path($link, $link_no, $path), 'favorites.php', $page);
 	}
 
 	static function ad_removeButton($obj, $id, $v, $add, $instance, $multi) {

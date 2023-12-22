@@ -123,11 +123,11 @@ function printAdminHeader($tab, $subtab = NULL) {
 			<meta http-equiv="content-type" content="text/html; charset=<?php echo LOCAL_CHARSET; ?>" />
 			<link rel="stylesheet" href="<?php echo WEBPATH . '/' . ZENFOLDER; ?>/js/toggleElements.css" type="text/css" />
 			<link rel="stylesheet" href="<?php echo WEBPATH . '/' . ZENFOLDER; ?>/js/jqueryui/jquery-ui.min.css" type="text/css" />
-			<link rel="stylesheet" href="<?php echo WEBPATH . '/' . ZENFOLDER; ?>/admin.css" type="text/css" />
+			<link rel="stylesheet" href="<?php echo WEBPATH . '/' . ZENFOLDER; ?>/css/admin.css" type="text/css" />
 			<?php
 			if ($_zp_rtl_css) {
 				?>
-				<link rel="stylesheet" href="<?php echo WEBPATH . '/' . ZENFOLDER; ?>/admin-rtl.css" type="text/css" />
+				<link rel="stylesheet" href="<?php echo WEBPATH . '/' . ZENFOLDER; ?>/css/admin-rtl.css" type="text/css" />
 				<?php
 			}
 			?>
@@ -300,7 +300,7 @@ function printAdminHeader($tab, $subtab = NULL) {
 			case 'zh_CN':
 			case 'zh_TW':
 			case 'ja_JP':
-				$_zp_admin_maintab_space = count($_zp_admin_menu) * 3 + $chars;
+				$_zp_admin_maintab_space = count($_zp_admin_menu) * 4 + $chars;
 				break;
 			default:
 				$_zp_admin_maintab_space = round((count($_zp_admin_menu) * 32 + round($chars * 7.5)) / 11.5);
@@ -399,7 +399,7 @@ function printAdminHeader($tab, $subtab = NULL) {
 				case 'zh_CN':
 				case 'zh_TW':
 				case 'ja_JP':
-					$sub_tab_space = count($tabs) * 3 + $chars;
+					$sub_tab_space = count($tabs) * 4 + $chars;
 					break;
 				default:
 					$sub_tab_space = round((count($tabs) * 32 + round($chars * 7.5)) / 11.5);
@@ -2032,10 +2032,17 @@ function printAdminHeader($tab, $subtab = NULL) {
 		if ($imagcount || (!$album->isDynamic() && $album->getNumAlbums())) {
 			?>
 			<div class="button buttons tooltip" title="<?php echo gettext("Refreshes the metadata for the album."); ?>">
-				<a href="<?php echo WEBPATH . '/' . ZENFOLDER . '/admin-refresh-metadata.php?album=' . html_encode($album->name) . '&amp;return=' . html_encode($album->name); ?>&amp;XSRFToken=<?php echo getXSRFToken('refresh'); ?>">
+				<a href="<?php echo WEBPATH . '/' . ZENFOLDER . '/admin-refresh-metadata.php?album=' . html_encode($album->name) . '&amp;return=' . html_encode($album->name); ?>&amp;XSRFToken=<?php echo getXSRFToken('refresh'); ?>" class="js_confirm_metadata_refresh_<?php echo $album->getID(); ?>">
 					<img src="images/cache.png" /><?php echo gettext('Refresh album metadata'); ?></a>
 				<br class="clearall" />
 			</div>
+			<script>
+				$( document ).ready(function() {
+					var element = '.js_confirm_metadata_refresh_<?php echo $album->getID(); ?>';
+					var message = '<?php echo js_encode(gettext('Refreshing metadata will overwrite existing data. This cannot be undone!')); ?>';
+					confirmClick(element, message);
+				});
+			</script>
 			<?php
 		}
 	}
@@ -2052,12 +2059,12 @@ function printAdminHeader($tab, $subtab = NULL) {
 			<?php
 			if (GALLERY_SECURITY == 'public') {
 				?>
-				<li><img src="images/lock.png" alt="" /><?php echo gettext("Has Password"); ?></li>
+				<li><?php echo getStatusIcon('protected') . getStatusIcon('protected_by_parent').  gettext("Password protected/Password protected by parent"); ?></li>
 				<?php
 			}
 			?>
-			<li><img src="images/pass.png" alt="" /><img	src="images/action.png" alt="" /><?php echo gettext("Published/Not published"); ?></li>
-			<li><img src="images/clock_futuredate.png" alt="" /><img src="images/clock_expiredate.png" alt="" /><img src="images/clock_expired.png" alt="" /><?php echo gettext("Scheduled publishing/Scheduled expiration/Expired"); ?></li>
+			<li><?php echo getStatusIcon('published') . getStatusIcon('unpublished') . getStatusIcon('unpublished_by_parent'); ?><?php echo gettext("Published/Unpublished/Unpublished by parent"); ?></li>
+			<li><?php echo getStatusIcon('publishschedule') . getStatusIcon('expiration') . getStatusIcon('expired'); ?>><?php echo gettext("Scheduled publishing/Scheduled expiration/Expired"); ?></li>
 			<li><img src="images/comments-on.png" alt="" /><img src="images/comments-off.png" alt="" /><?php echo gettext("Comments on/off"); ?></li>
 			<li><img src="images/view.png" alt="" /><?php echo gettext("View the album"); ?></li>
 			<li><img src="images/refresh.png" alt="" /><?php echo gettext("Refresh metadata"); ?></li>
@@ -2167,12 +2174,7 @@ function printAdminHeader($tab, $subtab = NULL) {
 			<?php $wide = '40px'; ?>
 			<div class="page-list_iconwrapperalbum">
 				<div class="page-list_icon">
-					<?php
-					$pwd = $album->getPassword();
-					if (!empty($pwd)) {
-						echo '<a title="' . gettext('Password protected') . '"><img src="images/lock.png" style="border: 0px;" alt="" title="' . gettext('Password protected') . '" /></a>';
-					}
-					?>
+					<?php printProtectedIcon($album); ?>
 				</div>
 				<div class="page-list_icon">
 					<?php printPublishIconLinkGallery($album, $enableEdit, $owner); ?>
@@ -2225,9 +2227,16 @@ function printAdminHeader($tab, $subtab = NULL) {
 						<?php
 					} else {
 						?>
-						<a class="warn" href="admin-refresh-metadata.php?page=edit&amp;album=<?php echo html_encode(pathurlencode($album->name)); ?>&amp;return=*<?php echo html_encode(pathurlencode($owner)); ?>&amp;XSRFToken=<?php echo getXSRFToken('refresh') ?>" title="<?php echo sprintf(gettext('Refresh metadata for the album %s'), $album->name); ?>">
+						<a class="warn js_confirm_metadata_refresh_<?php echo $album->getID(); ?>" href="admin-refresh-metadata.php?page=edit&amp;album=<?php echo html_encode(pathurlencode($album->name)); ?>&amp;return=*<?php echo html_encode(pathurlencode($owner)); ?>&amp;XSRFToken=<?php echo getXSRFToken('refresh') ?>" title="<?php echo sprintf(gettext('Refresh metadata for the album %s'), $album->name); ?>">
 							<img src="images/refresh.png" style="border: 0px;" alt="" title="<?php echo sprintf(gettext('Refresh metadata in the album %s'), $album->name); ?>" />
 						</a>
+						<script>
+						$( document ).ready(function() {
+							var element = '.js_confirm_metadata_refresh_<?php echo $album->getID(); ?>';
+							var message = '<?php echo js_encode(gettext('Refreshing metadata will overwrite existing data. This cannot be undone!')); ?>';
+							confirmClick(element, message);
+						});
+						</script>
 						<?php
 					}
 					?>
@@ -3535,9 +3544,24 @@ function getCheckboxState($id) {
  * @return array
  */
 function standardScripts() {
-	$standardlist = array('themeoptions', 'password', 'theme_description', '404', 'slideshow', 'search', 'image', 'index', 'album', 'customfunctions', 'functions');
-	if (extensionEnabled('zenpage'))
+	$standardlist = array(
+			'themeoptions',
+			'password',
+			'theme_description',
+			'404', 'slideshow',
+			'search', 'image',
+			'index', 'album',
+			'customfunctions',
+			'functions',
+			'footer',
+			'sidebar',
+			'header',
+			'inc-footer',
+			'inc-header'
+	);
+	if (extensionEnabled('zenpage')) {
 		$standardlist = array_merge($standardlist, array('news', 'pages'));
+	}
 	return $standardlist;
 }
 
@@ -4526,38 +4550,132 @@ function admin_album_list($owner) {
 	return $adminlist;
 }
 
+
 /**
- * Figures out which log tabs to display
+ * Returns an array with the logtabs array, the default log tab and an array of log files to the default (current) log tab (for use in the logfile selector)
+ * 
+ * @since 1.6.1 - Reworked for displaying only tabs for log types
+ * @return array
  */
 function getLogTabs() {
-	$subtabs = array();
-	$default = NULL;
-	$localizer = array('setup' => gettext('setup'), 'security' => gettext('security'), 'debug' => gettext('debug'));
-	$filelist = safe_glob(SERVERPATH . "/" . DATA_FOLDER . '/*.log');
-	if (count($filelist) > 0) {
-		$tab = sanitize(@$_GET['tab'], 3);
-		foreach ($filelist as $logfile) {
-			$log = substr(basename($logfile), 0, -4);
-			if ($log == $tab) {
-				$default = $tab;
-			}
-			if (array_key_exists($log, $localizer)) {
-				$logfiletext = $localizer[$log];
+	$defaulttab = $defaultlogfile = null;
+	$localizer = getDefaultLogTabs();
+	$subtabs = $logs = array();
+	$logs = getLogFiles();
+	if ($logs) {
+		$currenttab = sanitize(@$_GET['tab'], 3);
+		$currentlogfile = sanitize(@$_GET['logfile'], 3);
+		foreach ($logs as $tab => $logfiles) {
+			if (array_key_exists($tab, $localizer)) {
+				$tabname = $localizer[$tab];
 			} else {
-				$logfiletext = str_replace('_', ' ', $log);
+				$tabname = str_replace('_', ' ', $tab);
 			}
-			$subtabs = array_merge($subtabs, array($logfiletext => FULLWEBPATH . '/' . ZENFOLDER . '/admin-logs.php?page=logs&tab=' . $log));
-			if (filesize($logfile) > 0 && empty($default)) {
-				$default = $log;
+			if ($currenttab == $tab) {
+				$defaulttab = $currenttab;
+			}
+			if (!empty($logfiles) > 0 && empty($defaulttab)) {
+				$defaulttab = $tab;
+			}
+			$subtabs = array_merge($subtabs, array($tabname => FULLWEBPATH . '/' . ZENFOLDER . '/admin-logs.php?page=logs&tab=' . $tab));
+		}
+		$logsfinal = $logs[$defaulttab];
+		sortArray($logsfinal, true, true);
+		$logsfinal = array_values($logsfinal); // reset keys as sortArray() keeps them
+		foreach ($logsfinal as $logfile) {
+			if ($currentlogfile == $logfile) {
+				$defaultlogfile = $currentlogfile;
 			}
 		}
+		if (empty($defaultlogfile)) {
+			$defaultlogfile = $logsfinal[0];
+		}
+		$return = array($subtabs, $defaulttab, $defaultlogfile, $logsfinal);
+		return $return;
 	}
+}
 
-	$names = array_flip($subtabs);
-	sortArray($names);
-	$subtabs = array_flip($names);
+/**
+ * Gets an array log tab names and localized (gettexted) log titles
+ * 
+ * @since 1.6.1
+ * @return array
+ */
+function getDefaultLogTabs() {
+	return array(
+			'setup' => gettext('setup'),
+			'security' => gettext('security'),
+			'debug' => gettext('debug')
+	);
+}
 
-	return array($subtabs, $default);
+/**
+ * Gets a nested array with the log type (tab name) and corresponding log files
+ * 
+ * @since 1.6.1
+ * @return array
+ */
+function getLogFiles() {
+	$logs = array();
+	$filelist = safe_glob(SERVERPATH . "/" . DATA_FOLDER . '/*.log');
+	if (count($filelist) > 0) {
+		foreach ($filelist as $logfile) {
+			$logfile_nosuffix = stripSuffix(basename($logfile));
+			$is_newlogname = explode("_", $logfile_nosuffix);
+			if (count($is_newlogname) > 1) {
+				// new log name with date 
+				$log_tab = $is_newlogname[0];
+			} else {
+				$matches = array();
+				preg_match('|-(.*)|', $logfile_nosuffix, $matches);
+				if ($matches) {
+					// old log name with number
+					$log_tab = str_replace($matches[0], '', $logfile_nosuffix);
+				} else {
+					// old log name without number
+					$log_tab = $logfile_nosuffix;
+				}
+			}
+			$logs[$log_tab][] = $logfile_nosuffix;
+		}
+	}
+	return $logs;
+}
+
+/**
+ * Prints the selector for logfiles of the current log tab
+ * 
+ * @since 1.6.1
+ * 
+ * @param string $currentlogtab Current log tab 
+ * @param string $currentlogfile Current log file selected
+ * @param array $logfiles Array of logfiles
+ */
+function printLogSelector($currentlogtab = '', $currentlogfile = '', $logfiles = array()) {
+	if (!empty($currentlogtab) && !empty($currentlogfile) && (!empty($logfiles) && count($logfiles) > 1)) {
+		?>
+		<form name="logfile_selector" id="logfile_selector"	action="#">
+			<p>
+				<label>
+					<select name="ListBoxURL" size="1" onchange="zp_gotoLink(this.form)"> 
+						<?php 
+						foreach($logfiles as $logfile) {
+							$url = WEBPATH . '/' . ZENFOLDER . '/admin-logs.php?page=logs&tab='. html_encode($currentlogtab) . '&logfile='.$logfile; 
+							$selected = '';
+							if ($logfile == $currentlogfile) {
+								$selected = ' selected';
+							}
+							?>
+							<option value="<?php echo $url; ?>"<?php echo $selected; ?>><?php echo html_encode($logfile); ?></option>
+							<?php
+						}
+					?>
+					</select> <?php echo gettext('Select the logfile to view'); ?>
+				</label>
+				</p>
+		</form>
+		<?php
+	}
 }
 
 /**
@@ -5188,7 +5306,7 @@ function getSortByStatusOptions() {
  * @return boolean
  */
 function checkSchedulePublishingNotes($obj) {
-	if ($obj->hasPublishSchedule() || ($obj->hasFutureDate() && !$obj->get('show', false)) || $obj->hasExpiration() || $obj->hasExpired()) {
+	if (getStatusNotesByContext($obj)) {
 		return true;
 	}
 	return false;
@@ -5198,56 +5316,143 @@ function checkSchedulePublishingNotes($obj) {
  * Prints various notes regarding the scheduled publishing status for single edit pages
  * 
  * @since 1.5.7
+ * @deprecated 2.0 - Use printStatusNotes() instead
  * @param obj $obj Image, album, news article or page object
  */
 function printScheduledPublishingNotes($obj) {
-	$validtables = array('albums', 'images', 'news', 'pages');
+	deprecationNotice('Use printStatusNotes() instead');
+	printStatusNotes($obj);
+}
+
+/**
+ * Prints various notes regarding the scheduled publishing status for single edit pages
+ * 
+ * @since 1.6.1 Replaces printScheduledPublishingNotes()
+ * @param obj $obj Image, album, news article, new category or page object
+ */
+function printStatusNotes($obj) {
+	$notes = getStatusNotesByContext($obj);
+	if ($notes) {
+		foreach($notes as $note) {
+			echo $note;
+		}
+	}
+}
+
+/**
+ * Gets a specific predefined status note for an object (if available)
+ * Note: The notes are not status dependend!
+ * 
+ * @param obj $obj Image, album, news article, new category or page object
+ * @param string $name Name of the note
+ * @return string
+ */
+function getStatusNote($name = '') {
+	$notes = getStatusNotes();
+	if (array_key_exists($name, $notes)) {
+		return $notes[$name];
+	}
+}
+
+/**
+ * Gets an array of all predefined status notes
+ * @since 1.6.1
+ * 
+ * @return array
+ */
+function getStatusNotes() {
+	return array(
+			'unpublished' => gettext('Unpublished'),
+			'unpublished_by_parent' => gettext('Unpublished by parent'),
+			'protected' => gettext('Password protected'),
+			'protected_by_parent' => gettext('Password protected by parent'),
+			'scheduledpublishing' => gettext('Scheduled for publishing'),
+			'scheduledpublishing_inactive' => gettext('<strong>Note:</strong> Scheduled publishing is not active unless also set to <em>published</em>'),
+			'scheduledexpiration' => gettext('Scheduled for expiration'),
+			'scheduledexpiration_inactive' => gettext('<strong>Note:</strong> Scheduled expiration is not active unless also set to <em>published</em>'),
+			'expired' => gettext("Unpublished because expired")
+	);
+}
+
+/**
+ * Gets an array with all status notes that apply to $obj currently
+ * @since 1.6.1
+ * 
+ * @param string $obj
+ * @return array
+ */
+function getStatusNotesByContext($obj) {
+	$validtables = array('albums', 'images', 'news', 'pages', 'categories');
+	$notes_context = $notes_context_notices = $notes_context_warnings = array();
 	if (in_array($obj->table, $validtables)) {
-		switch ($obj->table) {
-			case 'images':
-				$note_scheduledpublishing = gettext('Image scheduled for publishing');
-				$note_scheduledpublishing_inactive = gettext('<strong>Note:</strong> Scheduled publishing is not active unless the image is also set to <em>published</em>');
-				$note_scheduledexpiration = gettext('Image scheduled for expiration');
-				$note_scheduledexpiration_inactive = gettext('<strong>Note:</strong> Scheduled expiration is not active unless the image is also set to <em>published</em>');
-				$note_expired = gettext('Image has expired');
-				break;
-			case 'albums':
-				$note_scheduledpublishing = gettext('Album scheduled for publishing');
-				$note_scheduledpublishing_inactive = gettext('<strong>Note:</strong> Scheduled publishing is not active unless the album is also set to <em>published</em>');
-				$note_scheduledexpiration = gettext('Album scheduled for expiration');
-				$note_scheduledexpiration_inactive = gettext('<strong>Note:</strong> Scheduled expiration is not active unless the album is also set to <em>published</em>');
-				$note_expired = gettext('Album has expired');
-				break;
-			case 'news':
-				$note_scheduledpublishing = gettext('Article scheduled for publishing');
-				$note_scheduledpublishing_inactive = gettext('<strong>Note:</strong> Scheduled publishing is not active unless the article is also set to <em>published</em>');
-				$note_scheduledexpiration = gettext('Article scheduled for expiration');
-				$note_scheduledexpiration_inactive = gettext('<strong>Note:</strong> Scheduled expiration is not active unless the article is also set to <em>published</em>');
-				$note_expired = gettext('Article has expired');
-				break;
-			case 'pages':
-				$note_scheduledpublishing = gettext('Page scheduled for publishing');
-				$note_scheduledpublishing_inactive = gettext('<strong>Note:</strong> Scheduled publishing is not active unless the page is also set to <em>published</em>');
-				$note_scheduledexpiration = gettext('Page scheduled for expiration');
-				$note_scheduledexpiration_inactive = gettext('<strong>Note:</strong> Scheduled expiration is not active unless the page is also set to <em>published</em>');
-				$note_expired = gettext('Page has expired');
-				break;
+		$notes = getStatusNotes();
+		if (!$obj->isPublished()) {
+			$notes_context_notices[] = $notes['unpublished'];
+		} else if ($obj->isUnpublishedByParent()) {
+			$notes_context_notices[] = $notes['unpublished_by_parent'];
+		}
+		if ($obj->isProtected()) {
+			$notes_context_notices[] = $notes['protected'];
+		} else if ($obj->isProtectedByParent()) {
+			$notes_context_notices[] = $notes['protected_by_parent'];
 		}
 		if ($obj->hasPublishSchedule()) {
-			echo '<p id="scheduldedpublishing" class="notebox">' . $note_scheduledpublishing . '</p>';
+			$notes_context_notices[] = $notes['scheduledpublishing'];
 		}
 		if ($obj->hasInactivePublishSchedule()) {
-			echo '<p class="notebox">' . $note_scheduledpublishing_inactive . '</p>';
+			$notes_context_warnings[] = $notes['scheduledpublishing_inactive'];
 		}
 		if ($obj->hasExpiration()) {
-			echo ' <p class="notebox">' . $note_scheduledexpiration . '</p>';
+			$notes_context_notices[] = $notes['scheduledexpiration'];
 		}
 		if ($obj->hasInactiveExpiration()) {
-			echo ' <p class="notebox">' . $note_scheduledexpiration_inactive . '</p>';
+			$notes_context_warnings[] = $notes['scheduledexpiration_inactive'];
 		}
 		if ($obj->hasExpired()) {
-			echo ' <p class="notebox">' . $note_expired . '</p>';
+			$notes_context_notices[] = $notes['expired'];
 		}
+		$notices = $warnings = '';
+		if(!empty($notes_context_notices)) {
+			$notices = '<p class="notebox">' . implode(' | ', $notes_context_notices) . '</p>';
+		}
+		if(!empty($notes_context_warnings)) {
+			$warnings = '<p class="warningbox">' . implode(' | ', $notes_context_warnings) . '</p>';
+		}
+		$notes_context = array($warnings, $notices);
+	}
+	return $notes_context;
+}
+
+/**
+ * Gets an key => value array of all available object status icons as full <img> elements 
+ * @since 1.6.1
+ * 
+ * @return array
+ */
+function getStatusIcons() {
+	return array(
+			'publishschedule' => '<img src="' . WEBPATH . '/' . ZENFOLDER . '/images/clock_futuredate.png" alt="' . htmL_encode(getStatusNote('publishschedule')) . '" title="' . htmL_encode(getStatusNote('publishschedule')) . '" />',
+			'expiration' => '<img src="' . WEBPATH . '/' . ZENFOLDER . '/images/clock_expiredate.png" alt="' . html_encode(getStatusNote('expiration')) . '" title="' . html_encode(getStatusNote('expiration')) . '" />',
+			'expired' => '<img src="' . WEBPATH . '/' . ZENFOLDER . '/images/clock_expired.png" alt="' . html_encode(getStatusNote('expired')) . '" title="' . html_encode(getStatusNote('expired')) . '" />',
+			'published' => '<img src="' . WEBPATH . '/' . ZENFOLDER . '/images/pass.png" alt="' . html_encode(getStatusNote('published')) . '" title="' . html_encode(getStatusNote('published')) . '" />',
+			'unpublished' => '<img src="' . WEBPATH . '/' . ZENFOLDER . '/images/action.png" alt="' . getStatusNote('') . '" title="' . getStatusNote('') . '" />',
+			'unpublished_by_parent' => '<img src="' . WEBPATH . '/' . ZENFOLDER . '/images/pass_2.png" alt="' . html_encode(getStatusNote('unpublished_by_parent')) . '" title="' . html_encode(getStatusNote('unpublished_by_parent')) . '" />',
+			'protected' => '<img src="' . WEBPATH . '/' . ZENFOLDER . '/images/lock.png" alt="' . html_encode(getStatusNote('protected')) . '" title="' . html_encode(getStatusNote('protected')) . '" />',
+			'protected_by_parent' => '<img src="' . WEBPATH . '/' . ZENFOLDER . '/images/lock_3.png" alt="' . html_encode(getStatusNote('protected_by_parent')) . '" title="' . html_encode(getStatusNote('protected_by_parent')) . '" />',
+	);
+}
+
+/**
+ * Gets the icon img element for a specific status icon
+ * @since 1.6.1
+ * 
+ * @param string $name (Internal) Name of the icon
+ * @return string
+ */
+function getStatusIcon($name = '') {
+	$icons = getStatusIcons();
+	if (array_key_exists($name, $icons)) {
+		return $icons[$name];
 	}
 }
 
@@ -5260,13 +5465,12 @@ function printScheduledPublishingNotes($obj) {
  * @param string $owner User name of the owner
  */
 function printPublishIconLinkGallery($obj, $enableedit = false, $owner = null) {
-	$notes = array();
 	if ($obj->table == 'albums' || $obj->table == 'images') {
 		switch ($obj->table) {
 			case 'albums':
 				$title_skipscheduledpublishing = sprintf(gettext('Publish the album %s (Skip scheduled publishing)'), $obj->name);
 				$title_skipscheduledexpiration = sprintf(gettext('Publish the album %s (Skip scheduled expiration)'), $obj->name);
-				$title_unpublish = sprintf(gettext('Un-publish the album %s'), $obj->name);
+				$title_unpublish = sprintf(gettext('Unpublish the album %s'), $obj->name);
 				$title_skipexiration = sprintf(gettext('Publish the album %s (Skip expiration)'), $obj->name);
 				$title_publish = sprintf(gettext('Publish the album %s'), $obj->name);
 				$action_addition = '&amp;album=' . html_encode(pathurlencode($obj->name)) . '&amp;return=*' . html_encode(pathurlencode($owner)) . '&amp;XSRFToken=' . getXSRFToken('albumedit');
@@ -5274,7 +5478,7 @@ function printPublishIconLinkGallery($obj, $enableedit = false, $owner = null) {
 			case 'images':
 				$title_skipscheduledpublishing = sprintf(gettext('Publish the image %s (Skip scheduled publishing)'), $obj->filename);
 				$title_skipscheduledexpiration = sprintf(gettext('Publish the image %s (Skip scheduled expiration)'), $obj->filename);
-				$title_unpublish = sprintf(gettext('Un-publish the image %s'), $obj->filename);
+				$title_unpublish = sprintf(gettext('Unpublish the image %s'), $obj->filename);
 				$title_skipexiration = sprintf(gettext('Publish the image %s (Skip expiration)'), $obj->filename);
 				$title_publish = sprintf(gettext('Publish the image %s'), $obj->filename);
 				$action_addition = '&amp;album=' . html_encode(pathurlencode($obj->album->name)) . '&amp;image=' . urlencode($obj->filename) . '&amp;XSRFToken=' . getXSRFToken('imageedit');
@@ -5282,44 +5486,59 @@ function printPublishIconLinkGallery($obj, $enableedit = false, $owner = null) {
 		}
 		if ($obj->hasPublishSchedule()) {
 			$title = $title_skipscheduledpublishing;
-			$alt = gettext("Scheduled for publishing");
 			$action = '?action=publish&amp;value=1';
-			$icon = WEBPATH . '/' . ZENFOLDER . '/images/clock_futuredate.png';
 		} else if ($obj->hasExpiration()) {
 			$title = $title_skipscheduledexpiration;
-			$alt = gettext("Scheduled for expiration");
 			$action = '?action=publish&amp;value=1';
-			$icon = WEBPATH . '/' . ZENFOLDER . '/images/clock_expiredate.png';
 		} else if ($obj->isPublished()) {
-			$title = $title_unpublish;
-			$alt = gettext("Published");
-			$action = '?action=publish&amp;value=0';
-			$icon = WEBPATH . '/' . ZENFOLDER . '/images/pass.png';
+			if ($obj->isUnpublishedByParent()) {
+				$title = $title_publish .' - ' . getStatusNote('unpublished_by_parent');
+				$action = '?action=publish&amp;value=0';
+			} else {
+				$title = $title_unpublish;
+				$action = '?action=publish&amp;value=0';
+			}
 		} else if (!$obj->isPublished()) {
 			if ($obj->hasExpired()) {
 				$title = $title_skipexiration;
-				$alt = gettext("Un-published because expired");
 				$action = '?action=publish&amp;value=1';
-				$icon = WEBPATH . '/' . ZENFOLDER . '/images/clock_expired.png';
 			} else {
 				$title = $title_publish;
-				$alt = gettext("Un-published");
 				$action = '?action=publish&amp;value=1';
-				$icon = WEBPATH . '/' . ZENFOLDER . '/images/action.png';
 			}
 		}
+		$link_start = $link_end = '';
 		if ($enableedit) {
-			?>
-			<a href="<?php echo $action . $action_addition; ?>" title="<?php echo html_encode($title); ?>" >
-				<?php
-			}
-			?>
-			<img src="<?php echo $icon; ?>" alt="<?php echo html_encode($alt); ?>" title="<?php echo html_encode($title); ?>" />
-			<?php
-			if ($enableedit) {
-				?>
-			</a>
-			<?php
+			$link_start = '<a href="' . $action . $action_addition . '" title="' . html_encode($title) . '" >';
+			$link_end = '</a>';
+		}
+		echo $link_start . getPublishIcon($obj) . $link_end;
+	}
+}
+
+/**
+ * Returns the publish icon for the current status
+ * @since 1.6.1
+ * 
+ * @param obj $obj Object of the page or news article to check
+ * @return string
+ */
+function getPublishIcon($obj) {
+	if ($obj->hasPublishSchedule()) {
+		return getStatusIcon('publishschedule');
+	} else if ($obj->hasExpiration()) {
+		return getStatusIcon('expiration');
+	} else if ($obj->isPublished()) {
+		if ($obj->isUnpublishedByParent()) {
+			return getStatusIcon('unpublished_by_parent');
+		} else {
+			return getStatusIcon('published');
+		}
+	} else if (!$obj->isPublished()) {
+		if ($obj->hasExpired()) {
+			return getStatusIcon('expired');
+		} else {
+			return getStatusIcon('unpublished');
 		}
 	}
 }
@@ -5359,6 +5578,20 @@ function printExpired($obj) {
 		echo ' <span class="expired">' . $date . "</span>";
 	} else if ($obj->hasExpiration()) {
 		echo ' <span class="expiredate">' . $date . "</span>";
+	}
+}
+
+/**
+ * Prints the protected icon if the object is password protected on an edit list
+ * @since 1.6.1
+ * 
+ * @param obj $obj
+ */
+function printProtectedIcon($obj) {
+	if ($obj->getPassword()) {
+		echo '<span title="' . html_encode(getStatusNote('protected')) . '">' . getStatusIcon('protected') . '</span>';
+	} else if ($obj->isProtectedByParent()) {
+		echo '<span title="' . html_encode(getStatusNote('protected_by_parent')) . '">' . getStatusIcon('protected_by_parent') . '</span>';
 	}
 }
 
@@ -5498,7 +5731,7 @@ function getZenpagePagesOptionsArray($published = false) {
 					$unpublished_note = '*';
 				}
 				$sublevel = '';
-				$level = count(explode('-', $pageobj->getSortorder()));
+				$level = $pageobj->getLevel();
 				if ($level != 1) {
 					for ($l = 1; $l < $level; $l++) {
 						$sublevel .= '-';

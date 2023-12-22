@@ -19,12 +19,12 @@ class userDataExport {
 		$this->usermail = $usermail;
 		$this->galleryobj = $galleryobj;
 		// in case the plugin is not active data may still exists
-		require_once SERVERPATH . '/' . ZENFOLDER . '/' . PLUGIN_FOLDER . '/zenpage/class-zenpage.php';
-		require_once SERVERPATH . '/' . ZENFOLDER . '/' . PLUGIN_FOLDER . '/zenpage/class-zenpageroot.php';
-		require_once SERVERPATH . '/' . ZENFOLDER . '/' . PLUGIN_FOLDER . '/zenpage/class-zenpageitems.php';
-		require_once SERVERPATH . '/' . ZENFOLDER . '/' . PLUGIN_FOLDER . '/zenpage/class-zenpagenews.php';
-		require_once SERVERPATH . '/' . ZENFOLDER . '/' . PLUGIN_FOLDER . '/zenpage/class-zenpagepage.php';
-		require_once SERVERPATH . '/' . ZENFOLDER . '/' . PLUGIN_FOLDER . '/zenpage/class-zenpagecategory.php';
+		require_once SERVERPATH . '/' . ZENFOLDER . '/' . PLUGIN_FOLDER . '/zenpage/classes/class-zenpage.php';
+		require_once SERVERPATH . '/' . ZENFOLDER . '/' . PLUGIN_FOLDER . '/zenpage/classes/class-zenpageroot.php';
+		require_once SERVERPATH . '/' . ZENFOLDER . '/' . PLUGIN_FOLDER . '/zenpage/classes/class-zenpageitems.php';
+		require_once SERVERPATH . '/' . ZENFOLDER . '/' . PLUGIN_FOLDER . '/zenpage/classes/class-zenpagenews.php';
+		require_once SERVERPATH . '/' . ZENFOLDER . '/' . PLUGIN_FOLDER . '/zenpage/classes/class-zenpagepage.php';
+		require_once SERVERPATH . '/' . ZENFOLDER . '/' . PLUGIN_FOLDER . '/zenpage/classes/class-zenpagecategory.php';
 	}
 
 	/**
@@ -121,7 +121,7 @@ class userDataExport {
 					<html<?php printLangAttribute(); ?>>
 						<head>
 							<meta http-equiv='Content-Type' content='text/html; charset=UTF-8' />
-							<title><?php echo $title; ?></title></head>
+							<title><?php echo html_encode($title); ?></title></head>
 						<body>
 							<h1><?php echo html_encode($title); ?></h1>
 							<?php
@@ -182,7 +182,7 @@ class userDataExport {
 		if (substr($value, 0, 7) == 'http://' || substr($value, 0, 8) == 'https://') {
 			echo '<a href="' . html_encode($value) . '">' . html_encode($value) . '</a>';
 		} else {
-			echo $value;
+			echo html_encode($value);
 		}
 	}
 

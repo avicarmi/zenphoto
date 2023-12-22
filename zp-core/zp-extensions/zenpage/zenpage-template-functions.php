@@ -1462,14 +1462,10 @@ function printNestedMenu($option = 'list', $mode = NULL, $counter = TRUE, $css_i
 					echo "<li><a href=\"" . html_encode(getNewsIndexURL()) . "\" title=\"" . html_encode($indexname) . "\">" . html_encode($display) . "</a>";
 				}
 				if ($counter) {
-					if (in_context(ZP_ZENPAGE_NEWS_CATEGORY) && $mode == 'categories') {
-						$totalcount = count($_zp_current_category->getArticles(0));
-					} else {
-						save_context();
-						rem_context(ZP_ZENPAGE_NEWS_DATE);
-						$totalcount = count($_zp_zenpage->getArticles(0));
-						restore_context();
-					}
+					save_context();
+					rem_context(ZP_ZENPAGE_NEWS_DATE);
+					$totalcount = $_zp_zenpage->getTotalArticles();
+					restore_context();
 					echo ' <span style="white-space:nowrap;"><small>(' . sprintf(ngettext('%u article', '%u articles', $totalcount), $totalcount) . ')</small></span>';
 				}
 				echo "</li>\n";
@@ -1499,7 +1495,7 @@ function printNestedMenu($option = 'list', $mode = NULL, $counter = TRUE, $css_i
 				$itemtitlelink = $pageobj->getName();
 				$itemurl = $pageobj->getLink();
 				$count = '';
-				if ($pageobj->isProtected()) {
+				if (!$pageobj->isMyItem(LIST_RIGHTS) && $pageobj->isProtected()) {
 					$password_class = ' has_password';
 				}
 				break;
@@ -1517,7 +1513,7 @@ function printNestedMenu($option = 'list', $mode = NULL, $counter = TRUE, $css_i
 				} else {
 					$count = '';
 				}
-				if ($catobj->isProtected()) {
+				if (!$catobj->isMyItem(LIST_RIGHTS) && $catobj->isProtected()) {
 					$password_class = ' has_password';
 				}
 				break;
@@ -1733,10 +1729,8 @@ function next_page() {
 	}
 	while (!empty($_zp_next_pagelist)) {
 		$page = new ZenpagePage(array_shift($_zp_next_pagelist));
-		if ((zp_loggedin() && $page->isMyItem(LIST_RIGHTS)) || $page->checkForGuest()) {
-			$_zp_current_zenpage_page = $page;
-			return true;
-		}
+		$_zp_current_zenpage_page = $page;
+		return true;
 	}
 	$_zp_next_pagelist = NULL;
 	$_zp_current_zenpage_page = $_zp_current_page_restore;
@@ -1903,6 +1897,9 @@ function printPageLastChangeDate($before) {
 function getPageContent($titlelink = NULL, $published = true) {
 	global $_zp_current_zenpage_page;
 	if (is_Pages() && empty($titlelink)) {
+		if (!$_zp_current_zenpage_page->checkAccess()) {
+			return '<p>' . gettext('<em>This page is protected.</em>') . '</p>';
+		}
 		return $_zp_current_zenpage_page->getContent();
 	}
 	// print content of a page directly on a normal zenphoto theme page or any other page for example
@@ -2128,7 +2125,6 @@ function getLatestZenpageComments($number, $type = "all", $itemID = "") {
 	global $_zp_db;
 	$itemID = sanitize_numeric($itemID);
 	$number = sanitize_numeric($number);
-	$checkauth = zp_loggedin();
 
 	if ($type == 'all' || $type == 'news') {
 		$newspasswordcheck = "";
@@ -2139,13 +2135,11 @@ function getLatestZenpageComments($number, $type = "all", $itemID = "") {
 			$newscheck = $_zp_db->queryFullArray("SELECT * FROM " . $_zp_db->prefix('news') . " ORDER BY date");
 			foreach ($newscheck as $articlecheck) {
 				$obj = new ZenpageNews($articlecheck['titlelink']);
-				if ($obj->inProtectedCategory()) {
-					if ($checkauth && $obj->isMyItem(LIST_RIGHTS)) {
-						$newsshow = '';
-					} else {
-						$excludenews = " AND id != " . $articlecheck['id'];
-						$newspasswordcheck = $newspasswordcheck . $excludenews;
-					}
+				if ($obj->isVisible()) {
+					$newsshow = '';
+				} else {
+					$excludenews = " AND news.id != " . $articlecheck['id'];
+					$newspasswordcheck = $newspasswordcheck . $excludenews;
 				}
 			}
 		}
@@ -2159,13 +2153,11 @@ function getLatestZenpageComments($number, $type = "all", $itemID = "") {
 			$pagescheck = $_zp_db->queryFullArray("SELECT * FROM " . $_zp_db->prefix('pages') . " ORDER BY date");
 			foreach ($pagescheck as $pagecheck) {
 				$obj = new ZenpagePage($pagecheck['titlelink']);
-				if ($obj->isProtected()) {
-					if ($checkauth && $obj->isMyItem(LIST_RIGHTS)) {
-						$pagesshow = '';
-					} else {
-						$excludepages = " AND pages.id != " . $pagecheck['id'];
-						$pagepasswordcheck = $pagepasswordcheck . $excludepages;
-					}
+				if ($obj->isVisible()) {
+					$pagesshow = '';
+				} else {
+					$excludepages = " AND pages.id != " . $pagecheck['id'];
+					$pagepasswordcheck = $pagepasswordcheck . $excludepages;
 				}
 			}
 		}
@@ -2191,7 +2183,7 @@ function getLatestZenpageComments($number, $type = "all", $itemID = "") {
 						. " ORDER BY c.id DESC LIMIT $number");
 	}
 	if ($type == "all" OR $type == "page") {
-		$comments_pages = $_zp_db->queryFullArray($sql = "SELECT c.id, c.name, c.type, c.website,"
+		$comments_pages = $_zp_db->queryFullArray("SELECT c.id, c.name, c.type, c.website,"
 						. " c.date, c.anon, c.comment, pages.title, pages.titlelink FROM " . $_zp_db->prefix('comments') . " AS c, " . $_zp_db->prefix('pages') . " AS pages "
 						. $wherePages
 						. " ORDER BY c.id DESC LIMIT $number");

@@ -386,6 +386,27 @@ class openStreetMap {
 	public $tileproviders = NULL;
 
 	/**
+	 * Show the bounds of a marker cluster on hover
+	 * Default taken from plugin options
+	 * @var bool
+	 */
+	public $cluster_showcoverage_on_hover = NULL;
+	
+	/**
+	 * Show layers controls with selected layers
+	 * Default taken from plugin options
+	 * @var bool
+	 */
+	public $showlayerscontrol = NULL;
+	
+	/**
+	 * Position of the layers controls: "topleft", "topright", "bottomleft", "bottomright"
+	 * Default taken from plugin options
+	 * @var string
+	 */
+	public $layerscontrolpos = NULL;
+	
+	/**
 	 * If no $geodata array is passed the function gets geodata from the current image or the images of the current album
 	 * if in appropiate context.
 	 * 
@@ -556,8 +577,8 @@ class openStreetMap {
 			$result = array(
 					'lat' => $gps['lat'],
 					'long' => $gps['long'],
-					'title' => shortenContent($image->getTitle(), 50, '...') . '<br />',
-					'desc' => shortenContent($image->getDesc(), 100, '...'),
+					'title' => "<a href='" . $image->getLink() . "'>". js_encode(shortenContent($image->getTitle(), 50, '...')) . "</a><br />",
+					'desc' => js_encode(shortenContent($image->getDesc(), 100, '...')),
 					'thumb' => $thumb,
 					'current' => $current
 			);
@@ -635,8 +656,8 @@ class openStreetMap {
 				$js_geodata .= ' geodata[' . $count . '] = {
 					lat : "' . $geo['lat'] . '",
 					long : "' . $geo['long'] . '",
-					title : "' . js_encode(shortenContent($geo['title'], 50, '...')) . '",
-					desc : "' . js_encode(shortenContent($geo['desc'], 100, '...')) . '",
+					title : "' . $geo['title'] . '",
+					desc : "' . $geo['desc'] . '",
 					thumb : "' . $geo['thumb'] . '",
 					current : "' . $geo['current'] . '"
 
@@ -1053,7 +1074,7 @@ class openStreetMap {
  * 
  * The map is not shown if there is no geodata available.
  * 
- * @deprecated ZenphotoCMS 2.0 – Use openStreetMap::printOpenStreetMap() instead
+ * @deprecated 2.0 – Use openStreetMap::printOpenStreetMap() instead
  * 
  * @global obj $_zp_current_album
  * @global obj $_zp_current_image

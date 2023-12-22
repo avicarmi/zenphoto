@@ -108,11 +108,10 @@ datepickerJS();
 					if (isset($_GET['category'])) {
 						echo "<em>" . html_encode(sanitize($_GET['category'])) . '</em>';
 					}
+					$date = null;
 					if (isset($_GET['date'])) {
-						$_zp_post_date = sanitize($_GET['date']);
-						echo '<em><small> (' . html_encode($_zp_post_date) . ')</small></em>';
-						// require so the date dropdown is working
-						set_context(ZP_ZENPAGE_NEWS_DATE);
+						$date = sanitize($_GET['date']);
+						echo '<em><small> (' . html_encode($date) . ')</small></em>';
 					}
 					if (isset($_GET['published'])) {
 						switch ($_GET['published']) {
@@ -147,8 +146,8 @@ datepickerJS();
 							$author = null;
 						}
 					}
-					$resultU = $_zp_zenpage->getArticles(0, 'unpublished', false, $sortorder, $sortdirection, false, $catobj, $author);
-					$result = $_zp_zenpage->getArticles(0, $published, false, $sortorder, $direction, false, $catobj, $author);
+					$resultU = $_zp_zenpage->getArticles(0, 'unpublished', false, $sortorder, $direction, false, $catobj, $author, $date);
+					$result = $_zp_zenpage->getArticles(0, $published, false, $sortorder, $direction, false, $catobj, $author, $date);
 					foreach ($result as $key => $article) {
 						$article = new ZenpageNews($article['titlelink']);
 						if (!$article->isMyItem(ZENPAGE_NEWS_RIGHTS)) {
@@ -308,13 +307,8 @@ datepickerJS();
 									<?php printExpired($article); ?>
 								</td>
 								<td class="page-list_icon">
-									<?php
-									if ($article->inProtectedCategory()) {
-										echo '<img src="../../images/lock.png" style="border: 0px;" alt="' . gettext('Password protected') . '" title="' . gettext('Password protected') . '" />';
-									}
-									?>
+									<?php printProtectedIcon($article); ?>
 								</td>
-
 								<?php
         $option = getNewsAdminOptionPath(getNewsAdminOption(array('category' => 0, 'date' => 0, 'published' => 0, 'sortorder' => 0, 'articles_page' => 1, 'subpage' => 1)));
         if (empty($option)) {

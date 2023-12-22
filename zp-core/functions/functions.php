@@ -410,7 +410,8 @@ function getStandardDateFormats($type = "datetime") {
 			'd-M-y' => 'dd-MMM-yy', //25-Feb-08
 			'd-M-Y' => 'dd-MMM-yyyy', //25-Feb-2008
 			'M d, Y' => 'MMM dd, yyyy', //Feb 25, 2008
-			'F d, Y' => 'MMMM dd, yyyy' //February 25, 2008
+			'F d, Y' => 'MMMM dd, yyyy', //February 25, 2008
+			'F Y' => 'MMMM yyyy', //February 2008
 	);
 	$timeformats = array(
 			'H:i'			=> 'H:mm', //15:30 / 03:30
@@ -613,56 +614,12 @@ function sortByMultilingual($dbresult, $field, $descending) {
  * @return bool
  */
 function checkAlbumPassword($album, &$hint = NULL) {
-	global $_zp_pre_authorization, $_zp_gallery;
 	if (is_object($album)) {
-		$albumname = $album->name;
+		$albumobj = $album;
 	} else {
-		$album = AlbumBase::newAlbum($albumname = $album, true, true);
+		$albumobj = AlbumBase::newAlbum($album, true, true);
 	}
-	if (isset($_zp_pre_authorization[$albumname])) {
-		return $_zp_pre_authorization[$albumname];
-	}
-	$hash = $album->getPassword();
-	if (empty($hash)) {
-		$album = $album->getParent();
-		while (!is_null($album)) {
-			$hash = $album->getPassword();
-			$authType = "zpcms_auth_album_" . $album->getID();
-			$saved_auth = zp_getCookie($authType);
-
-			if (!empty($hash)) {
-				if ($saved_auth == $hash) {
-					$_zp_pre_authorization[$albumname] = $authType;
-					return $authType;
-				} else {
-					$hint = $album->getPasswordHint();
-					return false;
-				}
-			}
-			$album = $album->getParent();
-		}
-		// revert all tlhe way to the gallery
-		$hash = $_zp_gallery->getPassword();
-		$authType = 'zpcms_auth_gallery';
-		$saved_auth = zp_getCookie($authType);
-		if (empty($hash)) {
-			$authType = 'zp_public_access';
-		} else {
-			if ($saved_auth != $hash) {
-				$hint = $_zp_gallery->getPasswordHint();
-				return false;
-			}
-		}
-	} else {
-		$authType = "zpcms_auth_album_" . $album->getID();
-		$saved_auth = zp_getCookie($authType);
-		if ($saved_auth != $hash) {
-			$hint = $album->getPasswordHint();
-			return false;
-		}
-	}
-	$_zp_pre_authorization[$albumname] = $authType;
-	return $authType;
+	return $albumobj->checkForGuest($hint);
 }
 
 /**
@@ -1056,7 +1013,7 @@ function setupTheme($album = NULL) {
 	$theme = $_zp_gallery->getCurrentTheme();
 	$id = 0;
 	if (!is_null($album)) {
-		$parent = $album->getUrAlbum();
+		$parent = $album->getUrParent();
 		$albumtheme = $parent->getAlbumTheme();
 		if (!empty($albumtheme)) {
 			$theme = $albumtheme;
@@ -1641,21 +1598,18 @@ function sortArray(&$array, $descending = false, $natsort = true, $case_sensitiv
  */
 function getNotViewableAlbums() {
 	global $_zp_not_viewable_album_list, $_zp_db;
-	if (zp_loggedin(ADMIN_RIGHTS | MANAGE_ALL_ALBUM_RIGHTS))
+	if (zp_loggedin(ADMIN_RIGHTS | MANAGE_ALL_ALBUM_RIGHTS)) {
 		return array(); //admins can see all
+	}
 	if (is_null($_zp_not_viewable_album_list)) {
-		$sql = 'SELECT `folder`, `id`, `password`, `show` FROM ' . $_zp_db->prefix('albums') . ' WHERE `show`=0 OR `password`!=""';
+		$sql = 'SELECT `folder` FROM ' . $_zp_db->prefix('albums');
 		$result = $_zp_db->query($sql);
 		if ($result) {
 			$_zp_not_viewable_album_list = array();
 			while ($row = $_zp_db->fetchAssoc($result)) {
-				if (checkAlbumPassword($row['folder'])) {
-					$album = AlbumBase::newAlbum($row['folder']);
-					if (!($row['show'] || $album->isMyItem(LIST_RIGHTS))) {
-						$_zp_not_viewable_album_list[] = $row['id'];
-					}
-				} else {
-					$_zp_not_viewable_album_list[] = $row['id'];
+				$album = AlbumBase::newAlbum($row['folder']);
+				if (!$album->isVisible()) {
+					$_zp_not_viewable_album_list[] = $album->getID();
 				}
 			}
 			$_zp_db->freeResult($result);
@@ -1677,7 +1631,7 @@ function getNotViewableImages() {
 	$hidealbums = getNotViewableAlbums();
 	$where = '';
 	if ($hidealbums) {
-		$where = ' OR `albumid` in (' . implode(',', $hidealbums) . ')';
+		$where = ' OR `albumid` IN (' . implode(',', $hidealbums) . ')';
 	}
 	if (is_null($_zp_not_viewable_image_list)) {
 		$sql = 'SELECT DISTINCT `id` FROM ' . $_zp_db->prefix('images') . ' WHERE `show` = 0' . $where;
@@ -2886,28 +2840,6 @@ function setexifvars() {
 		}
 		$_zp_exifvars[$key][3] = getOption($key);
 	}
-}
-
-/**
- *
- * Returns true if the install is not a "clone"
- */
-function hasPrimaryScripts() {
-	if (!defined('PRIMARY_INSTALLATION')) {
-		if (function_exists('readlink') && ($zen = str_replace('\\', '/', @readlink(SERVERPATH . '/' . ZENFOLDER)))) {
-			// no error reading the link info
-			$os = strtoupper(PHP_OS);
-			$sp = SERVERPATH;
-			if (substr($os, 0, 3) == 'WIN' || $os == 'DARWIN') { // canse insensitive file systems
-				$sp = strtolower($sp);
-				$zen = strtolower($zen);
-			}
-			define('PRIMARY_INSTALLATION', $sp == dirname($zen));
-		} else {
-			define('PRIMARY_INSTALLATION', true);
-		}
-	}
-	return PRIMARY_INSTALLATION;
 }
 
 /**

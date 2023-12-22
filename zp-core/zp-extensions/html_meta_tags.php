@@ -106,11 +106,18 @@ class htmlmetatags {
 						'selections' => array(
 								'noindex' => "noindex",
 								'index' => "index",
+								'index,noai,noimageai' => "index,noai,noimageai",
 								'nofollow' => "nofollow",
+								'nofollow,oai,noimageai' => "nofollow,noai,noimageai",
 								'noindex,nofollow' => "noindex,nofollow",
 								'noindex,follow' => "noindex,follow",
+								'noindex,follow,noai,noimageai' => "noindex,follow,noai,noimageai",
+								'noindex,nofollow,noai,noimageai' => "noindex,nofollow,noai,noimageai",
 								'index,nofollow' => "index,nofollow",
-								'none' => "none"),
+								'index,nofollow,noai,noimageai' => "index,nofollow,noai,noimageai",
+								'noai,noimageai' => 'noai,noimageai',
+								'none' => "none"
+						),
 						'desc' => gettext("If and how robots are allowed to visit the site. Default is “index”. Note that you also should use a robot.txt file.")),
 				gettext('Revisit after') => array(
 						'key' => 'htmlmeta_revisit_after',
@@ -245,6 +252,7 @@ class htmlmetatags {
 		$copyright_notice = $_zp_gallery->getCopyrightNotice();
 		$copyright_url = $_zp_gallery->getCopyrightURL();
 		$type = 'article';
+		$public = true;
 		switch ($_zp_gallery_page) {
 			case 'index.php':
 			case getCustomGalleryIndexPage():
@@ -271,6 +279,7 @@ class htmlmetatags {
 					$twittercard_type = 'summary_large_image';
 				}
 				$author = $_zp_current_album->getOwner(true);
+				$public = $_zp_current_album->isPublic();
 				break;
 			case 'image.php':
 				$pagetitle = getBareImageTitle() . " (" . getBareAlbumTitle() . ") - ";
@@ -284,6 +293,7 @@ class htmlmetatags {
 				$author = $_zp_current_image->getCopyrightRightsholder();
 				$copyright_notice = trim(getBare($_zp_current_image->getCopyrightNotice()));
 				$copyright_url = trim(strval($_zp_current_image->getCopyrightURL()));
+				$public = $_zp_current_image->isPublic();
 				break;
 			case 'news.php':
 				if (function_exists("is_NewsArticle")) {
@@ -293,12 +303,14 @@ class htmlmetatags {
 						$desc = trim(getBare(getNewsContent()));
 						$canonicalurl = $host . $_zp_current_zenpage_news->getLink();
 						$author = $_zp_current_zenpage_news->getAuthor(true);
+						$public = $_zp_current_zenpage_news->isPublic();
 					} else if (is_NewsCategory()) {
 						$pagetitle = $_zp_current_category->getName() . " - ";
 						$date = zpFormattedDate(DATE_FORMAT);
 						$desc = trim(getBare($_zp_current_category->getDesc()));
 						$canonicalurl = $host . $_zp_current_category->getLink();
-						$type = 'category';
+						$public = $_zp_current_category->isPublic();
+						$type = 'category';	
 					} else {
 						$pagetitle = gettext('News') . " - ";
 						$desc = '';
@@ -316,6 +328,7 @@ class htmlmetatags {
 				$desc = trim(getBare(getPageContent()));
 				$canonicalurl = $host . $_zp_current_zenpage_page->getLink();
 				$author = $_zp_current_zenpage_page->getAuthor(true);
+				$public = $_zp_current_zenpage_page->isPublic();
 				break;
 			default: // for all other possible static custom pages
 				$custompage = stripSuffix($_zp_gallery_page);
@@ -334,7 +347,6 @@ class htmlmetatags {
 					$canonicalurl .= $_zp_page . '/';
 				}
 				break;
-
 		}
 		// shorten desc to the allowed 200 characters if necesssary.
 		$desc = html_encode(trim(substr(getBare($desc), 0, 160)));
@@ -362,7 +374,11 @@ class htmlmetatags {
 			$meta .= '<meta name="page-topic" content="' . $desc . '">' . "\n";
 		}
 		if (getOption('htmlmeta_name-robots')) {
-			$meta .= '<meta name="robots" content="' . getOption("htmlmeta_robots") . '">' . "\n";
+			if ($public) {
+				$meta .= '<meta name="robots" content="' . getOption("htmlmeta_robots") . '">' . "\n";
+			} else {
+				$meta .= '<meta name="robots" content="noindex,nofollow">' . "\n";
+			}
 		}
 		if (getOption('htmlmeta_name-publisher')) {
 			$meta .= '<meta name="publisher" content="' .  html_encode($copyright_url) . '">' . "\n";
@@ -541,7 +557,7 @@ class htmlmetatags {
 	 * 
 	 * Note keywords do not have an SEO meaning anymore
 	 * 
-	 * @deprecated ZenphotoCMS 2.0
+	 * @deprecated 2.0
 	 *
 	 * @param array $array the array of the tags or categories to list
 	 */

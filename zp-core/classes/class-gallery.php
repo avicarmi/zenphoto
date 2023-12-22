@@ -362,7 +362,7 @@ class Gallery {
 		if (is_array($albums)) {
 			foreach ($albums as $folder) {
 				$album = AlbumBase::newAlbum($folder);
-				if ($is_fulladmin || $album->isMyItem($rights)) {
+				if ($is_fulladmin || $album->isVisible($rights)) {
 					if ($album->isDynamic()) {
 						if ($is_fulladmin || $rights == ALL_ALBUMS_RIGHTS) {
 							if ($includetitles) {
@@ -443,7 +443,7 @@ class Gallery {
 		if ($result) {
 			while ($row = $_zp_db->fetchAssoc($result)) {
 				$album = AlbumBase::newAlbum($row['folder']);
-				if ($album->exists && ($is_fulladmin || $album->isMyItem($rights))) {
+				if ($album->exists && ($is_fulladmin || $album->isVisible($rights))) {
 					if ($album->isDynamic()) {
 						if ($is_fulladmin || $rights == ALL_ALBUMS_RIGHTS) {
 							if ($includetitles) {
@@ -818,7 +818,7 @@ class Gallery {
 										$data = substr($data, $i + 1);
 									}
 									if (strpos($data1, 'WORDS=') !== false) {
-										$words = "searchs=" . urlencode(substr($data1, 6));
+										$words = "s=" . urlencode(substr($data1, 6));
 									}
 									if (strpos($data1, 'THUMB=') !== false) {
 										$thumb = trim(substr($data1, 6));
@@ -1055,15 +1055,18 @@ class Gallery {
 		foreach ($results as $row) { // check for visible
 			$folder = $row['folder'];
 			$album = AlbumBase::newAlbum($folder);
-			switch (themeObject::checkScheduledPublishing($row)) {
+			switch(themeObject::checkScheduledPublishing($row)) {
 				case 1:
+					// permanent as expired
 					$album->setPublished(0);
 					$album->save();
+					break;
 				case 2:
-					$row['show'] = 0;
+					// temporary as future published
+					$album->setPublished(0);
+					break;
 			}
-
-			if ($mine || $row['show'] || (($list = $album->isMyItem(LIST_RIGHTS)) && is_null($album->getParent())) || (is_null($mine) && $list && $viewUnpublished)) {
+			if ($mine || $viewUnpublished || (!$this->isProtectedGalleryIndex() && $album->isPublic()) || $album->isVisible()) {
 				$albums_ordered[] = $folder;
 			}
 		}
@@ -1107,7 +1110,7 @@ class Gallery {
 	/**
 	 * Title to be used for a parent website if Zenphoto is used as a part of it
 	 * 
-	 * @deprecated ZenphotoCMS 2.0: Use the method getParentSiteTitle() instead
+	 * @deprecated 2.0: Use the method getParentSiteTitle() instead
 	 * 
 	 * @param string $locale
 	 * @return string
@@ -1129,7 +1132,7 @@ class Gallery {
 
 	/**
 	 * Set the title to be used for a parent website if Zenphoto is used as a part of it
-	 * @deprecated ZenphotoCMS 2.0: Use the method setParentSiteTitle() instead
+	 * @deprecated 2.0: Use the method setParentSiteTitle() instead
 	 * @param type $value
 	 */
 	function setWebsiteTitle($value) {
@@ -1150,7 +1153,7 @@ class Gallery {
 
 	/**
 	 * The URL of the home (not Zenphoto gallery) WEBsite
-	 * @deprecated ZenphotoCMS 2.0: Use the method getParentSiteURL() instead
+	 * @deprecated 2.0: Use the method getParentSiteURL() instead
 	 * 
 	 * @return string
 	 */
@@ -1172,7 +1175,7 @@ class Gallery {
 
 	/**
 	 * Set URL of the home (not Zenphoto gallery) WEBsite
-	 * @deprecated ZenphotoCMS 2.0: Use the method setParentSiteURL() instead
+	 * @deprecated 2.0: Use the method setParentSiteURL() instead
 	 * 
 	 * @return string
 	 */
@@ -1246,15 +1249,44 @@ class Gallery {
 	function setGallerySession($value) {
 		$this->set('album_session', $value);
 	}
+	
+	/**
+	 * Checks if the site is protected and if the gallery index is one of the unprotected pages
+	 * 
+	 * @since 1.6.1
+	 * 
+	 * @global string $_zp_gallery_page
+	 * @return bool
+	 */
+	function isProtectedGalleryIndex() {
+		global $_zp_gallery_page;
+		$validindexes = array(
+				'gallery',
+				'index'
+		);
+		$current = stripSuffix($_zp_gallery_page);
+		if (GALLERY_SECURITY != 'public' && !zp_loggedin()) {
+			if (in_array($current, $validindexes) && in_array($current, $this->unprotected_pages)) {
+				return false;
+			} else {
+				return true;
+			}
+		} else {
+			return false;
+		}
+	}
 
 	/**
 	 *
-	 * Tests if a page is excluded from password protection
+	 * Tests if a custom page is excluded from password protection
 	 * @param $page
+	 * @return boolean
 	 */
 	function isUnprotectedPage($page) {
 		return (in_array($page, $this->unprotected_pages));
 	}
+	
+
 
 	function setUnprotectedPage($page, $on) {
 		if ($on) {

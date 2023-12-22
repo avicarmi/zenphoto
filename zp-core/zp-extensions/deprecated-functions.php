@@ -101,7 +101,7 @@ class deprecated_functions {
 
 	/**
 	 * used to provided deprecated function notification.
-	 * @deprecated ZenphotoCMS 2.0
+	 * @deprecated 2.0
 	 */
 	static function notify($use) {
 	 deprecationNotice(gettext('Use deprecationNotice() instead'));
@@ -113,7 +113,7 @@ class deprecated_functions {
 				'category' => gettext('Development'),
 				'enable' => true,
 				'button_text' => gettext('Check deprecated use'),
-				'formname' => 'deprecated_functions_check.php',
+				'formname' => 'deprecated_functions_check',
 				'action' => FULLWEBPATH . '/' . ZENFOLDER . '/' . PLUGIN_FOLDER . '/deprecated-functions/check_for_deprecated.php',
 				'icon' => 'images/magnify.png',
 				'title' => gettext("Searches PHP scripts for use of deprecated functions."),

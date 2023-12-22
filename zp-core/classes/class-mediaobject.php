@@ -85,7 +85,7 @@ class MediaObject extends ThemeObject {
 			return $this->get('password');
 		}
 	}
-
+	
 	/**
 	 * Sets the encrypted password
 	 *
@@ -117,6 +117,7 @@ class MediaObject extends ThemeObject {
 	function setPasswordHint($hint) {
 		$this->set('password_hint', tagURLs($hint));
 	}
+	
 
 	/**
 	 * Returns the expire date

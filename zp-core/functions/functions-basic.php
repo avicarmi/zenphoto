@@ -58,9 +58,15 @@ if ($const_webpath == '/' || $const_webpath == '.') {
 	$const_webpath = '';
 }
 
-if (defined('SERVERPATH')) {
-	$const_serverpath = SERVERPATH;
+if (!defined('WEBPATH')) {
+	define('WEBPATH', $const_webpath);
 }
+unset($const_webpath);
+
+if (!defined('SERVERPATH')) {
+	define('SERVERPATH', $const_serverpath);
+}
+unset($const_serverpath);
 
 // Contexts (Bitwise and combinable)
 define("ZP_INDEX", 1);
@@ -110,22 +116,13 @@ set_exception_handler("zpErrorHandler");
 $_zp_mutex = new zpMutex('cF');
 
 // Including the config file more than once is OK, and avoids $conf missing.
-if (OFFSET_PATH != 2 && !file_exists($const_serverpath . '/' . DATA_FOLDER . '/' . CONFIGFILE)) {
+if (OFFSET_PATH != 2 && !file_exists(SERVERPATH . '/' . DATA_FOLDER . '/' . CONFIGFILE)) {
 	require_once(dirname(__FILE__) . '/functions-reconfigure.php');
 	reconfigureAction(1);
 } else {
-	require_once $const_serverpath . '/' . DATA_FOLDER . '/' . CONFIGFILE;
+	require_once SERVERPATH . '/' . DATA_FOLDER . '/' . CONFIGFILE;
 }
 
-if (!defined('WEBPATH')) {
-	define('WEBPATH', $const_webpath);
-}
-unset($const_webpath);
-
-if (!defined('SERVERPATH')) {
-	define('SERVERPATH', $const_serverpath);
-}
-unset($const_serverpath);
 
 // If the server protocol is not set, set it to the default.
 if (!isset($_zp_conf_vars['server_protocol'])) {
@@ -1060,9 +1057,20 @@ function getImageProcessorURIFromCacheName($match, $watermarks) {
 		$set['wmk'] = '!';
 	}
 	$image = preg_replace('~.*/' . CACHEFOLDER . '/~', '', implode('_', $params)) . '.' . getSuffix($match);
-	//	strip out the obfustication
+	//	strip out the obfuscation
 	$album = dirname($image);
 	$image = preg_replace('~^[0-9a-f]{' . CACHE_HASH_LENGTH . '}\.~', '', basename($image));
+	if (IMAGE_CACHE_SUFFIX) {
+		$candidates = glob(ALBUM_FOLDER_SERVERPATH . $album . "/" . stripSuffix($image) . ".*");
+		if (is_array($candidates)) {
+			foreach ($candidates as $file) {
+				if (Gallery::validImage($file)) {
+					$image = basename($file);
+					break;
+				}
+			}
+		}
+	}
 	$image = $album . '/' . $image;
 	return array($image, getImageArgs($set));
 }
@@ -1231,16 +1239,24 @@ function rewrite_path($rewrite, $plain, $webpath = NULL) {
 		} else {
 			$webpath = WEBPATH;
 		}
+	} else {
+		if (class_exists('seo_locale')) {
+			$fullpath = false;
+			if ($webpath == FULLWEBPATH) {
+				$fullpath = true;
+			} 
+			$webpath = seo_locale::localePath($fullpath);
+		} 
 	}
 	if (MOD_REWRITE) {
 		$path = $rewrite;
 	} else {
 		$path = $plain;
 	}
-	if ($path[0] == "/") {
+	if ($path[0] == '/') {
 		$path = substr($path, 1);
 	}
-	return $webpath . "/" . $path;
+	return $webpath . '/' . $path;
 }
 
 /**
@@ -1467,16 +1483,22 @@ function switchLog($log) {
  * or would create havoc in the HTML.
  * Creates (or adds to) a file named debug.log which is located in the zenphoto core folder
  *
- * @param string $message the debug information
+ * @param string|array|object $message the debug information. This can also be an array or object. For detailed info about the content use debuglogVar().
  * @param bool $reset set to true to reset the log to zero before writing the message
+ * @param string $logname Optional custom log name to log to, default "debug"
  */
-function debugLog($message, $reset = false) {
+function debugLog($message, $reset = false, $logname = 'debug') {
 	if (defined('SERVERPATH')) {
 		global $_zp_mutex;
-		$path = SERVERPATH . '/' . DATA_FOLDER . '/debug.log';
+		$logname = str_replace('_', '-', $logname);
+		if (getOption('daily_logs')) {
+			$logname .= '_' . date('Y-m-d');
+		}
+		$path = SERVERPATH . '/' . DATA_FOLDER . '/' . $logname . '.log';
 		$me = getmypid();
-		if (is_object($_zp_mutex))
+		if (is_object($_zp_mutex)) {
 			$_zp_mutex->lock();
+		}
 		if ($reset || ($size = @filesize($path)) == 0 || (defined('DEBUG_LOG_SIZE') && DEBUG_LOG_SIZE && $size > DEBUG_LOG_SIZE)) {
 			if (!$reset && $size > 0) {
 				switchLog('debug');
@@ -1494,7 +1516,10 @@ function debugLog($message, $reset = false) {
 			$f = fopen($path, 'a');
 			if ($f) {
 				fwrite($f, '{' . $me . ':' . gmdate('D, d M Y H:i:s') . " GMT}\n");
-			}	
+			}
+		}
+		if (is_array($message) || is_object($message)) {
+			$message = print_r($message, true);
 		}
 		if ($f) {
 			fwrite($f, "  " . $message . "\n");
@@ -1504,8 +1529,9 @@ function debugLog($message, $reset = false) {
 				@chmod($path, LOGS_MOD);
 			}
 		}
-		if (is_object($_zp_mutex))
+		if (is_object($_zp_mutex)) {
 			$_zp_mutex->unlock();
+		}
 	}
 }
 
@@ -2256,4 +2282,26 @@ function convertStrftimeFormat($format = '') {
 	);
 	$oldformat = array_keys($catalogue);
 	return str_replace($oldformat, $catalogue, strval($format));
+}
+
+/**
+ *
+ * Returns true if the install is not a "clone"
+ */
+function hasPrimaryScripts() {
+	if (!defined('PRIMARY_INSTALLATION')) {
+		if (function_exists('readlink') && ($zen = str_replace('\\', '/', @readlink(SERVERPATH . '/' . ZENFOLDER)))) {
+			// no error reading the link info
+			$os = strtoupper(PHP_OS);
+			$sp = SERVERPATH;
+			if (substr($os, 0, 3) == 'WIN' || $os == 'DARWIN') { // canse insensitive file systems
+				$sp = strtolower($sp);
+				$zen = strtolower($zen);
+			}
+			define('PRIMARY_INSTALLATION', $sp == dirname($zen));
+		} else {
+			define('PRIMARY_INSTALLATION', true);
+		}
+	}
+	return PRIMARY_INSTALLATION;
 }

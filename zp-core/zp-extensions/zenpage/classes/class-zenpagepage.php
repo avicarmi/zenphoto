@@ -13,7 +13,7 @@ class ZenpagePage extends ZenpageItems {
 	public $view_rights = ALL_PAGES_RIGHTS;
 	public $parent = null;
 	public $parents = null;
-	protected $is_public = null;
+	public $urparent = null;
 
 	function __construct($titlelink, $allowCreate = NULL) {
 		if (is_array($titlelink)) {
@@ -108,6 +108,20 @@ class ZenpagePage extends ZenpageItems {
 			return $this->get('password');
 		}
 	}
+	
+	/**
+	 * Returns true if not protected but protection is inherited by a parent
+	 * 
+	 * @since 1.6.1
+	 * 
+	 * @return bool
+	 */
+	function isProtectedByParent() {
+		if($this->isProtected() && !$this->getPassword()) {
+			return true;
+		}
+		return false;
+	}
 
 	/**
 	 * Sets the encrypted password
@@ -200,37 +214,41 @@ class ZenpagePage extends ZenpageItems {
 	 * @return obj|null
 	 */
 	function getParent() {
-		if (is_null($this->parent)) {
-			$parentid = $this->getParentID();
-			$obj = getItembyID('pages', $parentid);
-			if ($obj) {
-				return $obj;
+		if ($this->getParentID()) {
+			if (is_null($this->parent)) {
+				$obj = getItembyID('pages', $this->getParentID());
+				if ($obj) {
+					return $obj;
+				}
+			} else {
+				return $this->parent;
 			}
-		} else {
-			return $this->parent;
 		}
 		return null;
 	}
 
 	/**
-	 * Gets the parent pages' titlelinks recursivly to the page
+	 * Gets the parent pages' name recursivly to the page
 	 *
 	 * @return array
 	 */
 	function getParents() {
 		if (func_num_args() != 0) {
-			debuglog(gettext('class ZenpagePage getParents(): The parameters $parentid and $initparents have been removed in Zenphoto 1.5.5.'));
+			deprecationNotice(gettext('class ZenpagePage getParents(): The parameters $parentid and $initparents have been removed in Zenphoto 1.5.5.'), true);
 		}
-		if (is_null($this->parents)) {
-			$parents = array();
-			$page = $this;
-			while (!is_null($page = $page->getParent())) {
-				array_unshift($parents, $page->getName());
+		if ($this->getParentID()) {
+			if (is_null($this->parents)) {
+				$parents = array();
+				$page = $this;
+				while (!is_null($page = $page->getParent())) {
+					array_unshift($parents, $page->getName());
+				}
+				return $this->parents = $parents;
+			} else {
+				return $this->parents;
 			}
-			return $this->parents = $parents;
-		} else {
-			return $this->parents;
 		}
+		return $this->parents = array();
 	}
 
 	/**
@@ -288,16 +306,6 @@ class ZenpagePage extends ZenpageItems {
 	}
 	
 	/**
-	 * Checks if a page is protected and returns TRUE or FALSE
-	 * NOTE: This function does only check if a password is set not if it has been entered! Use $this->checkforGuest() for that.
-	 *
-	 * @return bool
-	 */
-	function isProtected() {
-		return $this->checkforGuest() != 'zp_public_access';
-	}
-	
-	/**
 	 * Returns true if this page is published and also all of its parents.
 	 * 
 	 * @since 1.5.5
@@ -321,11 +329,11 @@ class ZenpagePage extends ZenpageItems {
 
 	/**
 	 * Checks if user is author of page
-	 * @param bit $action what the caller wants to do
+	 * @param bit $action User rights level, default LIST_RIGHTS
 	 *
 	 * returns true of access is allowed
 	 */
-	function isMyItem($action) {
+	function isMyItem($action = LIST_RIGHTS) {
 		global $_zp_current_admin_obj;
 		if (parent::isMyItem($action)) {
 			return true;
@@ -350,12 +358,11 @@ class ZenpagePage extends ZenpageItems {
 	/**
 	 * Returns full path to a specific page
 	 *
+	 * @param string $path Default null, optionally pass a path constant like WEBPATH or FULLWEBPATH
 	 * @return string
 	 */
-	function getLink() {
-		return zp_apply_filter('getLink', rewrite_path(_PAGES_ . '/' . $this->getName() . '/', '/index.php?p=pages&title=' . $this->getName()), $this, NULL);
+	function getLink($path = null) {
+		return zp_apply_filter('getLink', rewrite_path(_PAGES_ . '/' . $this->getName() . '/', '/index.php?p=pages&title=' . $this->getName(), $path), $this, NULL);
 	}
 
 }
-
-?>

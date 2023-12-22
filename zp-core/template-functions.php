@@ -48,7 +48,7 @@ function printZenJavascripts() {
 	}
 	if (zp_loggedin()) {
 				?>
-		<link rel="stylesheet" href="<?php echo WEBPATH . '/' . ZENFOLDER; ?>/admintoolbox.css" type="text/css" />
+		<link rel="stylesheet" href="<?php echo WEBPATH . '/' . ZENFOLDER; ?>/css/admintoolbox.css" type="text/css" />
 		<?php
 	}
 }
@@ -77,9 +77,9 @@ function adminToolbox() {
 		<div id="zp__admin_module">
 			<div id="zp__admin_info">
 				<span class="zp_logo">ZP</span>
-				<span class="zp_user"> <?php echo $_zp_current_admin_obj->getUser(); ?>
+				<span class="zp_user"><?php echo $_zp_current_admin_obj->getUser(); ?>
 					<?php
-					if(array_key_exists('site_upgrade_state', $_zp_conf_vars)) {
+					if (array_key_exists('site_upgrade_state', $_zp_conf_vars)) {
 						if ($_zp_conf_vars['site_upgrade_state'] == 'closed_for_test') {
 							$maintenance_link = maintenanceMode::getUtilityLinkHTML();
 							echo ' | <span class="zp_sitestatus">' . gettext('Test mode') . $maintenance_link . '</span>';
@@ -93,237 +93,260 @@ function adminToolbox() {
 			</button>
 			<div id="zp__admin_data" style="display: none;">
 				<ul>
-				<?php
-				$outputA = ob_get_contents();
-				ob_end_clean();
-				ob_start();
+					<li>
+						<ul class="zp__admin_list-global">
+							<?php
+							$outputA = ob_get_contents();
+							ob_end_clean();
+							ob_start();
 
-				if (zp_loggedin(OVERVIEW_RIGHTS)) {
-					?>
-					<li>
-						<?php printLinkHTML($zf . '/admin.php', gettext("Overview"), NULL, NULL, NULL); ?>
-					</li>
-					<?php
-				}
-				if (zp_loggedin(UPLOAD_RIGHTS | FILES_RIGHTS | THEMES_RIGHTS)) {
-					?>
-					<li>
-						<?php printLinkHTML($zf . '/admin-upload.php', gettext("Upload"), NULL, NULL, NULL); ?>
-					</li>
-					<?php
-				}
-				if (zp_loggedin(ALBUM_RIGHTS)) {
-					?>
-					<li>
-						<?php printLinkHTML($zf . '/admin-edit.php', gettext("Albums"), NULL, NULL, NULL); ?>
-					</li>
-					<?php
-				}
-				zp_apply_filter('admin_toolbox_global', $zf);
-
-				if (zp_loggedin(TAGS_RIGHTS)) {
-					?>
-					<li>
-						<?php printLinkHTML($zf . '/admin-tags.php', gettext("Tags"), NULL, NULL, NULL); ?>
-					</li>
-					<?php
-				}
-				if (zp_loggedin(USER_RIGHTS)) {
-					?>
-					<li>
-						<?php printLinkHTML($zf . '/admin-users.php', gettext("Users"), NULL, NULL, NULL); ?>
-					</li>
-					<?php
-				}
-				if (zp_loggedin(OPTIONS_RIGHTS)) {
-					?>
-					<li>
-						<?php printLinkHTML($zf . '/admin-options.php?tab=general', gettext("Options"), NULL, NULL, NULL); ?>
-					</li>
-					<?php
-				}
-				if (zp_loggedin(THEMES_RIGHTS)) {
-					?>
-					<li>
-						<?php printLinkHTML($zf . '/admin-themes.php', gettext("Themes"), NULL, NULL, NULL); ?>
-					</li>
-					<?php
-				}
-				if (zp_loggedin(ADMIN_RIGHTS)) {
-					?>
-					<li>
-						<?php printLinkHTML($zf . '/admin-plugins.php', gettext("Plugins"), NULL, NULL, NULL); ?>
-					</li>
-					<li>
-						<?php printLinkHTML($zf . '/admin-logs.php', gettext("Logs"), NULL, NULL, NULL); ?>
-					</li>
-					<?php
-				}
-
-				$gal = getOption('custom_index_page');
-				if (empty($gal) || !file_exists(SERVERPATH . '/' . THEMEFOLDER . '/' . $_zp_gallery->getCurrentTheme() . '/' . internalToFilesystem($gal) . '.php')) {
-					$gal = 'index.php';
-				} else {
-					$gal .= '.php';
-				}
-				$inImage = false;
-				switch ($_zp_gallery_page) {
-					case 'index.php':
-					case $gal:
-						// script is either index.php or the gallery index page
-						if (zp_loggedin(ADMIN_RIGHTS)) {
-							?>
-							<li>
-								<?php printLinkHTML($zf . '/admin-edit.php?page=edit', gettext("Sort Gallery"), NULL, NULL, NULL); ?>
-							</li>
-							<?php
-						}
-						if (zp_loggedin(MANAGE_ALL_ALBUM_RIGHTS)) {
-							// admin has upload rights, provide an upload link for a new album
-							?>
-							<li>
-								<a href="javascript:newAlbum('',true);"><?php echo gettext("New Album"); ?></a>
-							</li>
-							<?php
-						}
-						if ($_zp_gallery_page == 'index.php') {
-							$redirect = '';
-						} else {
-							$redirect = "&p=" . urlencode(stripSuffix($_zp_gallery_page));
-						}
-						if ($page > 1) {
-							$redirect .= "&page=$page";
-						}
-						zp_apply_filter('admin_toolbox_gallery', $zf);
-						break;
-					case 'image.php':
-						$inImage = true; // images are also in albums[sic]
-					case 'album.php':
-						// script is album.php
-						$albumname = $_zp_current_album->name;
-						if ($_zp_current_album->isMyItem(ALBUM_RIGHTS)) {
-							// admin is empowered to edit this album--show an edit link
-							?>
-							<li>
-								<?php printLinkHTML($zf . '/admin-edit.php?page=edit&album=' . pathurlencode($_zp_current_album->name), gettext('Edit album'), NULL, NULL, NULL); ?>
-							</li>
-							<?php
-							if (!$_zp_current_album->isDynamic()) {
-								if ($_zp_current_album->getNumAlbums()) {
-									?>
-									<li>
-										<?php printLinkHTML($zf . '/admin-edit.php?page=edit&album=' . pathurlencode($albumname) . '&tab=subalbuminfo', gettext("Sort subalbums"), NULL, NULL, NULL); ?>
-									</li>
-									<?php
-								}
-								if ($_zp_current_album->getNumImages() > 0) {
-									?>
-									<li>
-										<?php printLinkHTML($zf . '/admin-albumsort.php?page=edit&album=' . pathurlencode($albumname) . '&tab=sort', gettext("Sort images"), NULL, NULL, NULL); ?>
-									</li>
-									<?php
-								}
-							}
-							// and a delete link
-							?>
-							<li>
-								<a href="javascript:confirmDeleteAlbum('<?php echo $zf; ?>/admin-edit.php?page=edit&amp;action=deletealbum&amp;album=<?php echo urlencode(pathurlencode($albumname)) ?>&amp;XSRFToken=<?php echo getXSRFToken('delete'); ?>');"
-									 title="<?php echo gettext('Delete the album'); ?>"><?php echo gettext('Delete album'); ?></a>
-							</li>
-							<?php
-						}
-						if ($_zp_current_album->isMyItem(UPLOAD_RIGHTS) && !$_zp_current_album->isDynamic()) {
-							// provide an album upload link if the admin has upload rights for this album and it is not a dynamic album
-							?>
-							<li>
-								<?php printLinkHTML($zf . '/admin-upload.php?album=' . pathurlencode($albumname), gettext("Upload Here"), NULL, NULL, NULL); ?>
-							</li>
-							<li>
-								<a href="javascript:newAlbum('<?php echo pathurlencode($albumname); ?>',true);"><?php echo gettext("New Album Here"); ?></a>
-							</li>
-							<?php
-						}
-						zp_apply_filter('admin_toolbox_album', $albumname, $zf);
-						if ($inImage) {
-							// script is image.php
-							$imagename = $_zp_current_image->filename;
-								if ($_zp_current_album->isMyItem(ALBUM_RIGHTS)) {
-									if ($_zp_current_album->isDynamic()) { // get folder of the corresponding static album
-										$albumobj = $_zp_current_image->getAlbum();
-										$albumname = $albumobj->name;
-									} else {
-										$delete_image = gettext("Are you sure you want to delete this image? THIS CANNOT BE UNDONE!");
-										// if admin has edit rights on this album, provide a delete link for the image.
-										?>
-										<li>
-											<a href="javascript:confirmDelete('<?php echo $zf; ?>/admin-edit.php?page=edit&amp;action=deleteimage&amp;album=<?php echo urlencode(pathurlencode($albumname)); ?>&amp;image=<?php echo urlencode($imagename); ?>&amp;XSRFToken=<?php echo getXSRFToken('delete'); ?>','<?php echo $delete_image; ?>');"
-												 title="<?php echo gettext("Delete the image"); ?>"><?php echo gettext("Delete image"); ?></a>
-										</li>
-										<?php
-									}
-									?>
-									<li>
-										<a href="<?php echo $zf; ?>/admin-edit.php?page=edit&amp;album=<?php echo pathurlencode($albumname); ?>&amp;singleimage=<?php echo urlencode($imagename); ?>&amp;tab=imageinfo&amp;nopagination"
-											 title="<?php echo gettext('Edit image'); ?>"><?php echo gettext('Edit image'); ?></a>
-									</li>
-									<?php
-								// set return to this image page
-								zp_apply_filter('admin_toolbox_image', $albumname, $imagename, $zf);
-							}
-							$redirect = "&album=" . html_encode(pathurlencode($albumname)) . "&image=" . urlencode($imagename);
-						} else {
-							// set the return to this album/page
-							$redirect = "&album=" . html_encode(pathurlencode($albumname));
-							if ($page > 1) {
-								$redirect .= "&page=$page";
-							}
-						}
-						break;
-					case 'search.php':
-						$words = $_zp_current_search->getSearchWords();
-						if (!empty($words)) {
-							// script is search.php with a search string
-							if (zp_loggedin(UPLOAD_RIGHTS)) {
-								$link = $zf . '/admin-dynamic-album.php?' . substr($_zp_current_search->getSearchParams(), 1);
-								// if admin has edit rights allow him to create a dynamic album from the search
+							if (zp_loggedin(OVERVIEW_RIGHTS)) {
 								?>
 								<li>
-									<a href="<?php echo $link; ?>" title="<?php echo gettext('Create an album from the search'); ?>" ><?php echo gettext('Create Album'); ?></a>
+									<?php printLinkHTML($zf . '/admin.php', gettext("Overview"), NULL, NULL, NULL); ?>
 								</li>
 								<?php
 							}
-							zp_apply_filter('admin_toolbox_search', $zf);
-						}
-						$redirect = "&p=search" . $_zp_current_search->getSearchParams() . "&amp;page=$page";
-						break;
-					default:
-						// arbitrary custom page
-						$gal = stripSuffix($_zp_gallery_page);
-						$redirect = "&p=" . urlencode($gal);
-						if ($page > 1) {
-							$redirect .= "&page=$page";
-						}
-						$redirect = zp_apply_filter('admin_toolbox_' . $gal, $redirect, $zf);
-						break;
-				}
-				$redirect = zp_apply_filter('admin_toolbox_close', $redirect, $zf);
-				if ($_zp_current_admin_obj->logout_link) {
-					$link = Authority::getLogoutURL('frontend', $redirect);
-					?>
-					<li>
-						<?php printLinkHTML($link, gettext("Logout"), gettext("Logout"), null, null); ?>
+							if (zp_loggedin(UPLOAD_RIGHTS | FILES_RIGHTS | THEMES_RIGHTS)) {
+								?>
+								<li>
+									<?php printLinkHTML($zf . '/admin-upload.php', gettext("Upload"), NULL, NULL, NULL); ?>
+								</li>
+								<?php
+							}
+							if (zp_loggedin(ALBUM_RIGHTS)) {
+								?>
+								<li>
+									<?php printLinkHTML($zf . '/admin-edit.php', gettext("Albums"), NULL, NULL, NULL); ?>
+								</li>
+								<?php
+							}
+							zp_apply_filter('admin_toolbox_global', $zf);
+							?>
+						</ul>
 					</li>
-					<?php
-				}
-				$outputB = ob_get_contents();
-				ob_end_clean();
-				if ($outputB) {
-					echo $outputA . $outputB;
-					?>
-				</ul>
+					<li>
+						<ul class="zp__admin_list-general">
+							<?php
+							if (zp_loggedin(TAGS_RIGHTS)) {
+								?>
+								<li>
+									<?php printLinkHTML($zf . '/admin-tags.php', gettext("Tags"), NULL, NULL, NULL); ?>
+								</li>
+								<?php
+							}
+							if (zp_loggedin(USER_RIGHTS)) {
+								?>
+								<li>
+									<?php printLinkHTML($zf . '/admin-users.php', gettext("Users"), NULL, NULL, NULL); ?>
+								</li>
+								<?php
+							}
+							if (zp_loggedin(OPTIONS_RIGHTS)) {
+								?>
+								<li>
+									<?php printLinkHTML($zf . '/admin-options.php?tab=general', gettext("Options"), NULL, NULL, NULL); ?>
+								</li>
+								<?php
+							}
+							if (zp_loggedin(THEMES_RIGHTS)) {
+								?>
+								<li>
+									<?php printLinkHTML($zf . '/admin-themes.php', gettext("Themes"), NULL, NULL, NULL); ?>
+								</li>
+								<?php
+							}
+							if (zp_loggedin(ADMIN_RIGHTS)) {
+								?>
+								<li>
+									<?php printLinkHTML($zf . '/admin-plugins.php', gettext("Plugins"), NULL, NULL, NULL); ?>
+								</li>
+								<li>
+									<?php printLinkHTML($zf . '/admin-logs.php', gettext("Logs"), NULL, NULL, NULL); ?>
+								</li>
+								<?php
+							}
+							?>
+						</ul>
+					</li>
+					<li>
+						<ul class="zp__admin_list-edit">
+							<?php
+							$gal = getOption('custom_index_page');
+							if (empty($gal) || !file_exists(SERVERPATH . '/' . THEMEFOLDER . '/' . $_zp_gallery->getCurrentTheme() . '/' . internalToFilesystem($gal) . '.php')) {
+								$gal = 'index.php';
+							} else {
+								$gal .= '.php';
+							}
+							$inImage = false;
+							switch ($_zp_gallery_page) {
+								case 'index.php':
+								case $gal:
+									// script is either index.php or the gallery index page
+									if (zp_loggedin(ADMIN_RIGHTS)) {
+										?>
+										<li>
+											<?php printLinkHTML($zf . '/admin-edit.php?page=edit', gettext("Sort Gallery"), NULL, NULL, NULL); ?>
+										</li>
+										<?php
+									}
+									if (zp_loggedin(MANAGE_ALL_ALBUM_RIGHTS)) {
+										// admin has upload rights, provide an upload link for a new album
+										?>
+										<li>
+											<button type="button" onclick="javascript:newAlbum('', true);"><?php echo gettext("New Album"); ?></button>
+										</li>
+										<?php
+									}
+									if ($_zp_gallery_page == 'index.php') {
+										$redirect = '';
+									} else {
+										$redirect = "&;p=" . urlencode(stripSuffix($_zp_gallery_page));
+									}
+									if ($page > 1) {
+										$redirect .= "&;page=$page";
+									}
+									zp_apply_filter('admin_toolbox_gallery', $zf);
+									break;
+								case 'image.php':
+									$inImage = true; // images are also in albums[sic]
+								case 'album.php':
+									// script is album.php
+									$albumname = $_zp_current_album->name;
+									if ($_zp_current_album->isMyItem(ALBUM_RIGHTS)) {
+										// admin is empowered to edit this album--show an edit link
+										?>
+										<li>
+											<?php printLinkHTML($zf . '/admin-edit.php?page=edit&album=' . pathurlencode($_zp_current_album->name), gettext('Edit album'), NULL, NULL, NULL); ?>
+										</li>
+										<?php
+										if (!$_zp_current_album->isDynamic()) {
+											if ($_zp_current_album->getNumAlbums()) {
+												?>
+												<li>
+													<?php printLinkHTML($zf . '/admin-edit.php?page=edit&album=' . pathurlencode($albumname) . '&tab=subalbuminfo', gettext("Sort subalbums"), NULL, NULL, NULL); ?>
+												</li>
+												<?php
+											}
+											if ($_zp_current_album->getNumImages() > 0) {
+												?>
+												<li>
+													<?php printLinkHTML($zf . '/admin-albumsort.php?page=edit&album=' . pathurlencode($albumname) . '&tab=sort', gettext("Sort images"), NULL, NULL, NULL); ?>
+												</li>
+												<?php
+											}
+										}
+									}
+									if ($_zp_current_album->isMyItem(UPLOAD_RIGHTS) && !$_zp_current_album->isDynamic()) {
+										// provide an album upload link if the admin has upload rights for this album and it is not a dynamic album
+										?>
+										<li>
+											<?php printLinkHTML($zf . '/admin-upload.php?album=' . pathurlencode($albumname), gettext("Upload Here"), NULL, NULL, NULL); ?>
+										</li>
+										<li>
+											<button type="button" onclick="javascript:newAlbum('<?php echo pathurlencode($albumname); ?>', true);"><?php echo gettext("New Album Here"); ?></button>
+										</li>
+										<?php
+									}
+									if ($_zp_current_album->isMyItem(ALBUM_RIGHTS)) {
+										// and a delete link
+										?>
+										<li>
+											<button class="admin_data-delete" type="button" onclick="javascript:confirmDeleteAlbum('<?php echo $zf; ?>/admin-edit.php?page=edit&amp;action=deletealbum&amp;album=<?php echo urlencode(pathurlencode($albumname)) ?>&amp;XSRFToken=<?php echo getXSRFToken('delete'); ?>');"
+															title="<?php echo gettext('Delete the album'); ?>"><?php echo gettext('Delete album'); ?></button>
+										</li>
+										<?php
+									}
+									zp_apply_filter('admin_toolbox_album', $albumname, $zf);
+									if ($inImage) {
+										// script is image.php
+										$imagename = $_zp_current_image->filename;
+										if (!$_zp_current_album->isDynamic()) { // don't provide links when it is a dynamic album
+											if ($_zp_current_album->isMyItem(ALBUM_RIGHTS)) {
+												?>
+												<li><a href="<?php echo $zf; ?>/admin-edit.php?page=edit&amp;album=<?php echo pathurlencode($albumname); ?>&amp;singleimage=<?php echo urlencode($imagename); ?>&amp;tab=imageinfo&amp;nopagination"
+															 title="<?php echo gettext('Edit image'); ?>"><?php echo gettext('Edit image'); ?></a>
+												</li>
+												<?php
+												if ($_zp_current_album->isDynamic()) { // get folder of the corresponding static album
+													$albumobj = $_zp_current_image->getAlbum();
+													$albumname = $albumobj->name;
+												} else {
+													$delete_image = gettext("Are you sure you want to delete this image? THIS CANNOT BE UNDONE!");
+													// if admin has edit rights on this album, provide a delete link for the image.
+													?>
+													<li>
+														<button class="admin_data-delete" type="button" onclick="javascript:confirmDelete('<?php echo $zf; ?>/admin-edit.php?page=edit&amp;action=deleteimage&amp;album=<?php echo urlencode(pathurlencode($albumname)); ?>&amp;image=<?php echo urlencode($imagename); ?>&amp;XSRFToken=<?php echo getXSRFToken('delete'); ?>', '<?php echo $delete_image; ?>');"
+																		title="<?php echo gettext("Delete the image"); ?>"><?php echo gettext("Delete image"); ?></button>
+													</li>
+													<?php
+												}
+											}
+											// set return to this image page
+											zp_apply_filter('admin_toolbox_image', $albumname, $imagename, $zf);
+										}
+										$redirect = "&album=" . html_pathurlencode($albumname) . "&amp;image=" . urlencode($imagename);
+									} else {
+										// set the return to this album/page
+										$redirect = "&album=" . html_pathurlencode($albumname);
+										if ($page > 1) {
+											$redirect .= "&page=$page";
+										}
+									}
+									break;
+								case 'search.php':
+									$words = $_zp_current_search->getSearchWords();
+									if (!empty($words)) {
+										// script is search.php with a search string
+										if (zp_loggedin(UPLOAD_RIGHTS)) {
+											$link = $zf . '/admin-dynamic-album.php?' . substr($_zp_current_search->getSearchParams(), 1);
+											// if admin has edit rights allow him to create a dynamic album from the search
+											?>
+											<li>
+												<a href="<?php echo $link; ?>" title="<?php echo gettext('Create an album from the search'); ?>" ><?php echo gettext('Create Album'); ?></a>
+											</li>
+											<?php
+										}
+										zp_apply_filter('admin_toolbox_search', $zf);
+									}
+									$redirect = '&p=search&s=' . $words;
+									break;
+								default:
+									// arbitrary custom page
+									$gal = stripSuffix($_zp_gallery_page);
+									$redirect = "&p=" . urlencode($gal);
+									if ($page > 1) {
+										$redirect .= "&page=$page";
+									}
+									$redirect = zp_apply_filter('admin_toolbox_' . $gal, $redirect, $zf);
+									break;
+							}
+							$redirect = zp_apply_filter('admin_toolbox_close', $redirect, $zf);
+							?>
+						</ul>
+					</li>
+					<li>
+						<ul class="zp__admin-list-user">
+							<?php
+							if ($_zp_current_admin_obj->logout_link) {
+								$link = Authority::getLogoutURL('frontend', $redirect);
+								?>
+								<li>
+									<?php printLinkHTML($link, gettext("Logout"), gettext("Logout"), null, null); ?>
+								</li>
+								<?php
+							}
+							$outputB = ob_get_contents();
+							ob_end_clean();
+							if ($outputB) {
+								echo $outputA . $outputB;
+								?>
+							</ul>
+						</li>
+					</ul>
+				</div>
 			</div>
-		</div>
-		<?php
+			<?php
 		}
 	}
 }
@@ -532,7 +555,7 @@ function getParentSiteURL() {
 }
 
 /**
- * @deprecated ZenphotoCMS 2.0: Use getParentSiteTitle() instead
+ * @deprecated 2.0: Use getParentSiteTitle() instead
  * @return string
  */
 function getMainSiteName() {
@@ -541,7 +564,7 @@ function getMainSiteName() {
 }
 
 /**
- * @deprecated ZenphotoCMS 2.0: Use getParentSiteURL() instead
+ * @deprecated 2.0: Use getParentSiteURL() instead
  * @return string
  */
 function getMainSiteURL() {
@@ -558,7 +581,7 @@ function getGalleryIndexURL() {
 	global $_zp_current_album, $_zp_gallery_page;
 	$page = 1;
 	if (in_context(ZP_ALBUM) && $_zp_gallery_page != 'index.php') {
-		$album = $_zp_current_album->getUrAlbum($_zp_current_album);
+		$album = $_zp_current_album->getUrParent();
 		$page = $album->getGalleryPage();
 	}
 	if (!$link = getCustomGalleryIndexURL($page)) {
@@ -1415,9 +1438,10 @@ function printSearchBreadcrumb($between = NULL, $class = NULL, $search = NULL, $
 		echo "</a>";
 		echo '<span class="betweentext">' . html_encode($between) . '</span>';
 		if ($format) {
-			$d = zpFormattedDate($format, $d);
+			echo zpFormattedDate($format, $d);
+		} else {
+			echo zpFormattedDate('F Y', $d);
 		}
-		echo $d;
 	} else {
 		if (is_null($search)) {
 			$text = gettext('Search');
@@ -1636,9 +1660,13 @@ function printAlbumLocation() {
  * @return string
  */
 function getAlbumDesc() {
-	if (!in_context(ZP_ALBUM))
+	if (!in_context(ZP_ALBUM)) {
 		return false;
+	}
 	global $_zp_current_album;
+	if (!$_zp_current_album->checkAccess()) {
+		return '<p>' . gettext('<em>This album is protected.</em>') . '</p>';
+	}
 	return $_zp_current_album->getDesc();
 }
 
@@ -1785,12 +1813,25 @@ function getAlbumThumb() {
 }
 
 /**
- * Returns an img src link to the password protect thumb substitute
+ * Returns an <img> element of the password protect thumb substitute
  *
+ * @deprecated 2.0 Use printPasswordProtectedImage() instead
  * @param string $extra extra stuff to put in the HTML
  * @return string
  */
 function getPasswordProtectImage($extra = '') {
+	deprecationNotice(gettext('Use printPasswordProtectedImage() instead'));
+	printPasswordProtectedImage($extra);
+}
+
+/**
+ * Gets the URL to the password protected images
+ * 
+ * @since 1.6.1
+ * @global string $_zp_themeroot
+ * @return string
+ */
+function getPasswordProtectedImage() {
 	global $_zp_themeroot;
 	$image = '';
 	$themedir = SERVERPATH . '/themes/' . basename($_zp_themeroot);
@@ -1801,7 +1842,19 @@ function getPasswordProtectImage($extra = '') {
 	} else {
 		$image = WEBPATH . '/' . ZENFOLDER . '/images_errors/err-passwordprotected.png';
 	}
-	return '<img src="' . $image . '" ' . $extra . ' alt="protected" loading="lazy" />';
+	return $image;
+}
+
+/**
+ * Prints an image element with the password protected image.
+ * 
+ * @since 1.6.1 Replaces getPasswordProtectImage()
+ * 
+ * @param string $extra extra attributes, trailing space required. Do not pass the width/height as it is taken from the image itself
+ */
+function printPasswordProtectedImage($extra = '') {
+	$image = getPasswordProtectedImage();
+	echo '<img src="' . html_encode($image) . '" alt="protected" loading="lazy"' . $extra . ' />';
 }
 
 /**
@@ -1812,7 +1865,7 @@ function getPasswordProtectImage($extra = '') {
  * @param string $id Insert here the CSS-id name with with you want to style the link.
  * @param string $title option title attribute
  *  */
-function printAlbumThumbImage($alt, $class = '', $id = '' , $title = '') {
+function printAlbumThumbImage($alt = '', $class = '', $id = '' , $title = '') {
 	global $_zp_current_album;
 	$thumbobj = $_zp_current_album->getAlbumThumbImage();
 	$sizes = getSizeDefaultThumb($thumbobj);
@@ -1838,14 +1891,14 @@ function printAlbumThumbImage($alt, $class = '', $id = '' , $title = '') {
 	}
 	$attr['class'] = trim($attr['class']);
 	$attr_filtered = zp_apply_filter('standard_album_thumb_attr', $attr, $thumbobj);
-	if (!getOption('use_lock_image') || $_zp_current_album->isMyItem(LIST_RIGHTS) || empty($pwd) || $_zp_current_album->checkForGuest()) {
+	if (!getOption('use_lock_image') || $_zp_current_album->isMyItem(LIST_RIGHTS) || !$_zp_current_album->isProtected()) {
 		$attributes = generateAttributesFromArray($attr_filtered);
 		$html = '<img' . $attributes . ' />';
 		$html = zp_apply_filter('standard_album_thumb_html', $html, $thumbobj);
 		echo $html;
 	} else {
 		$size = ' width="' . $attr['width'] . '"';
-		echo getPasswordProtectImage($size);
+		printPasswordProtectedImage($size);
 	}
 }
 
@@ -1863,7 +1916,7 @@ function printAlbumThumbImage($alt, $class = '', $id = '' , $title = '') {
  *
  * @return string
  */
-function getCustomAlbumThumb($size, $width = NULL, $height = NULL, $cropw = NULL, $croph = NULL, $cropx = NULL, $cropy = null, $effects = NULL) {
+function getCustomAlbumThumb($size = null, $width = NULL, $height = NULL, $cropw = NULL, $croph = NULL, $cropx = NULL, $cropy = null, $effects = NULL) {
 	global $_zp_current_album;
 	$thumb = $_zp_current_album->getAlbumThumbImage();
 	return $thumb->getCustomImage($size, $width, $height, $cropw, $croph, $cropx, $cropy, true, $effects);
@@ -1889,7 +1942,7 @@ function getCustomAlbumThumb($size, $width = NULL, $height = NULL, $cropw = NULL
  *
  * @return string
  */
-function printCustomAlbumThumbImage($alt, $size, $width = NULL, $height = NULL, $cropw = NULL, $croph = NULL, $cropx = NULL, $cropy = null, $class = NULL, $id = NULL, $title = null, $maxspace = false) {
+function printCustomAlbumThumbImage($alt = '', $size = null, $width = NULL, $height = NULL, $cropw = NULL, $croph = NULL, $cropx = NULL, $cropy = null, $class = NULL, $id = NULL, $title = null, $maxspace = false) {
 	global $_zp_current_album;
 	$thumbobj = $_zp_current_album->getAlbumThumbImage();
 	$sizes = getSizeCustomImage($size, $width, $height, $cropw, $croph, $cropx, $cropy, $thumbobj, 'thumb');
@@ -1927,14 +1980,14 @@ function printCustomAlbumThumbImage($alt, $size, $width = NULL, $height = NULL, 
 		$attr['src']= html_pathurlencode(getCustomAlbumThumb($size, $width, $height, $cropw, $croph, $cropx, $cropy));
 	}
 	$attr_filtered = zp_apply_filter('custom_album_thumb_attr', $attr, $thumbobj);
-	if (!getOption('use_lock_image') || $_zp_current_album->isMyItem(LIST_RIGHTS) || empty($pwd) || $_zp_current_album->checkForGuest()) {
+	if (!getOption('use_lock_image') || $_zp_current_album->isMyItem(LIST_RIGHTS) || !$_zp_current_album->isProtected()) {
 		$attributes = generateAttributesFromArray($attr_filtered);
 		$html = '<img' . $attributes . ' />';
 		$html = zp_apply_filter('custom_album_thumb_html', $html, $thumbobj);
 		echo $html;
 	} else {
 		$size = ' width="' . $attr['width'] . '"';
-		echo getPasswordProtectImage($size);
+		printPasswordProtectedImage($size);
 	}
 }
 
@@ -2008,7 +2061,7 @@ function getCustomAlbumThumbMaxSpace($width, $height) {
  * @param string $id Optional style id
  * @param string $title Optional title attribute
  */
-function printCustomAlbumThumbMaxSpace($alt, $width, $height, $class = NULL, $id = NULL, $title = null) {
+function printCustomAlbumThumbMaxSpace($alt = '', $width = null, $height = null, $class = NULL, $id = NULL, $title = null) {
 	printCustomAlbumThumbImage($alt, NULL, $width, $height, NULL, NULL, NULL, NULL, $class, $id, $title, true);
 }
 
@@ -2381,9 +2434,13 @@ function getImageCountry() {
  * @return string
  */
 function getImageDesc() {
-	if (!in_context(ZP_IMAGE))
+	if (!in_context(ZP_IMAGE)) {
 		return false;
+	}
 	global $_zp_current_image;
+	if (!$_zp_current_image->checkAccess()) {
+		return '<p>' . gettext('<em>This image is protected.</em>') . '</p>';
+	}
 	return $_zp_current_image->getDesc();
 }
 
@@ -2715,7 +2772,7 @@ function printImageMetadata($title = NULL, $toggle = true, $id = 'imagemetadata'
  * @param string $type "image" (sizedimage) (default), "thumb" (thumbnail) required for using option settings for uncropped images
  * @return array
  */
-function getSizeCustomImage($size, $width = NULL, $height = NULL, $cw = NULL, $ch = NULL, $cx = NULL, $cy = NULL, $image = NULL, $type = 'image') {
+function getSizeCustomImage($size = null, $width = NULL, $height = NULL, $cw = NULL, $ch = NULL, $cx = NULL, $cy = NULL, $image = NULL, $type = 'image') {
   global $_zp_current_image;
   if (is_null($image))
     $image = $_zp_current_image;
@@ -3255,7 +3312,7 @@ function getCustomImageURL($size, $width = NULL, $height = NULL, $cropw = NULL, 
  * @param obj $image optional image object, null means current image
  * @param bool $maxspace true for maxspace, false default
  */
-function printCustomSizedImage($alt, $size, $width = NULL, $height = NULL, $cropw = NULL, $croph = NULL, $cropx = NULL, $cropy = NULL, $class = NULL, $id = NULL, $thumbStandin = false, $effects = NULL, $title = null, $type = 'image', $image = null, $maxspace = false) {
+function printCustomSizedImage($alt = '', $size = null, $width = NULL, $height = NULL, $cropw = NULL, $croph = NULL, $cropx = NULL, $cropy = NULL, $class = NULL, $id = NULL, $thumbStandin = false, $effects = NULL, $title = null, $type = 'image', $image = null, $maxspace = false) {
 	global $_zp_current_image;
 	if (is_null($image)) {
 		$image = $_zp_current_image;
@@ -3284,17 +3341,17 @@ function printCustomSizedImage($alt, $size, $width = NULL, $height = NULL, $crop
 	if (!empty($pwd)) {
 		$attr['class'] .= " password_protected";
 	}
-	if ($size && !$maxspace) {
+	if ($maxspace) {
+		$attr['width'] = $width;
+		$attr['height'] = $height;
+	} else {
 		$type = 'image';
 		if ($thumbStandin) {
 			$type = 'thumb';
 		}
-		$dims = getSizeCustomImage($size, null, null, null, null, null, null, $image, $type);
+		$dims = getSizeCustomImage($size, $width, $height, $cropw, $croph, $cropx, $cropy, $image, $type);
 		$attr['width'] = $dims[0];
 		$attr['height'] = $dims[1];
-	} else {
-		$attr['width'] = $width;
-		$attr['height'] = $height;
 	}
 	if ($image->isPhoto() || $thumbStandin) {
 		if ($maxspace) {
@@ -3355,7 +3412,7 @@ function getCustomSizedImageThumbMaxSpace($width, $height) {
  * @param string $title optional title attribute
  * @param obj $image optional image object, null means current image
  */
-function printCustomSizedImageThumbMaxSpace($alt, $width, $height, $class = NULL, $id = NULL, $title = null, $image = null) {
+function printCustomSizedImageThumbMaxSpace($alt = '', $width = null, $height = null, $class = NULL, $id = NULL, $title = null, $image = null) {
 	global $_zp_current_image;
 	if (is_null($image))
 		$image = $_zp_current_image;
@@ -3376,7 +3433,7 @@ function printCustomSizedImageThumbMaxSpace($alt, $width, $height, $class = NULL
  * @param string $title optional title attribute
  * @param obj $image optional image object, null means current image
  */
-function printCustomSizedImageMaxSpace($alt, $width, $height, $class = NULL, $id = NULL, $thumb = false, $title = null, $image = null) {
+function printCustomSizedImageMaxSpace($alt = '', $width = null, $height = null, $class = NULL, $id = NULL, $thumb = false, $title = null, $image = null) {
 	global $_zp_current_image;
 	if (is_null($image))
 		$image = $_zp_current_image;
@@ -3580,25 +3637,23 @@ function printAllTagsAs($option, $class = '', $sort = NULL, $counter = FALSE, $l
  * @param string $order set to 'desc' for the list to be in descending order
  * @return array
  */
-function getAllDates($order = 'asc') {	
+function getAllDates($order = 'asc') {
 	global $_zp_db;
 	$alldates = array();
 	$cleandates = array();
 	$sql = "SELECT `date` FROM " . $_zp_db->prefix('images');
-	if (!zp_loggedin()) {
-		$sql .= " WHERE `show` = 1";
-	}
 	$hidealbums = getNotViewableAlbums();
-	if (!is_null($hidealbums)) {
-		if (zp_loggedin()) {
-			$sql .= ' WHERE ';
-		} else {
+	if ($hidealbums) {
+		$sql .= ' WHERE `albumid` NOT IN (' . implode(',', $hidealbums) . ')';
+	}
+	$hideimages = getNotViewableImages();
+	if ($hideimages) {
+		if ($hidealbums) {
 			$sql .= ' AND ';
+		} else {
+			$sql .= ' WHERE ';
 		}
-		foreach ($hidealbums as $id) {
-			$sql .= '`albumid`!=' . $id . ' AND ';
-		}
-		$sql = substr($sql, 0, -5);
+		$sql .= ' `id` NOT IN (' . implode(',', $hideimages) . ')';
 	}
 	$result = $_zp_db->query($sql);
 	if ($result) {
@@ -3609,7 +3664,7 @@ function getAllDates($order = 'asc') {
 	}
 	foreach ($alldates as $adate) {
 		if (!empty($adate)) {
-			$cleandates[] = substr($adate, 0, 7) . "-01";
+			$cleandates[] = substr($adate, 0, 7);
 		}
 	}
 	$datecount = array_count_values($cleandates);
@@ -3629,7 +3684,7 @@ function getAllDates($order = 'asc') {
  * @param string $monthid optional class for "month"
  * @param string $order set to 'desc' for the list to be in descending order
  */
-function printAllDates($class = 'archive', $yearid = 'year', $monthid = 'month', $order = 'asc') {
+function printAllDates($class = 'archive', $yearid = 'year', $monthid = 'month', $order = 'desc') {
 	global $_zp_current_search, $_zp_gallery_page;
 	if (empty($class)) {
 		$classactive = 'archive_active';
@@ -3666,7 +3721,6 @@ function printAllDates($class = 'archive', $yearid = 'year', $monthid = 'month',
 				$month = zpFormattedDate('F', $key,  false);
 			}
 		}
-
 		if ($lastyear != $year) {
 			$lastyear = $year;
 			if ($nr != 1) {
@@ -3746,7 +3800,7 @@ function isArchive() {
  * Returns a search URL
  * 
  * @since 1.1.3
- * @deprecated ZenphotoCMS 2.0 - Use SearchEngine::getSearchURL() instead
+ * @deprecated 2.0 - Use SearchEngine::getSearchURL() instead
  *
  * @param mixed $words the search words target
  * @param mixed $dates the dates that limit the search
@@ -3781,10 +3835,14 @@ function getSearchURL($words, $dates, $fields, $page, $object_list = NULL) {
  * @param array $objects_list optional array of things to search eg. [albums]=>[list], etc.
  * 														if the list is simply 0, the objects will be omitted from the search
  * @param string $within set to true to search within current results, false to search fresh
+ * @param bool $enable_fieldselector True|false to enable/disable the search fields selector. Default null to use the option as set
  * @since 1.1.3
  */
-function printSearchForm($prevtext = NULL, $id = 'search', $buttonSource = '', $buttontext = '', $iconsource = NULL, $query_fields = NULL, $object_list = NULL, $within = NULL) {
+function printSearchForm($prevtext = NULL, $id = 'search', $buttonSource = '', $buttontext = '', $iconsource = NULL, $query_fields = NULL, $object_list = NULL, $within = NULL, $enable_fieldselector = null) {
 	global $_zp_adminjs_loaded, $_zp_current_search;
+	if (is_null($enable_fieldselector)) {
+		$enable_fieldselector = getOption('search_fieldsselector_enabled');
+	}
 	$engine = new SearchEngine();
 	if (!is_null($_zp_current_search) && !$_zp_current_search->getSearchWords()) {
 		$engine->clearSearchWords();
@@ -3845,7 +3903,10 @@ function printSearchForm($prevtext = NULL, $id = 'search', $buttonSource = '', $
 	?>
 	<div id="<?php echo $id; ?>">
 		<!-- search form -->
-		<form method="post" action="<?php echo $searchurl; ?>" id="search_form">
+		<form method="get" action="<?php echo $searchurl; ?>" id="search_form">
+			<?php if(!MOD_REWRITE) { ?>
+				<input type="hidden" name="p" value="search" />
+			<?php } ?>
 			<script>
 			var within = <?php echo (int) $within; ?>;
 			function search_(way) {
@@ -3881,9 +3942,9 @@ function printSearchForm($prevtext = NULL, $id = 'search', $buttonSource = '', $
 			<?php echo $prevtext; ?>
 			<div>
 				<span class="tagSuggestContainer">
-					<input type="text" name="search" value="" id="search_input" size="10" />
+					<input type="text" name="s" value="" id="search_input" size="10" />
 				</span>
-				<?php if (count($fields) > 1 || $searchwords) { ?>
+				<?php if ($enable_fieldselector && (count($fields) > 1 || $searchwords)) { ?>
 					<a class="toggle_searchextrashow" href="#"><img src="<?php echo $iconsource; ?>" title="<?php echo gettext('search options'); ?>" alt="<?php echo gettext('fields'); ?>" id="searchfields_icon" /></a>
 					<script>
 						$(".toggle_searchextrashow").click(function(event) {
@@ -3938,13 +3999,13 @@ function printSearchForm($prevtext = NULL, $id = 'search', $buttonSource = '', $
 							</label>
 							<?php
 						}
-						if (count($fields) > 1) {
+						if ($enable_fieldselector && count($fields) > 1) {
 							?>
 							<ul>
         <li><label><input type="checkbox" name="checkall_searchfields" id="checkall_searchfields" checked="checked">* <?php echo gettext('Check/uncheck all'); ?> *</label></li>
 								<?php
 								foreach ($fields as $display => $key) {
-									echo '<li><label><input id="SEARCH_' . html_encode($key) . '" name="SEARCH_' . html_encode($key) . '" type="checkbox"';
+									echo '<li><label><input id="SEARCH_' . html_encode($key) . '" name="searchfields[]" type="checkbox"';
 									if (in_array($key, $query_fields)) {
 										echo ' checked="checked" ';
 									}

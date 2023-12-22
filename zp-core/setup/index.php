@@ -468,7 +468,7 @@ $upgrade = $versioncheck['upgrade_text'];
 		<meta http-equiv="content-type" content="text/html; charset=utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
 		<title><?php printf('Zenphoto %s', $upgrade ? $upgrade : gettext('install')); ?></title>
-		<link rel="stylesheet" href="<?php echo WEBPATH . '/' . ZENFOLDER; ?>/admin.css" type="text/css" />
+		<link rel="stylesheet" href="<?php echo WEBPATH . '/' . ZENFOLDER; ?>/css/admin.css" type="text/css" />
 
 		<script src="<?php echo WEBPATH . '/' . ZENFOLDER; ?>/js/jquery.min.js"></script>
 		<script src="<?php echo WEBPATH . '/' . ZENFOLDER; ?>/js/jquery-migrate.min.js" ></script>
@@ -2359,6 +2359,9 @@ $upgrade = $versioncheck['upgrade_text'];
 						$sql_statements[] = "ALTER TABLE $tbl_plugin_storage DROP INDEX aux, ADD INDEX aux(aux(191))";
 						$sql_statements[] = "ALTER TABLE $tbl_tags DROP INDEX name, ADD UNIQUE INDEX name(name(191))";
 						$sql_statements[] = "ALTER TABLE $tbl_searches DROP INDEX criteria, ADD UNIQUE INDEX criteria(criteria(191))";
+						
+						//1.6.1
+						$sql_statements[] = "ALTER TABLE $tbl_menu_manager ADD COLUMN `open_newtab` int(1) unsigned NOT NULL default '0'";
 						
 						// do this last incase there are any field changes of like names!
 						foreach ($_zp_exifvars as $key => $exifvar) {

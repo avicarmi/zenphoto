@@ -236,11 +236,7 @@ function printPagesListTable($page, $flag) {
 		</div>
 		<div class="page-list_iconwrapper">
 			<div class="page-list_icon">
-				<?php
-				if ($page->getPassword()) {
-					echo '<img src="../../images/lock.png" style="border: 0px;" alt="' . gettext('Password protected') . '" title="' . gettext('Password protected') . '" />';
-				}
-				?>
+				<?php printProtectedIcon($page); ?>
 			</div>
 
 			<?php if (checkIfLockedPage($page)) { ?>
@@ -758,7 +754,7 @@ function printCategoryDropdown() {
 			foreach ($result as $cat) {
 				$catobj = new ZenpageCategory($cat['titlelink']);
 				// check if there are articles in this category. If not don't list the category.
-				$count = count($catobj->getArticles(0, 'all'));
+				$count = count($catobj->getArticles(0, 'all', false, null, null, null, null, false));
 				$count = " (" . $count . ")";
 				if ($category == $cat['titlelink']) {
 					$selected = "selected='selected'";
@@ -1000,29 +996,11 @@ function printCategoryListSortableTable($cat, $flag) {
 		</div>
 
 		<div class="page-list_iconwrapper">
-			<div class="page-list_icon"><?php
-				$password = $cat->getPassword();
-				if (!empty($password)) {
-					echo '<img src="../../images/lock.png" style="border: 0px;" alt="' . gettext('Password protected') . '" title="' . gettext('Password protected') . '" />';
-				}
-				?>
+			<div class="page-list_icon">
+				<?php printProtectedIcon($cat); ?>
 			</div>
 			<div class="page-list_icon">
-				<?php
-				if ($cat->isPublished()) {
-					$title = gettext("Un-publish");
-					?>
-					<a href="?publish=0&amp;titlelink=<?php echo html_encode($cat->getName()); ?>&amp;XSRFToken=<?php echo getXSRFToken('update') ?>" title="<?php echo $title; ?>">
-						<img src="../../images/pass.png" alt="<?php gettext("Scheduled for published"); ?>" title="<?php echo $title; ?>" /></a>
-					<?php
-				} else {
-					$title = gettext("Publish");
-					?>
-					<a href="?publish=1&amp;titlelink=<?php echo html_encode($cat->getName()); ?>&amp;XSRFToken=<?php echo getXSRFToken('update') ?>" title="<?php echo $title; ?>">
-						<img src="../../images/action.png" alt="<?php echo gettext("Un-published"); ?>" title="<?php echo $title; ?>" /></a>
-					<?php
-				}
-				?>
+				<?php printPublishIconLink($cat, 'newscategory'); ?>
 			</div>
 			<div class="page-list_icon">
 				<?php if ($count == 0) { ?>
@@ -1079,13 +1057,15 @@ function printCategoryCheckboxListEntry($cat, $articleid, $option, $class = '') 
 	}
 	$catname = $cat->getTitle();
 	$catlink = $cat->getName();
-	if ($cat->getPassword()) {
+	/*if ($cat->getPassword()) {
 		$protected = '<img src="' . WEBPATH . '/' . ZENFOLDER . '/images/lock.png" alt="' . gettext('password protected') . '" />';
 	} else {
 		$protected = '';
-	}
+	} */
 	$catid = $cat->getID();
-	echo '<label for="cat' . $catid . '"><input name="cat' . $catid . '" class="' . $class . '" id="cat' . $catid . '" type="checkbox" value="' . $catid . '"' . $selected . ' />' . $catname . ' ' . $protected . "</label>\n";
+	echo '<label for="cat' . $catid . '"><input name="cat' . $catid . '" class="' . $class . '" id="cat' . $catid . '" type="checkbox" value="' . $catid . '"' . $selected . ' />' . $catname;
+	printProtectedIcon($cat);
+	echo "</label>\n";
 }
 
 /* * ************************
@@ -1098,12 +1078,22 @@ function printCategoryCheckboxListEntry($cat, $articleid, $option, $class = '') 
  * @param string $listtype 'cats-checkboxlist' for a fake nested checkbock list of categories for the news article edit/add page
  * 												'cats-sortablelist' for a sortable nested list of categories for the admin categories page
  * 												'pages-sortablelist' for a sortable nested list of pages for the admin pages page
- * @param int $articleid Only for $listtype = 'cats-checkboxlist': For ID of the news article if the categories an existing articles is assigned to shall be shown, empty if this is a new article to be added.
+ * @param $obj $obj Optional, default empty. Passing an articledid is deprecated and will be removed in ZenphotoCMS 2.0.
+ * - listtype = 'cats-checkboxlist': Object of the news article if the categories an existing articles is assigned to shall be shown, empty if this is a new article to be added.
+ * - listtype = 'pages-sortablelist': Object of the page object to show sub pages of or empty for all 
  * @param string $option Only for $listtype = 'cats-checkboxlist': "all" to show all categories if creating a new article without categories assigned, empty if editing an existing article that already has categories assigned.
  * @return string | bool
  */
-function printNestedItemsList($listtype = 'cats-sortablelist', $articleid = '', $option = '', $class = 'nestedItem') {
+function printNestedItemsList($listtype = 'cats-sortablelist', $obj = '', $option = '', $class = 'nestedItem') {
 	global $_zp_zenpage;
+	if ($listtype == 'cats-sortablelist' && is_int($obj)) {
+		deprecationNotice(gettext('The 2nd parameter of printNestedItemsList() should be a Zenpage news or page object and not an integer (to be removed in ZenphotoCMS 2.0'), '$obj');
+		$obj = getItemByID($obj, 'news');
+	}
+	$id = '';
+	if (is_object($obj)) {
+		$id = $obj->getID();
+	}
 	switch ($listtype) {
 		case 'cats-checkboxlist':
 		default:
@@ -1122,7 +1112,11 @@ function printNestedItemsList($listtype = 'cats-sortablelist', $articleid = '', 
 			$items = $_zp_zenpage->getAllCategories(false);
 			break;
 		case 'pages-sortablelist':
-			$items = $_zp_zenpage->getPages(false);
+			if (is_object($obj)) {
+				$items = $obj->getPages(false);
+			} else {
+				$items = $_zp_zenpage->getPages(false);
+			}
 			break;
 		default:
 			$items = array();
@@ -1177,7 +1171,7 @@ function printNestedItemsList($listtype = 'cats-sortablelist', $articleid = '', 
 			switch ($listtype) {
 				case 'cats-checkboxlist':
 					echo "<li>\n";
-					printCategoryCheckboxListEntry($itemobj, $articleid, $option, $class);
+					printCategoryCheckboxListEntry($itemobj, $id, $option, $class);
 					break;
 				case 'cats-sortablelist':
 					echo str_pad("\t", $indent - 1, "\t") . "<li id=\"id_" . $itemid . "\">";
@@ -1421,9 +1415,9 @@ function printZenpageIconLegend() {
 		<?php
 		if (GALLERY_SECURITY == 'public') {
 			?>
-			<li><img src="../../images/lock.png" alt="" /><?php echo gettext("Has Password"); ?></li>	
-			<li><img src="../../images/pass.png" alt="" /><img	src="../../images/action.png" alt="" /><?php echo gettext("Published/Not published"); ?></li>
-			<li><img src="../../images/clock_futuredate.png" alt="" /><img src="../../images/clock_expiredate.png" alt="" /><img src="../../images/clock_expired.png" alt="" /><?php echo gettext("Scheduled publishing/Scheduled expiration/Expired"); ?></li>
+			<li><?php echo getStatusIcon('protected') . getStatusIcon('protected_by_parent').  gettext("Password protected/Password protected by parent"); ?></li>
+			<li><?php echo getStatusIcon('published') . getStatusIcon('unpublished') . getStatusIcon('unpublished_by_parent'); ?><?php echo gettext("Published/Unpublished/Unpublished by parent"); ?></li>
+			<li>><?php echo getStatusIcon('publishschedule') . getStatusIcon('expiration') . getStatusIcon('expired'); ?>><?php echo gettext("Scheduled publishing/Scheduled expiration/Expired"); ?></li>
 			<?php
 		}
 		?>
@@ -1473,13 +1467,14 @@ function authorSelector($author = NULL) {
 
 /**
  * Prints the publish/un-published/scheduled publishing icon with a link for the pages and news articles list.
+ * 
+ * @since 1.6.1 
  *
- * @param string $object Object of the page or news article to check
- * @return string
+ * @param obj $obj Object of the page or news article to check
  */
-function printPublishIconLink($object, $type, $linkback = '') {
+function printPublishIconLink($obj, $type = '', $linkback = '') {
 	$urladd = '';
-	if ($type == "news") {
+	if ($obj->table == 'news') {
 		if (isset($_GET['subpage'])) {
 			$urladd .= "&amp;subpage=" . sanitize($_GET['subpage']);
 		}
@@ -1496,41 +1491,35 @@ function printPublishIconLink($object, $type, $linkback = '') {
 			$urladd .= "&amp;articles_page=" . sanitize_numeric($_GET['articles_page']);
 		}
 	}
-	if ($object->hasPublishSchedule()) {
+	if ($obj->hasPublishSchedule()) {
 		$title = gettext("Publish immediately (skip scheduling)");
-		$alt = gettext("Scheduled for published");
 		$action = '?skipscheduling=1';
-		$icon = '../../images/clock_futuredate.png';
-	} else if ($object->hasExpiration()) {
+	} else if ($obj->hasExpiration()) {
 		$title = gettext("Skip scheduled expiration");
-		$alt = gettext("Scheduled for expiration");
 		$action = '?skipexpiration=1';
-		$icon = '../../images/clock_expiredate.png';
-	} else if ($object->isPublished()) {
-		$title = gettext("Un-publish");
-		$alt = gettext("Published");
-		$action = '?publish=0';
-		$icon = '../../images/pass.png';
-	} else if (!$object->isPublished()) {
-		if ($object->hasExpired()) {
+	} else if ($obj->isPublished()) {
+		if ($obj->isUnpublishedByParent()) {
+			$title = gettext("Unpublish") .' - ' . getStatusNote('unpublished_by_parent');
+			$action = '?publish=0';
+		} else {
+			$title = gettext("Unpublish");
+			$action = '?publish=0';
+		}
+	} else if (!$obj->isPublished()) {
+		if ($obj->hasExpired()) {
 			$title = gettext("Publish immediately (skip expiration)");
-			$alt = gettext("Un-published because expired");
 			$action = '?skipexpiration=1';
-			$icon = '../../images/clock_expired.png';
 		} else {
 			$title = gettext("Publish");
-			$alt = gettext("Un-published");
 			$action = '?publish=1';
-			$icon = '../../images/action.png';
 		}
 	}
 	?>
-	<a href="<?php echo $action; ?>&amp;titlelink=<?php echo html_encode($object->getName()) . $urladd; ?>&amp;XSRFToken=<?php echo getXSRFToken('update') ?>">
-		<img src="<?php echo $icon; ?>" alt="<?php echo $alt; ?>" title= "<?php echo $title; ?>" />
+	<a href="<?php echo $action; ?>&amp;titlelink=<?php echo html_encode($obj->getName()) . $urladd; ?>&amp;XSRFToken=<?php echo getXSRFToken('update') ?>">
+		<?php echo getPublishIcon($obj); ?>
 	</a>
 	<?php
 }
-
 
 	/**
 	 * Checks if a checkbox is selected and checks it if.

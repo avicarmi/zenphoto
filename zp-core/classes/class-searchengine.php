@@ -118,8 +118,8 @@ class SearchEngine {
 			}
 		}
 		$this->search_structure = zp_apply_filter('searchable_fields', $this->search_structure);
-		if (isset($_REQUEST['search'])) {
-			$this->words = removeTrailingSlash(strtr(sanitize($_REQUEST['search'], 4), array('__23__' => '#', '__25__' => '%', '__26__' => '&', '__2F__' => '/')));
+		if (isset($_REQUEST['s'])) {
+			$this->words = removeTrailingSlash(strtr(sanitize($_REQUEST['s'], 4), array('__23__' => '#', '__25__' => '%', '__26__' => '&', '__2F__' => '/')));
 		} else {
 			$this->words = '';
 			if (isset($_REQUEST['date'])) { // words & dates are mutually exclusive
@@ -257,16 +257,21 @@ class SearchEngine {
 	 * @return array
 	 */
 	protected function numericFields($fields) {
-		if ($fields == 0)
+		if ($fields == 0) {
 			$fields = 0x0fff;
-		if ($fields & 0x01)
+		}
+		if ($fields & 0x01) {
 			$list[$this->search_structure['title']] = 'title';
-		if ($fields & 0x02)
+		}
+		if ($fields & 0x02) {
 			$list[$this->search_structure['desc']] = 'desc';
-		if ($fields & 0x04)
+		}
+		if ($fields & 0x04) {
 			$list[$this->search_structure['tags']] = 'tags';
-		if ($fields & 0x08)
+		}
+		if ($fields & 0x08) {
 			$list[$this->search_structure['filename']] = 'filename';
+		}
 		return $list;
 	}
 
@@ -282,7 +287,7 @@ class SearchEngine {
 		$r = '';
 		$w = urlencode(trim($this->codifySearchString()));
 		if (!empty($w)) {
-			$r .= '&search=' . $w;
+			$r .= '&s=' . $w;
 		}
 		$d = trim(strval($this->dates));
 		if (!empty($d)) {
@@ -389,13 +394,15 @@ class SearchEngine {
 	 * @return string
 	 */
 	function getSearchFieldsText($fields, $param = '&searchfields=') {
-		$default = $this->allowedSearchFields();
-		$diff = array_diff($default, $fields);
-		if (count($diff) > 0) {
-			foreach ($fields as $field) {
-				$param .= $field . ',';
+		$fields_allowed = $this->allowedSearchFields();
+		$fields_final = array();
+		foreach ($fields as $field) {
+			if (in_array($field, $fields_allowed)) {
+				$fields_final[] = $field;
 			}
-			return substr($param, 0, -1);
+		}
+		if (!empty($fields_final)) {
+			return $param . implode(',', $fields_final);
 		}
 		return '';
 	}
@@ -413,7 +420,7 @@ class SearchEngine {
 			$p = substr($param, 0, $e);
 			$v = substr($param, $e + 1);
 			switch ($p) {
-				case 'search':
+				case 's':
 					$this->words = urldecode($v);
 					break;
 				case 'date':
@@ -530,8 +537,9 @@ class SearchEngine {
 	 * @return mixed
 	 */
 	function getSearchFields($array = false) {
-		if ($array)
+		if ($array) {
 			return $this->fieldList;
+		}
 		return implode(',', $this->fieldList);
 	}
 
@@ -798,8 +806,10 @@ class SearchEngine {
 			$fs = sanitize($_REQUEST['searchfields']);
 			if (is_numeric($fs)) {
 				$fields = array_flip($this->numericFields($fs));
-			} else {
+			} else if (is_string($fs)) {
 				$fields = explode(',', $fs);
+			} else if (is_array($fs)) {
+				$fields = $fs;
 			}
 		} else {
 			foreach ($_REQUEST as $key => $value) {
@@ -817,8 +827,9 @@ class SearchEngine {
 	 */
 	protected function subsetNewsCategories() {
 		global $_zp_zenpage, $_zp_db;
-		if (!is_array($this->category_list))
+		if (!is_array($this->category_list)) {
 			return false;
+		}
 		$cat = '';
 		$list = $_zp_zenpage->getAllCategories();
 		if (!empty($list)) {
@@ -1417,8 +1428,6 @@ class SearchEngine {
 						if ($albumname != $this->dynalbumname) {
 							if (file_exists(ALBUM_FOLDER_SERVERPATH . internalToFilesystem($albumname))) {
 								$album = AlbumBase::newAlbum($albumname);
-								$uralbum = $album->getUrAlbum();
-								$viewUnpublished = ($this->search_unpublished || zp_loggedin() && $uralbum->albumSubRights() & (MANAGED_OBJECT_RIGHTS_EDIT | MANAGED_OBJECT_RIGHTS_VIEW));
 								switch (themeObject::checkScheduledPublishing($row)) {
 									case 1:
 										$album->setPublished(0);
@@ -1426,11 +1435,11 @@ class SearchEngine {
 									case 2:
 										$row['show'] = 0;
 								}
-								if ($mine || (is_null($mine) && $album->isMyItem(LIST_RIGHTS)) || (checkAlbumPassword($albumname) && (($album->checkAccess() && $album->isPublic()) || $viewUnpublished))) {
+								if ($mine || (is_null($mine) && $album->isVisible())) {		
 									if ((empty($this->album_list) || in_array($albumname, $this->album_list)) && !$this->excludeAlbum($albumname)) {
 										$result[] = array('title' => $row['title'], 'name' => $albumname, 'weight' => $weights[$row['id']]);
 									}
-								}
+								} 
 							}
 						}
 					}
@@ -1607,19 +1616,12 @@ class SearchEngine {
 						if ($row2) {
 							$albumname = $row2['folder'];
 							$allow = false;
-							$album = AlbumBase::newAlbum($albumname);
-							$uralbum = $album->getUrAlbum();
-							$viewUnpublished = ($this->search_unpublished || zp_loggedin() && $uralbum->albumSubRights() & (MANAGED_OBJECT_RIGHTS_EDIT | MANAGED_OBJECT_RIGHTS_VIEW));
-							switch (themeObject::checkScheduledPublishing($row)) {
-								case 1:
-									$imageobj = Image::newImage($album, $row['filename']);
-									$imageobj->setPublished(0);
-									$imageobj->save();
-								case 2:
-									$row['show'] = 0;
-									break;
+							$album = AlbumBase::newAlbum($albumname);		
+							$imageobj = Image::newImage($album, $row['filename']);
+							if ($imageobj->hasPublishSchedule()) {
+								$row['show'] = 0;
 							}
-							$viewUnpublished = ($mine || is_null($mine)) && ($album->isMyItem(LIST_RIGHTS) || checkAlbumPassword($albumname) && ($album->isPublic() || $viewUnpublished));
+							$viewUnpublished = ($mine || $this->search_unpublished || (is_null($mine)) && ($imageobj->isVisible()));
 							if ($viewUnpublished) {
 								$allow = (empty($this->album_list) || in_array($albumname, $this->album_list)) && !$this->excludeAlbum($albumname);
 							} 
@@ -1806,13 +1808,13 @@ class SearchEngine {
 			if ($search_result) {
 				while ($row = $_zp_db->fetchAssoc($search_result)) {
 					$pageobj = new ZenpagePage($row['titlelink']);
-					if((zp_loggedin() && $pageobj->isMyItem(LIST_RIGHTS)) || ($pageobj->isPublic() || $this->search_unpublished)) {
+					if ($this->search_unpublished || $pageobj->isVisible()) {
 						$data = array('title' => $row['title'], 'titlelink' => $row['titlelink']);
 						if (isset($weights)) {
 							$data['weight'] = $weights[$row['id']];
 						}
 						$result[] = $data;
-					}
+					} 
 				}
 				$_zp_db->freeResult($search_result);
 			}
@@ -1896,7 +1898,7 @@ class SearchEngine {
 			if ($search_result) {
 				while ($row = $_zp_db->fetchAssoc($search_result)) {
 					$articleobj = new ZenpageNews($row['titlelink']);
-					if((zp_loggedin() && $articleobj->isMyItem(LIST_RIGHTS)) || ($articleobj->isPublic() || $this->search_unpublished)) {
+					if ($this->search_unpublished || $articleobj->isVisible()) {
 						$data = array('title' => $row['title'], 'titlelink' => $row['titlelink']);
 						if (isset($weights)) {
 							$data['weight'] = $weights[$row['id']];
@@ -1938,7 +1940,7 @@ class SearchEngine {
 		if (!empty($authCookies)) { // some sort of password exists, play it safe and make the tag unique
 			$user = getUserIP();
 		}
-		$array = array('item' => $table, 'fields' => implode(', ', $this->fieldList), 'search' => $search, 'sort' => $sort, 'user' => $user);
+		$array = array('item' => $table, 'fields' => implode(', ', $this->fieldList), 's' => $search, 'sort' => $sort, 'user' => $user);
 		$dynalbum = $this->getDynamicAlbum();
 		if($dynalbum) {
 			$array['dynalbum'] = $dynalbum->name;
@@ -2186,7 +2188,7 @@ class SearchEngine {
 	 */
 	static function getSearchURL($words = '', $dates = '', $fields = '', $page = '', $object_list = NULL) {
 		$baseurl = '';
-		$query = array('search' => '');
+		$query = array('s' => '');
 		$rewrite = $searchurl_mode = 	$searchfields = '';
 		if (MOD_REWRITE) {
 			$rewrite = true;
@@ -2232,9 +2234,9 @@ class SearchEngine {
 			}			
 		} else {
 			$baseurl = SEO_WEBPATH . "/index.php?p=search";
-			$search = new SearchEngine();
-			$searchfields = $search->getSearchFieldsText($fields, 'searchfields=');
 		}
+		$search = new SearchEngine();
+		$searchfields = $search->getSearchFieldsText($fields, 'searchfields=');
 		if (!empty($words)) {
 			if (is_array($words)) {
 				foreach ($words as $key => $word) {
@@ -2243,14 +2245,14 @@ class SearchEngine {
 				$words = implode(',', $words);
 			}
 			$words = strtr($words, array('%' => '__25__', '&' => '__26__', '#' => '__23__', '/' => '__2F__'));
-			$query['search'] = urlencode($words);
+			$query['s'] = urlencode($words);
 		}
 		if ($searchurl_mode == 'archive') {
 			if (is_array($dates)) {
 				$dates = implode(',', $dates);
 			}
 			$query['date'] = $dates;
-			unset($query['search']); // date archive actually invalidates normal search term
+			unset($query['s']); // date archive actually invalidates normal search term
 		}
 		if ($page > 1) {
 			$query['page'] = $page;
@@ -2265,14 +2267,17 @@ class SearchEngine {
 		if ($rewrite) {
 			switch ($searchurl_mode) {
 				case 'search':
-					if (isset($query['search'])) {
-						$searchwords = $query['search'];
-						unset($query['search']);
+					if (isset($query['s'])) {
+						$searchwords = $query['s'];
+						unset($query['s']);
 						$url = $baseurl . implode('/', $query);
 						if ($page > 1) {
 							$url .= '/';
 						}
-						$url .= '?search=' . $searchwords;
+						$url .= '?s=' . $searchwords;
+						if (!empty($searchfields)) {
+							$url .= '&' . $searchfields;
+						}
 					}
 					break;
 				case 'archive':
@@ -2281,10 +2286,14 @@ class SearchEngine {
 					break;
 			}
 		} else {
+			if(empty($query['s'])) {
+				unset($query['s']);
+			}
 			$url = $baseurl . '&' . urldecode(http_build_query($query));
-		}
-		if (!empty($searchfields)) {
-			$url .= '&' . $searchfields;
+			if (!empty($searchfields)) {
+				$url .= '&' . $searchfields;
+			}
+			
 		}
 		return $url;
 	}

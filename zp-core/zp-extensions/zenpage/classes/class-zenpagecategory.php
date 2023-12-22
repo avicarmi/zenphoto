@@ -13,10 +13,10 @@ class ZenpageCategory extends ZenpageRoot {
 	public $view_rights = ALL_NEWS_RIGHTS;
 	public $parent = null;
 	public $parents = null;
+	public $urparent = null;
 	protected $sorttype = 'date';
 	protected $sortdirection = true;
 	protected $sortSticky = true;
-	protected $is_public = null;
 	
 
 	function __construct($catlink, $create = NULL) {
@@ -150,6 +150,20 @@ class ZenpageCategory extends ZenpageRoot {
 			return $this->get('password');
 		}
 	}
+	
+		/**
+	 * Returns true if not protected but protection is inherited by a parent
+	 * 
+	 * @since 1.6.1
+	 * 
+	 * @return bool
+	 */
+	function isProtectedByParent() {
+		if ($this->isProtected() && !$this->getPassword()) {
+			return true;
+		}
+		return false;
+	}
 
 	/**
 	 * Sets the encrypted password
@@ -226,7 +240,7 @@ class ZenpageCategory extends ZenpageRoot {
 
 	/**
 	 * @see getCategories()
-	 * @deprecated ZenphotoCMS 2.0 - Use getCategories() instead
+	 * @deprecated 2.0 - Use getCategories() instead
 	 */
 	function getSubCategories($visible = true, $sorttype = NULL, $sortdirection = NULL, $directchilds = false) {
 		return $this->getCategories($visible, $sorttype, $sortdirection, $directchilds);
@@ -257,13 +271,13 @@ class ZenpageCategory extends ZenpageRoot {
 
 	/**
 	 * @see isSubCategoryOf()
-	 * @deprecated ZenphotoCMS 2.0 - Use getCategories() instead
+	 * @deprecated 2.0 - Use getCategories() instead
 	 */
 	function isSubNewsCategoryOf($catlink) {
 		return $this->isSubCategoryOf($catlink);
 	}
-	
-		/**
+
+	/**
 	 * Gets the parent category object based on the parentid set
 	 * 
 	 * @since 1.5.5
@@ -271,14 +285,15 @@ class ZenpageCategory extends ZenpageRoot {
 	 * @return obj|null
 	 */
 	function getParent() {
-		if (is_null($this->parent)) {
-			$parentid = $this->getParentID();
-			$obj = getItembyID('news_categories', $parentid);
-			if ($obj) {
-				return $this->parent = $obj;
+		if ($this->getParentID()) {
+			if (is_null($this->parent)) {
+				$obj = getItembyID('news_categories', $this->getParentID());
+				if ($obj) {
+					return $this->parent = $obj;
+				}
+			} else {
+				return $this->parent;
 			}
-		} else {
-			return $this->parent;
 		}
 		return null;
 	}
@@ -290,18 +305,21 @@ class ZenpageCategory extends ZenpageRoot {
 	 */
 	function getParents() {
 		if (func_num_args() != 0) {
-			degbuglog(gettext('class ZenpageCategory getParents(): The parameters $parentid and $initparents have been removed in Zenphoto 1.5.5.'));
+			deprecationNotice(gettext('class ZenpageCategory getParents(): The parameters $parentid and $initparents have been removed in Zenphoto 1.5.5.'), true);
 		}
-		if (is_null($this->parents)) {
-			$parents = array();
-			$cat = $this;
-			while (!is_null($cat = $cat->getParent())) {
-				array_unshift($parents, $cat->getName());
+		if ($this->getParentID()) {
+			if (is_null($this->parents)) {
+				$parents = array();
+				$cat = $this;
+				while (!is_null($cat = $cat->getParent())) {
+					array_unshift($parents, $cat->getName());
+				}
+				return $this->parents = $parents;
+			} else {
+				return $this->parents;
 			}
-			return $this->parents = $parents;
-		} else {
-			return $this->parents;
 		}
+		return $this->parents = array();
 	}
 
 	/**
@@ -342,15 +360,6 @@ class ZenpageCategory extends ZenpageRoot {
 			}
 		}
 	}
-
-	/**
-	 * Checks if a category is protected and returns TRUE or FALSE
-	 *
-	 * @return bool
-	 */
-	function isProtected() {
-		return $this->checkforGuest() != 'zp_public_access';
-	}
 	
 	/**
 	 * Returns true if this category is published and also all of its parents.
@@ -373,20 +382,21 @@ class ZenpageCategory extends ZenpageRoot {
 			return $this->is_public;
 		}
 	}
+
 	
 	/**
 	 * Checks if user is news author
-	 * @param bit $action what the caller wants to do
+	 * @param bit $action User rights level, default LIST_RIGHTS
 	 *
 	 * returns true of access is allowed
 	 */
-	function isMyItem($action) {
+	function isMyItem($action = LIST_RIGHTS) {
 		global $_zp_current_admin_obj;
 		if (parent::isMyItem($action)) {
 			return true;
 		}
 		if (zp_loggedin($action)) {
-			if ($action == LIST_RIGHTS && $this->isPublic()) {
+			if (GALLERY_SECURITY != 'public' && $this->isPublic() && $action == LIST_RIGHTS) {
 				return true;
 			}
 			$mycategories = $_zp_current_admin_obj->getObjects('news');
@@ -402,7 +412,7 @@ class ZenpageCategory extends ZenpageRoot {
 		return false;
 	}
 
-	/**
+		/**
 	 * Gets news articles titlelinks this category is attached to
 	 *
 	 * NOTE: Since this function only returns titlelinks for use with the object model it does not exclude articles that are password protected via a category
@@ -421,11 +431,12 @@ class ZenpageCategory extends ZenpageRoot {
 	 * 											        This parameter is not used for date archives
 	 * @param bool $sticky set to true to place "sticky" articles at the front of the list.
 	 * @param string $author Optional author name to get the article of
+	* @param string|null|false $date Date YYYY-mm format for a date archive, null uses global theme date archive context, false (default) to disable date archive context
 	 * @return array
 	 */
-	function getArticles($articles_per_page = 0, $published = NULL, $ignorepagination = false, $sortorder = NULL, $sortdirection = NULL, $sticky = NULL, $author = null) {
+	function getArticles($articles_per_page = 0, $published = NULL, $ignorepagination = false, $sortorder = NULL, $sortdirection = NULL, $sticky = NULL, $author = null, $date = false) {
 		global $_zp_zenpage;
-		return $_zp_zenpage->getArticles($articles_per_page, $published, $ignorepagination, $sortorder, $sortdirection, $sticky, $this, $author);
+		return $_zp_zenpage->getArticles($articles_per_page, $published, $ignorepagination, $sortorder, $sortdirection, $sticky, $this, $author, $date);
 	}
 	
 	/**
@@ -505,20 +516,19 @@ class ZenpageCategory extends ZenpageRoot {
 
 	/**
 	 * Returns the full path to a news category
-	 *
+	 * 
 	 * @param string $page The category page number
-	 *
+	 * @param string $path Default null, optionally pass a path constant like WEBPATH or FULLWEBPATH
 	 * @return string
 	 */
-	function getLink($page = NULL) {
-		global $_zp_zenpage;
+	function getLink($page = NULL, $path = null) {
 		if ($page > 1) {
 			$pager = $page . '/';
 			$page = '&page=' . $page;
 		} else {
 			$pager = $page = '';
 		}
-		return zp_apply_filter('getLink', rewrite_path(_CATEGORY_ . '/' . $this->getName() . '/' . $pager, "/index.php?p=news&category=" . $this->getName() . $page), $this, NULL);
+		return zp_apply_filter('getLink', rewrite_path(_CATEGORY_ . '/' . $this->getName() . '/' . $pager, '/index.php?p=news&category=' . $this->getName() . $page, $path), $this, NULL);
 	}
 
 }

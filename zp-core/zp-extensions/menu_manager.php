@@ -212,6 +212,7 @@ function getItemTitleAndURL($item) {
 			"title" => '', 
 			"url" => '', 
 			"name" => '', 
+			'public' => false,
 			'protected' => false, 
 			'theme' => $themename);
 	$valid = true;
@@ -222,6 +223,7 @@ function getItemTitleAndURL($item) {
 					"title" => get_language_string($item['title']), 
 					"url" => WEBPATH, 
 					"name" => WEBPATH, 
+					'public' => true,
 					'protected' => false, 
 					'theme' => $themename);
 			break;
@@ -230,6 +232,7 @@ function getItemTitleAndURL($item) {
 					"title" => get_language_string($item['title']), 
 					"url" => getGalleryIndexURL(), 
 					"name" => WEBPATH, 
+					'public' => true,
 					'protected' => false, 
 					'theme' => $themename);
 			break;
@@ -241,17 +244,20 @@ function getItemTitleAndURL($item) {
 			if (!$valid || strpos($localpath, '..') !== false) {
 				$valid = false;
 				$url = '';
+				$public = false;
 				$protected = 0;
 			} else {
 				$obj = AlbumBase::newAlbum($item['link']);
 				$url = $obj->getLink(0);
-				$protected = $obj->isProtected();
+				$public = $obj->isVisible();
+				$protected = !$obj->isMyItem(LIST_RIGHTS) && $obj->isProtected();
 				$title = $obj->getTitle();
 			}
 			$array = array(
 					"title" => $title, 
 					"url" => $url, 
 					"name" => $item['link'], 
+					'public' => $public,
 					'protected' => $protected, 
 					'theme' => $themename);
 			break;
@@ -261,18 +267,21 @@ function getItemTitleAndURL($item) {
 				$result = $_zp_db->querySingleRow($sql);
 				if (is_array($result)) {
 					$obj = new ZenpagePage($item['link']);
-					$url = $obj->getLink(0);
-					$protected = $obj->isProtected();
+					$url = $obj->getLink();
+					$public = $obj->isVisible();
+					$protected = !$obj->isMyItem(LIST_RIGHTS) && $obj->isProtected();
 					$title = $obj->getTitle();
 				} else {
 					$valid = false;
 					$url = '';
+					$public = false;
 					$protected = 0;
 				}
 				$array = array(
 						"title" => $title, 
 						"url" => $url, 
 						"name" => $item['link'], 
+						'public' => $public,
 						'protected' => $protected, 
 						'theme' => $themename);
 			}
@@ -284,7 +293,9 @@ function getItemTitleAndURL($item) {
 						"title" => get_language_string($item['title']), 
 						"url" => $url, 
 						"name" => $url, 
-						'protected' => false);
+						'public' => true,
+						'protected' => false, 
+						'theme' => $themename);
 			}
 			break;
 		case "zenpagecategory":
@@ -294,17 +305,20 @@ function getItemTitleAndURL($item) {
 				if ($obj) {
 					$obj = new ZenpageCategory($item['link']);
 					$title = $obj->getTitle();
-					$protected = $obj->isProtected();
+					$public = $obj->isVisible();
+					$protected = !$obj->isMyItem(LIST_RIGHTS) && $obj->isProtected();
 					$url = $obj->getLink(0);
 				} else {
 					$valid = false;
 					$url = '';
+					$public = 0;
 					$protected = 0;
 				}
 				$array = array(
 						"title" => $title, 
 						"url" => $url, 
 						"name" => $item['link'], 
+						'public' => $public,
 						'protected' => $protected, 
 						'theme' => $themename);
 			}
@@ -321,6 +335,7 @@ function getItemTitleAndURL($item) {
 					"title" => $title, 
 					"url" => $url, 
 					"name" => $item['link'], 
+					'public' => true,
 					'protected' => false, 
 					'theme' => $themename);
 			break;
@@ -329,15 +344,18 @@ function getItemTitleAndURL($item) {
 					"title" => get_language_string($item['title']), 
 					"url" => $item['link'], 
 					"name" => $item['link'], 
+					'open_newtab' => $item['open_newtab'], 
+					'public' => true,
 					'protected' => false, 
 					'theme' => $themename);
 			break;
 		case 'menulabel':
 			$array = array(
 					"title" => get_language_string($item['title']), 
-					"url" => NULL, 
-					'name' => $item['title'], 
-					'protected' => false, 
+					"url" => NULL,
+					'name' => $item['title'],
+					'public' => true,
+					'protected' => false,
 					'theme' => $themename);
 			break;
 		default:
@@ -345,6 +363,7 @@ function getItemTitleAndURL($item) {
 					"title" => get_language_string($item['title']), 
 					"url" => $item['link'], 
 					"name" => $item['link'], 
+					'public' => true,
 					'protected' => false, 
 					'theme' => $themename);
 			break;
@@ -521,7 +540,7 @@ function inventMenuItem($menuset, $visibility, $field = 'sort_order') {
  * 
  * @since 1.5.7 Return values changed to match function name and doc, parameter $field added to help
  * @param string $menuset current menu set
- * @param string $field The field of the array item to get, "all" for the full item array, "key" for the array index of the item within the items array (old default value)
+ * @param string $field The field of the array item to get, "all" for the full item array, "key" for the array index of the item within the items array (old default value). Default 'sort_order'
  * @return int|array|string
  */
 function getCurrentMenuItem($menuset, $field = 'sort_order') {
@@ -609,7 +628,10 @@ function getMenumanagerPredicessor($menuset = 'default') {
 		array_push($order, sprintf('%03u', $next));
 		$sortorder = implode('-', $order);
 		if (array_key_exists($sortorder, $items) && $items[$sortorder]['type'] != 'menulabel') { // omit the menulabels
-			return getItemTitleAndURL($items[$sortorder]);
+			$item = getItemTitleAndURL($items[$sortorder]);
+			if ($item['public']) {
+				return $item;
+			}
 		}
 		$next--;
 	}
@@ -658,7 +680,10 @@ function getMenumanagerSuccessor($menuset = 'default') {
 		$sortorder = implode('-', $order);
 		if (array_key_exists($sortorder, $items)) {
 			if ($items[$sortorder]['type'] != 'menulabel') { // omit the menulabels
-				return getItemTitleAndURL($items[$sortorder]);
+				$item = getItemTitleAndURL($items[$sortorder]);
+				if ($item['public']) {
+					return $item;
+				}
 			}
 		}
 		$next++;
@@ -732,7 +757,7 @@ function printMenuemanagerPageListWithNav($prevtext, $nexttext, $menuset = 'defa
 		$items = getMenuItems($menuset, getMenuVisibility());
 		echo "<div" . (($id) ? " id=\"$id\"" : "") . " class=\"$class\">\n";
 		echo "<ul class=\"$class\">\n";
-		if ($nextprev) {
+		if ($nextprev && getMenumanagerPredicessor($menuset)) {
 			echo "<li class=\"prev\">";
 			printMenumanagerPrevLink($prevtext, $menuset, $prevtext, gettext("Previous Page"));
 			echo "</li>\n";
@@ -772,7 +797,7 @@ function printMenuemanagerPageListWithNav($prevtext, $nexttext, $menuset = 'defa
 			printLinkHTML($itemarray['url'], $total, sprintf(ngettext('Page {%u}', 'Page {%u}', $total), $total));
 			echo "</li>";
 		}
-		if ($nextprev) {
+		if ($nextprev && getMenumanagerSuccessor($menuset)) {
 			echo "<li class=\"next\">";
 			printMenumanagerNextLink($nexttext, gettext("Next Page"));
 			echo "</li>\n";
@@ -798,10 +823,13 @@ function printMenuemanagerPageList($menuset = 'default', $class = 'pagelist', $i
 /**
  * Gets the parent menu items of the current menu item. Returns the array of the items or false.
  * @param string $menuset current menu set
+ * @param array $currentitem Optional array of the menu item to get parents of. Default null for the current item
  * @return array|false
  */
-function getParentMenuItems($menuset = 'default') {
-	$currentitem = getCurrentMenuItem($menuset, 'all');
+function getParentMenuItems($menuset = 'default', $currentitem = null) {
+	if (is_null($currentitem)) {
+		$currentitem = getCurrentMenuItem($menuset, 'all');
+	} 
 	$items = getMenuItems($menuset, getMenuVisibility());
 	if (count($items) > 0) {
 		if ($currentitem) {
@@ -815,7 +843,7 @@ function getParentMenuItems($menuset = 'default') {
 				}
 			}
 			if (!empty($parents)) {
-				sortMultiArray($parents, 'sort_order', $descending = false, $natsort = false, $case_sensitive = false);
+				sortMultiArray($parents, 'sort_order', false, false, false);
 				return $parents;
 			}
 		}
@@ -970,47 +998,51 @@ function createMenuIfNotExists($menuitems, $menuset = 'default') {
 					$type = false;
 					break;
 				case 'all_zenpagecategorys':
+				case 'all_zenpagecategories':
+					if ($type == 'all_zenpagecategorys') {
+						deprecationNotice(gettext('The menu item type all_zenpagecategorys is deprecated. Use all_zenpagecategories instead'));
+					}
 					$orders[$nesting] ++;
 					$orders[$nesting] = addCategoriesToDatabase($menuset, $orders);
 					$type = false;
 					break;
 				case 'album':
-					$result['title'] = NULL;
+					$result['title'] = '';
 					if (empty($result['link'])) {
 						$success = -1;
 						debugLog(sprintf(gettext('createMenuIfNotExists item %s has an empty link.'), $key));
 					}
 					break;
 				case 'homepage':
-					$result['link'] = NULL;
+					$result['link'] = '';
 					if (empty($result['title'])) {
 						$success = -1;
 						debugLog(sprintf(gettext('createMenuIfNotExists item %s has an empty title.'), $key));
 					}
 					break;
 				case 'galleryindex':
-					$result['link'] = NULL;
+					$result['link'] = '';
 					if (empty($result['title'])) {
 						$success = -1;
 						debugLog(sprintf(gettext('createMenuIfNotExists item %s has an empty title.'), $key));
 					}
 					break;
 				case 'zenpagepage':
-					$result['title'] = NULL;
+					$result['title'] = '';
 					if (empty($result['link'])) {
 						$success = -1;
 						debugLog(sprintf(gettext('createMenuIfNotExists item %s has an empty link.'), $key));
 					}
 					break;
 				case 'zenpagenewsindex':
-					$result['link'] = NULL;
+					$result['link'] = '';
 					if (empty($result['title'])) {
 						$success = -1;
 						debugLog(sprintf(gettext('createMenuIfNotExists item %s has an empty title.'), $key));
 					}
 					break;
 				case 'zenpagecategory':
-					$result['title'] = NULL;
+					$result['title'] = '';
 					if (empty($result['link'])) {
 						$success = -1;
 						debugLog(sprintf(gettext('createMenuIfNotExists item %s has an empty link.'), $key));
@@ -1085,11 +1117,16 @@ function createMenuIfNotExists($menuitems, $menuset = 'default') {
  * Gets the direct child menu items of the current menu item. Returns the array of the items or false.
  * @param string $menuset current menu set
  * @param bool $allchilds Set to false (default) for the next level childs, true for childs of all further levels
+ * @param array $item Optional array of the menu item to get parents of. Default null for the current item
  * @return array|false
  */
-function getMenuItemChilds($menuset = 'default', $allchilds = false) {
-  $sortorder = getCurrentMenuItem($menuset);
-  $items = getMenuItems($menuset, getMenuVisibility());
+function getMenuItemChilds($menuset = 'default', $allchilds = false, $currentitem = null) {
+	if (is_null($currentitem)) {
+		$sortorder = getCurrentMenuItem($menuset);
+	} else {
+		$sortorder = $currentitem['sort_order'];
+	}
+	$items = getMenuItems($menuset, getMenuVisibility());
   if (count($items) > 0) {
     if ($sortorder) { 
       $length = strlen($sortorder);
@@ -1136,6 +1173,31 @@ function isCurrentitemParent($menuset = 'default', $item = array()) {
 		return false;
 	} 
 	
+}
+
+/**
+ * Checks if the actual object the menu item represents is actually public
+ * 
+ * @since 1.6.1
+ * @param string  $menuset
+ * @param array $item The menu item array of the menu item to check
+ * @param array $itemarray The item array of the menu item to check as returned by getItemTitleAndURL()
+ * @return bool
+ */
+function isPublicMenuItem($menuset, $item, $itemarray) {
+	if (!$itemarray['public']) {
+		return false;
+	}
+	$parents = getParentMenuItems($menuset, $item);
+	if ($parents) {
+		foreach ($parents as $parent) {
+			$parentitemarray = getItemTitleAndURL($parent);
+			if (!$parentitemarray['public']) {
+				return false;
+			}
+		}
+	}
+	return true;
 }
 
 /**
@@ -1194,9 +1256,12 @@ function printCustomMenu($menuset = 'default', $option = 'list', $css_id = '', $
 	}
 	foreach ($items as $item) {
 		$itemarray = getItemTitleAndURL($item);
+		if (!isPublicMenuItem($menuset, $item, $itemarray)) {
+			continue;
+		}
 		$itemURL = $itemarray['url'];
 		$itemtitle = $itemarray['title'];
-		$level = max(1, count(explode('-', $item['sort_order'])));
+		$level = substr_count($item['sort_order'], '-') + 1;
 		$process = (($level <= $showsubs && $option == "list") // user wants all the pages whose level is <= to the parameter
 						|| ($option == 'list' || $option == 'list-top') && $level == 1 // show the top level
 						|| (($option == 'list' || ($option == 'omit-top' && $level > 1)) && (($item['id'] == $pageid) // current page
@@ -1270,11 +1335,15 @@ function printCustomMenu($menuset = 'default', $option = 'list', $css_id = '', $
 						break;
 				}
 			}
+			$class = '';
 			if ($item['id'] == $pageid && !is_null($pageid)) {
 				if ($level == 1) { // top level
 					$class = ' ' . $css_class_topactive;
 				} else {
 					$class = ' ' . $css_class_active .'-' . $level;
+				}
+				if ($itemarray['protected']) {
+					$class .= ' has_password';
 				}
 				echo '<li class="menu_' . trim($item['type'] . ' ' . $class) . '">' . $itemtitle . $itemcounter;
 			} else {
@@ -1284,8 +1353,9 @@ function printCustomMenu($menuset = 'default', $option = 'list', $css_id = '', $
 					} else {
 						$class = ' ' . $css_class_active .'-' . $level;
 					}
-				} else {
-					$class = '';
+				} 
+				if ($itemarray['protected']) {
+					$class .= ' has_password';
 				}
 				if ($item['include_li']) {
 					echo '<li class="menu_' . $item['type'] . $class . '">';
@@ -1314,10 +1384,14 @@ function printCustomMenu($menuset = 'default', $option = 'list', $css_id = '', $
 						echo $itemtitle;
 						break;
 					default:
+						$target_attr = '';
+						if($item['type'] == 'customlink' && $item['open_newtab']) {
+							$target_attr = ' target="_blank"';
+						}
 						if (empty($itemURL)) {
 							$itemURL = FULLWEBPATH;
 						}
-						echo '<a href="' . $itemURL . '" title="' . getBare($itemtitle) . '">' . $itemtitle . '</a>' . $itemcounter;
+						echo '<a href="' . $itemURL . '" title="' . getBare($itemtitle) . '"' . $target_attr . '>' . $itemtitle . '</a>' . $itemcounter;
 						break;
 				}
 				if ($item['span_id'] || $item['span_class']) {
@@ -1345,5 +1419,3 @@ function printCustomMenu($menuset = 'default', $option = 'list', $css_id = '', $
 		echo "</ul>\n";
 	}
 }
-
-?>
