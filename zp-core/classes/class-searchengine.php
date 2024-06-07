@@ -47,7 +47,8 @@ class SearchEngine {
 	 * @return SearchEngine
 	 */
 	function __construct($dynamic_album = false) {
-		global $_zp_exifvars, $_zp_gallery;
+		global $_zp_exifvars, $_zp_gallery, $_zp_db;
+		$regexboundaries = $_zp_db->getRegexWordBoundaryChars();
 		switch ((int) getOption('exact_tag_match')) {
 			case 0:
 				// partial
@@ -59,7 +60,7 @@ class SearchEngine {
 				break;
 			case 2:
 				//word
-				$this->tagPattern = array('type' => 'regexp', 'open' => '[[:<:]]', 'close' => '[[:>:]]');
+				$this->tagPattern = array('type' => 'regexp', 'open' => $regexboundaries['open'], 'close' => $regexboundaries['close']);
 				break;
 		}
 
@@ -70,14 +71,13 @@ class SearchEngine {
 				break;
 			case 1:
 				// partial start
-				$this->pattern = array('type' => 'regexp', 'open' => '[[:<:]]', 'close' => '');
+				$this->pattern = array('type' => 'regexp', 'open' => $regexboundaries['open'], 'close' => '');
 				break;
 			case 2:
 				//word
-				$this->pattern = array('type' => 'regexp', 'open' => '[[:<:]]', 'close' => '[[:>:]]');
+				$this->pattern = array('type' => 'regexp', 'open' => $regexboundaries['open'], 'close' => $regexboundaries['close']);
 				break;
 		}
-
 		$this->extraparams['albumssorttype'] = getOption('search_album_sort_type');
 		$this->extraparams['albumssortdirection'] = getOption('search_album_sort_direction') ? 'DESC' : '';
 		$this->extraparams['imagessorttype'] = getOption('search_image_sort_type');
@@ -1957,7 +1957,7 @@ class SearchEngine {
 	private function cacheSearch($criteria, $found) {
 		global $_zp_db;
 		if (SEARCH_CACHE_DURATION) {
-			$criteria = serialize($criteria);
+			$criteria = serialize(serialize($criteria));
 			$sql = 'SELECT `id`, `data`, `date` FROM ' . $_zp_db->prefix('search_cache') . ' WHERE `criteria` = ' . $_zp_db->quote($criteria);
 			$result = $_zp_db->querySingleRow($sql);
 			if ($result) {
@@ -1978,7 +1978,8 @@ class SearchEngine {
 	private function getCachedSearch($criteria) {
 		global $_zp_db;
 		if (SEARCH_CACHE_DURATION) {
-			$sql = 'SELECT `id`, `date`, `data` FROM ' . $_zp_db->prefix('search_cache') . ' WHERE `criteria` = ' . $_zp_db->quote(serialize($criteria));
+			$criteria = serialize(serialize($criteria));
+			$sql = 'SELECT `id`, `date`, `data` FROM ' . $_zp_db->prefix('search_cache') . ' WHERE `criteria` = ' . $_zp_db->quote($criteria);
 			$result = $_zp_db->querySingleRow($sql);
 			if ($result) {
 				if ((time() - strtotime($result['date'])) > SEARCH_CACHE_DURATION * 60) {
@@ -2174,6 +2175,59 @@ class SearchEngine {
 	}
 	
 	/**
+	 * Gets the mode of the current search: 
+	 * 
+	 * - 'search' (general results)
+	 * - 'archive' (Date archive results - albums and images only - News article date archives are no searches!)
+	 * - 'tag' (specific tag results);
+	 * 
+	 * @since 1.6.3
+	 * @return string
+	 */
+	function getMode() {
+		$fields = $this->getSearchFields(true);
+		$dates = $this->getSearchDate();
+		if (empty($dates)) {
+			$mode = 'search';
+		} else {
+			$mode = 'archive';
+		}
+		return self::getSearchMode($fields, $dates);
+	}
+	
+	/**
+	 * Static method to get the search mode based on fields and dates: 
+	 * 
+	 * - 'search' (general results)
+	 * - 'archive' (Date archive results - albums and images only - News article date archives are no searches!)
+	 * - 'tag' (specific tag results);
+	 * 
+	 * This is a helper for e.g. searchengine::getSearchURL() before an actual search is performed. 
+	 * Within actual searchengine class object context use the method getMode() instead
+	 * 
+	 * @since 1.6.3 
+	 * @param array $fields The search fields
+	 * @param string|array $dates dates to limit the search
+	 * @return string
+	 */
+	static function getSearchMode($fields, $dates) {
+		if (!is_array($fields)) {
+			$fields = explode(',', $fields);
+		}
+		if (empty($dates)) {
+			$mode = 'search';
+		} else {
+			$mode = 'archive';
+		}
+		if (!empty($fields) && empty($dates)) {
+			if (count($fields) == 1 && array_shift($fields) == 'tags') {
+				$mode = 'tag';
+			}
+		}
+		return $mode;
+	}
+	
+	/**
 	 * Returns a search URL
 	 * 
 	 * @since 1.1.3
@@ -2204,19 +2258,7 @@ class SearchEngine {
 		if (!is_array($fields)) {
 			$fields = explode(',', $fields);
 		}
-		
-		//setuü search url mode
-		if (empty($dates)) {
-			$searchurl_mode = 'search';
-		} else {
-			$searchurl_mode = 'archive';
-		}
-		if (!empty($fields) && empty($dates)) {
-			$temp = $fields;
-			if (count($fields) == 1 && array_shift($temp) == 'tags') {
-				$searchurl_mode = 'tags';
-			}
-		}
+		$searchurl_mode = self::getSearchMode($fields, $dates);
 
 		//$rewrite = false;
 		if ($rewrite) {
@@ -2228,7 +2270,7 @@ class SearchEngine {
 				case 'archive':
 					$baseurl = SEO_WEBPATH . '/' . _ARCHIVE_ . '/';
 					break;
-				case 'tags':
+				case 'tag':
 					$baseurl = SEO_WEBPATH . '/' . _TAGS_ . '/';
 					break;
 			}			
@@ -2281,7 +2323,7 @@ class SearchEngine {
 					}
 					break;
 				case 'archive':
-				case 'tags':
+				case 'tag':
 					$url = $baseurl . implode('/', $query) . '/';
 					break;
 			}
@@ -2297,5 +2339,7 @@ class SearchEngine {
 		}
 		return $url;
 	}
+	
+	
 
 }

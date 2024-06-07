@@ -520,7 +520,7 @@ if (isset($_GET['album']) && (empty($subtab) || $subtab == 'albuminfo') || isset
      	function newDynAlbum(folder, albumtab) {
         var album = prompt('<?php echo addslashes(gettext('New dynamic album name?')); ?>', '<?php echo addslashes(gettext('new dynamic album')); ?>');
 									if (album) {
-          launchScript('admin-dynamic-album.php', ['search=' + encodeURIComponent(album), 'folder=' + encodeURIComponent(folder), 'XSRFToken=<?php echo getXSRFToken('newalbum'); ?>']);
+          launchScript('admin-dynamic-album.php', ['s=' + encodeURIComponent(album), 'folder=' + encodeURIComponent(folder), 'XSRFToken=<?php echo getXSRFToken('newalbum'); ?>']);
         	}
 					}
 	function confirmAction() {
@@ -1437,34 +1437,26 @@ echo "\n</head>";
 														</tr>
 														<?php
 													}
-													if ($image->get('hasMetadata')) {
+													if ($image->hasMetadata()) {
 														?>
 														<tr>
 															<td valign="top"><?php echo gettext("Metadata:"); ?></td>
 															<td>
 																<?php
-																$data = '';
-																$exif = $image->getMetaData();
+																$exif = $image->getMetaData(false);
 																if (false !== $exif) {
-																	foreach ($exif as $field => $value) {
-																		if (!empty($value)) {
-																			$display = $_zp_exifvars[$field][3];
-																			if ($display) {
-																				$label = $_zp_exifvars[$field][2];
-																				$data .= "<tr><td class=\"medtadata_tag\">$label: </td> <td>" . html_encode($value) . "</td></tr>\n";
-																			}
-																		}
-																	}
-																}
-																if (empty($data)) {
-																	echo gettext('None selected for display');
-																} else {
 																	?>
 																	<div class="metadata_container">
 																		<table class="metadata_table" >
-																			<?php echo $data; ?>
+																		<?php
+																		foreach ($exif as $field => $value) {
+																			$label = $_zp_exifvars[$field][2];
+																			$value = getImageMetadataValue($_zp_exifvars[$field][6], $value, $field);
+																			echo '<tr><td class="metadata_tag">' . $label . ': </td> <td>' . $value . '</td></tr>'. "\n";
+																		}
+																		?>
 																		</table>
-																	</div>
+																	</div>		
 																	<?php
 																}
 																?>

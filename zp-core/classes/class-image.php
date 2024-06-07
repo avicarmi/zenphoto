@@ -78,7 +78,7 @@ class Image extends MediaObject {
 	/**
 	 * Returns a new "image" object based on the file extension
 	 * 
-	 * @since ZnephotoCMS 1.6 - Moved to Image class as static method
+	 * @since 1.6 - Moved to Image class as static method
 	 *
 	 * @param object $album the owner album
 	 * @param string $filename the filename
@@ -143,7 +143,7 @@ class Image extends MediaObject {
 	/**
 	 * Returns true if the object is a zenphoto 'image'
 	 * 
-	 * @since ZnephotoCMS 1.6 - Moved to Image class as static method
+	 * @since 1.6 - Moved to Image class as static method
 	 *
 	 * @param object $image
 	 * @return bool
@@ -257,20 +257,44 @@ class Image extends MediaObject {
 		$storedmtime = $this->get('mtime');
 		return (empty($storedmtime) || $this->filemtime > $storedmtime);
 	}
+	
+	/**
+	 * Returns true if the image has any meta data
+	 * @since 1.6.3
+	 * @return bool
+	 */
+	function hasMetaData() {
+		return $this->get('hasMetadata');
+	}
 
 	/**
 	 * Returns an array of EXIF data
-	 *
+	 * 
+	 * @since 1.6.3 Parameters $displayonly and $hide_empty added
+	 * 
+	 * @param string $displayonly set to true to return only the items selected for display (default true)
+	 * @param bool $hide_empty Hide empty meta data fields (default true)
 	 * @return array
 	 */
-	function getMetaData() {
+	function getMetaData($displayonly = true, $hide_empty = true) {
 		global $_zp_exifvars;
 		$exif = array();
 		// Put together an array of EXIF data to return
 		foreach ($_zp_exifvars as $field => $exifvar) {
+			$display = true;
+			if ($displayonly) {
+				$display = $exifvar[3];
+			}
 			//	only enabled image metadata
-			if ($_zp_exifvars[$field][5]) {
-				$exif[$field] = $this->get($field);
+			if ($exifvar[5] && $display) {
+				$value = $this->get($field);
+				$hide = false;
+				if ($hide_empty && !$value) {
+					$hide = true;
+				}
+				if (!$hide) {
+					$exif[$field] = $value;
+				}
 			}
 		}
 		return $exif;
@@ -282,7 +306,6 @@ class Image extends MediaObject {
 	 */
 	function updateMetaData() {
 		global $_zp_exifvars, $_zp_gallery, $_zp_graphics;
-		require_once SERVERPATH .'/' . ZENFOLDER . '/libs/exif/exif.php';
 		$IPTCtags = array(
 						'SKIP'								 => '2#000', //	Record Version										Size:64
 						'ObjectType'					 => '2#003', //	Object Type	Ref										Size:67
@@ -452,11 +475,11 @@ class Image extends MediaObject {
 		/* iptc description */
 		$desc = $this->get('IPTCImageCaption');
 		if (!empty($desc)) {
-   if(getOption('IPTC_convert_linebreaks')) {
-     $desc = nl2br($desc);
-   }
+			if (getOption('IPTC_convert_linebreaks')) {
+				$desc = nl2br(html_decode($desc));
+			}
 			$this->setDesc($desc);
-		}
+		} 
 
 		/* iptc location, state, country */
 		$loc = $this->get('IPTCSubLocation');
@@ -567,8 +590,9 @@ class Image extends MediaObject {
 			$iptcstring = substr($iptcstring, 0, -1);
 		}
 		$outputset = LOCAL_CHARSET;
-		if ($characterset == $outputset)
+		if ($characterset == $outputset) {
 			return $iptcstring;
+		}
 		$iptcstring = $_zp_utf8->convert($iptcstring, $characterset, $outputset);
 		return trim(sanitize($iptcstring, 1));
 	}
@@ -584,7 +608,7 @@ class Image extends MediaObject {
 	function getGeodata() {
 		$gps = array();
 		if (Image::isImageClass($this)) {
-			$exif = $this->getMetaData();
+			$exif = $this->getMetaData(false);
 			if ((!empty($exif['EXIFGPSLatitude'])) && (!empty($exif['EXIFGPSLongitude']))) {
 				$lat_c = explode('.', str_replace(',', '.', $exif['EXIFGPSLatitude']) . '.0');
 				$lat_f = round((float) abs($lat_c[0]) + ($lat_c[1] / pow(10, strlen($lat_c[1]))), 12);
@@ -675,7 +699,7 @@ class Image extends MediaObject {
 	 * file need to override this and provide the actual dimensions of the thumb using zp_getImageDims($thumbfile). 
 	 * Otherwise thumb generation may be distorted.
 	 * 
-	 * @since ZephotoCMS 1.5.8
+	 * @since 1.5.8
 	 * 
 	 * @return array
 	 */
@@ -693,7 +717,7 @@ class Image extends MediaObject {
 	 * Returns the width of the thumb. Here just the same as getWidth(). 
 	 *
 	 * @see getThumbDimensions() for specific usage
-	 * @since ZephotoCMS 1.5.8
+	 * @since 1.5.8
 	 * 
 	 * @return int
 	 */
@@ -706,7 +730,7 @@ class Image extends MediaObject {
 	 * Returns the height of the image. Here just the same as getHeight().
 	 *
 	 * @see getThumbDimensions() for specific usage
-	 * @since ZephotoCMS 1.5.8
+	 * @since 1.5.8
 	 * 
 	 * @return int
 	 */
@@ -1010,7 +1034,7 @@ class Image extends MediaObject {
 	/**
 	 * Gets the image copyright URL
 	 * 
-	 * @since ZenhphotoCMS 1.5.8
+	 * @since 1.5.8
 	 * 
 	 * @return string
 	 */

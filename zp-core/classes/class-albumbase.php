@@ -38,7 +38,7 @@ class AlbumBase extends MediaObject {
 	/**
 	 * Wrapper instantiation function for albums. Do not instantiate directly
 	 * 
-	 * @since ZnephotoCMS 1.6 - Moved to AlbumBase class as static method
+	 * @since 1.6 - Moved to AlbumBase class as static method
 	 * 
 	 * @param string $folder8 the name of the folder (inernal character set)
 	 * @param bool $cache true if the album should be fetched from the cache
@@ -58,7 +58,7 @@ class AlbumBase extends MediaObject {
 	/**
 	 * Returns true if the object is a zenphoto 'album'
 	 * 
-	 * @since ZnephotoCMS 1.6 - Moved to AlbumBase class as static method
+	 * @since 1.6 - Moved to AlbumBase class as static method
 	 *
 	 * @param object $album
 	 * @return bool
@@ -163,17 +163,20 @@ class AlbumBase extends MediaObject {
 	 * 
 	 * @since 1.5.5
 	 * 
-	 * @return array|null
+	 * @return array
 	 */
 	function getParents() {
+		$parents = array();
 		if (is_null($this->parentalbums)) {
 			$albumarray = getAlbumArray($this->name, false);
 			if (count($albumarray) == 1) {
 				$parent = $this->getParent();
-				$this->urparentalbum = $parent;
-				return $this->parentalbums = array($parent);
+				if ($parent) {
+					$this->urparentalbum = $parent;
+					return $this->parentalbums = array($parent);
+				}
+				return $this->parentalbums = array();
 			}
-			$parents = array();
 			$album = $this;
 			while (!is_null($album = $album->getParent())) {
 				array_unshift($parents, $album);

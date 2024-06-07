@@ -926,7 +926,7 @@ class Authority {
 			if ($logo) {
 				?>
 				<p>
-					<img src="<?php echo WEBPATH . '/' . ZENFOLDER; ?>/images/zen-logo.png" title="ZenPhoto" alt="ZenPhoto" />
+					<img src="<?php echo WEBPATH . '/' . ZENFOLDER; ?>/images/zen-logo.png" title="Zenphoto" alt="Zenphoto" />
 				</p>
 				<?php
 			}
@@ -971,7 +971,7 @@ class Authority {
 							<input type="hidden" name="redirect" value="<?php echo html_encode(pathurlencode($redirect)); ?>" />
 							<fieldset>
 								<legend><?php echo gettext('User') ?></legend>
-								<input class="textfield" name="user" id="user" type="text" size="35" value="<?php echo html_encode($requestor); ?>" />
+								<input class="textfield" name="user" id="user" type="text" size="35" value="<?php echo html_encode($requestor); ?>" required>
 							</fieldset>
 							<?php
 							if ($requestor && $admin) {
@@ -1045,7 +1045,7 @@ class Authority {
 						<input type="hidden" name="redirect" value="<?php echo html_encode(pathurlencode($redirect)); ?>" />
 						<fieldset id="logon_box">
 							<fieldset><legend><?php echo gettext('User'); ?></legend>
-								<input class="textfield" name="user" id="user" type="text" value="<?php echo html_encode($requestor); ?>" />
+								<input class="textfield" name="user" id="user" type="text" value="<?php echo html_encode($requestor); ?>" required>
 							</fieldset>
 							<?php
 							if (isset($captcha['input'])) {
@@ -1115,13 +1115,13 @@ class Authority {
 							if ($showUserField) { //	requires a "user" field
 								?>
 								<fieldset><legend><?php echo gettext("User"); ?></legend>
-									<input class="textfield" name="user" id="user" type="text" size="35" value="<?php echo html_encode($requestor); ?>" />
+									<input class="textfield" name="user" id="user" type="text" size="35" value="<?php echo html_encode($requestor); ?>" required>
 								</fieldset>
 								<?php
 							}
 							?>
 							<fieldset><legend><?php echo gettext("Password"); ?></legend>
-								<input class="textfield" name="pass" id="pass" type="password" size="35" /><br />
+								<input class="textfield" name="pass" id="pass" type="password" size="35" required><br />
 								<label><input type="checkbox" name="disclose_password" id="disclose_password" onclick="togglePassword('');" /><?php echo gettext('Show password') ?></label>
 							</fieldset>
 							<br />

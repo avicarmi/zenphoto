@@ -337,12 +337,19 @@ define('THUMB_WATERMARK', getOption('Image_watermark'));
 define('OPEN_IMAGE_CACHE', !getOption('protected_image_cache'));
 define('IMAGE_CACHE_SUFFIX', getOption('image_cache_suffix'));
 
-$date_format = getOption('date_format');
-$time_format = getOption('time_format');
-if (getOption('date_format_localized') && in_array($date_format, array('locale_preferreddate_time','locale_preferreddate_notime'))) {
-	define('DATE_FORMAT', $date_format);
+$time_display_disabled = getOption('time_display_disabled');
+define('DATE_FORMAT', strval(trim(getOption('date_format'))));
+define('TIME_FORMAT', strval(trim(getOption('time_format'))));
+define('DATETIME_FORMAT', DATE_FORMAT . ' ' . TIME_FORMAT);
+if (getOption('date_format_localized') && in_array(DATE_FORMAT, array('locale_preferreddate_time', 'locale_preferreddate_notime'))) {
+	deprecationNotice(gettext("The date format options 'locale_preferreddate_time' and 'locale_preferreddate_notime' are deprecated and will be removed in Zenphoto 1.7. Please set individual date and time formats."));
+	define('DATETIME_DISPLAYFORMAT', DATE_FORMAT);
 } else {
-	define('DATE_FORMAT', strval(trim($date_format . ' ' . $time_format)));
+	if ($time_display_disabled) {
+		define('DATETIME_DISPLAYFORMAT', DATE_FORMAT);
+	} else {
+		define('DATETIME_DISPLAYFORMAT', DATETIME_FORMAT);
+	}
 }
 
 define('IM_SUFFIX', getOption('mod_rewrite_image_suffix'));
@@ -372,8 +379,8 @@ define('MENU_TRUNCATE_INDICATOR', getOption('menu_truncate_indicator'));
 function js_encode($this_string) {
 	global $_zp_utf8;
 	$this_string = strval($this_string);
-	$this_string = preg_replace("/\r?\n/", "\\n", $this_string);
 	$this_string = utf8::encode_javascript($this_string);
+	$this_string = preg_replace("/\r?\n/", "\\n", $this_string);
 	return $this_string;
 }
 
@@ -1102,18 +1109,18 @@ function getImageURI($args, $album, $image, $mtime) {
 }
 
 /**
- * Extracts integer value (1-9) from the exifOrientation value stored (e.g. '7: 90 deg CCW Mirrored') in the database for images
- * 
- * Returns 0 if not a string.
+ * Extracts integer value (1-9) from the exifOrientation value stored (e.g. '7: 90 deg CCW Mirrored') in the database for images or returns the value if it is an integer
  * 
  * @since 1.6.1
  * 
- * @param string $exiforientation String value as stored in the db (e.g. '7: 90 deg CCW Mirrored')
+ * @param string|integer $exiforientation String or integer  value as stored in the db (e.g. '7: 90 deg CCW Mirrored' or just "7")
  * @return int
  */
 function extractImageExifOrientation($exiforientation = '') {
 	if (is_string($exiforientation)) {
 		return intval(substr($exiforientation, 0, 1));
+	} else {
+		return intval($exiforientation);
 	}
 	return 0;
 }
@@ -1608,7 +1615,10 @@ function imgSrcURI($uri) {
  * @return string
  */
 function getSuffix($filename) {
-	return strtolower(substr(strrchr($filename, "."), 1));
+	if (is_string($filename)) {
+		return strtolower(substr(strrchr($filename, "."), 1));
+	}
+	return $filename;
 }
 
 /**
@@ -1618,7 +1628,10 @@ function getSuffix($filename) {
  * @return string
  */
 function stripSuffix($filename) {
-	return str_replace(strrchr($filename, "."), '', $filename);
+	if (is_string($filename)) {
+		return str_replace(strrchr($filename, "."), '', $filename);
+	}
+	return $filename;
 }
 
 /**

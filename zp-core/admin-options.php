@@ -127,19 +127,19 @@ if (isset($_GET['action'])) {
 				$dateformat = sanitize($_POST['date_format'], 3);
 			}
 			setOption('date_format', $dateformat);
-
-			// time format
-			if (isset($_POST['time_format_list'])) { // may not be submitted if custom/preferred are selector for date format
-				$timeformat = sanitize($_POST['time_format_list'], 3);
-				if ($dateformat == 'custom' || in_array($dateformat, array('locale_preferreddate_time', 'locale_preferreddate_notime'))) {
-					$timeformat = '';
-				}
-			} else {
-				$timeformat = '';
+			$timeformat = sanitize($_POST['time_format_list'], 3);
+			if ($timeformat == 'custom') {
+				$timeformat = sanitize($_POST['time_format'], 3);
 			}
 			setOption('time_format', $timeformat);
-			setOption('date_format_localized', (int) isset($_POST['date_format_localized']));
-
+			if (extension_loaded('intl')) {
+				$localized_dates = (int) isset($_POST['date_format_localized']);
+			} else {
+				$localized_dates = 0;
+			}
+			setOption('date_format_localized', $localized_dates);
+			setOption('time_display_disabled', (int) isset($_POST['time_display_disabled']));
+			
 			setOption('UTF8_image_URI', (int) isset($_POST['UTF8_image_URI']));
 			foreach ($_POST as $key => $value) {
 				if (preg_match('/^log_size.*_(.*)$/', $key, $matches)) {
@@ -844,20 +844,34 @@ Authority::printPasswordFormJS();
 									</td>
 								</tr>
 								<tr>
-									<td width="175"><?php echo gettext("Date format:"); ?></td>
+									<td width="175"><?php echo gettext("Date and time formats:"); ?></td>
 									<td width="350">
 											<?php
 											printDatetimeFormatSelector();
 											$use_localized_date = getOption('date_format_localized');
+											$time_display_disabled = getOption('time_display_disabled');
 										?>
-										<label class="checkboxlabel">
-											<input type="checkbox" name="date_format_localized" value="1"	<?php checked('1', $use_localized_date); ?> /><?php echo gettext('Use localized dates'); ?>
+										<p>
+											<label class="checkboxlabel">
+												<input type="checkbox" name="date_format_localized" value="1"	<?php checked('1', $use_localized_date); ?> /><?php echo gettext('Use localized dates'); ?>
 											</label>
+										</p>
+										<p>	
+											<label class="checkboxlabel">
+												<input type="checkbox" name="time_display_disabled" value="1"	<?php checked('1', $time_display_disabled); ?> /><?php echo gettext('Disable time for display'); ?>
+											</label>
+										</p>
 									</td>
-									<td><?php echo gettext('Formats for date and time. Select from the lists or set to <code>custom</code> and provide a <a href="https://www.php.net/manual/en/datetime.format.php">datetime</a> format string in the custom box.'); ?>
+									<td>
+										<p><?php echo gettext('Formats for date and time. Select from the lists or set to <code>custom</code> and provide a <a href="https://www.php.net/manual/en/datetime.format.php">datetime</a> format string for date and time in the custom boxes.'); ?></p>
+										<p><?php echo gettext('If time is disabled for display standard theme and admin functions will not display it.'); ?></p>
 									<?php if (extension_loaded('intl')) { ?>
 										<p class="notebox">
-										<?php echo gettext('NOTE: If localized dates are enabled and you are using a custom date format you need to provide an <a href="https://unicode-org.github.io/icu/userguide/format_parse/datetime/">ICU dateformat string</a>. If you use a custom date format or choose one of the <em>preferred date representation</em> formats the time format option is ignored.'); ?>
+										<?php echo gettext('NOTE: If localized dates are enabled and you are using a custom date format you need to provide an <a href="https://unicode-org.github.io/icu/userguide/format_parse/datetime/">ICU dateformat string</a>.'); ?>
+									</p>
+								<?php } else { ?>
+									<p class="warningbox">
+										<?php echo gettext('The intl PHP extension is not installed and localized dates are not available on your system.'); ?>
 									</p>
 								<?php } ?>
 									</td>
@@ -1402,7 +1416,7 @@ Authority::printPasswordFormJS();
 									</td>
 									<td>
 										<?php
-										echo gettext('Sort order for the albums on the index of the gallery. Custom sort values must be database field names. You can have multiple fields separated by commas. This option is also the default sort for albums and subalbums.');
+										echo gettext('Sort order for all albums and subalbums.');
 										?>
 									</td>
 								</tr>
@@ -2023,7 +2037,6 @@ Authority::printPasswordFormJS();
 									</td>
 									<td>
 										<p><?php echo gettext("Default sort order for images."); ?></p>
-										<p><?php echo gettext('Custom sort values must be database field names. You can have multiple fields separated by commas.') ?></p>
 									</td>
 								</tr>
 								<tr>
@@ -2256,7 +2269,7 @@ Authority::printPasswordFormJS();
 										<p class="nowrap">
 											<?php echo gettext("offset h"); ?>
 											<input type="text" size="2" name="watermark_h_offset"
-														 value="<?php echo html_encode(getOption('watermark_h_offset')); ?>" /><?php echo /* xgettext:no-php-format */ gettext("% w, "); ?>
+														 value="<?php echo html_encode(getOption('watermark_h_offset')); ?>" /><?php echo /* xgettext:no-php-format */ gettext("% , w "); ?>
 											<input type="text" size="2" name="watermark_w_offset"
 														 value="<?php echo html_encode(getOption('watermark_w_offset')); ?>" /><?php /* xgettext:no-php-format */ echo gettext("%"); ?>
 										</p>
@@ -2273,6 +2286,9 @@ Authority::printPasswordFormJS();
 											<?php
 										}
 										?>
+										<p class="notebox">
+											<?php echo gettext('<strong>NOTE:</strong> If you want to watermark <em>Full sized images</em> you have to enable <em>cache the full image</em> from the <em>Full image protection</em> option below.'); ?>
+										</p>
 									</td>
 
 								</tr>

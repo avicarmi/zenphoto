@@ -599,7 +599,7 @@ echo $refresh;
 
 															<em><?php echo gettext("New User"); ?></em>
 															<input type="text" size="<?php echo TEXT_INPUT_SIZE; ?>" id="adminuser<?php echo $id; ?>" name="adminuser<?php echo $id; ?>" value=""
-																		 onclick="toggleExtraInfo('<?php echo $id; ?>', 'user', visible);
+																	onclick="toggleExtraInfo('<?php echo $id; ?>', 'user', visible);
 																						 $('#adminuser<?php echo $id; ?>').focus();" />
 
 															<?php

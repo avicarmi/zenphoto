@@ -289,8 +289,7 @@ function lookupSortKey($sorttype, $default, $table) {
  *
  * @param string $format A datetime compatible format string. Leave empty to use the option value.
  *							NOTE: If $localize_date = true you need to provide an ICU dateformat string instead of a datetime format string 
- *							unless you pass the DATE_FORMAT constant using one of the standard formats.
- *							You can then also submit these custom formats 'locale_preferreddate_time' and 'locale_preferreddate_notime'
+ *							unless you pass a date format constant like DATETIME_DISPLAYFORMAT using one of the standard formats. 
  * @param string|int $datetime the date to be formatted. Can be a date string or a timestamp.  
  * @param boolean $localized_date Default null to use the related option setting. Set to true to use localized dates. PHP intl extension required 
  * @return string
@@ -298,7 +297,7 @@ function lookupSortKey($sorttype, $default, $table) {
 function zpFormattedDate($format = '', $datetime = '', $localized_date = null) {
 	global $_zp_utf8;
 	if (empty($format)) {
-		$format = DATE_FORMAT;
+		$format = DATETIME_DISPLAYFORMAT;
 	}
 	$format_converted = convertStrftimeFormat($format);
 	if ($format_converted != $format) {
@@ -314,7 +313,7 @@ function zpFormattedDate($format = '', $datetime = '', $localized_date = null) {
 			'locale_preferreddate_time',
 			'locale_preferreddate_notime'
 	);
-	if ($localized_date) {
+	if ($localized_date && extension_loaded('intl')) { 
 		$datetime_formats = getStandardDateFormats();
 		$date_formats = getStandardDateFormats('date');
 		$time_formats = getStandardDateFormats('time');
@@ -665,21 +664,23 @@ function getPluginFiles($pattern, $folder = '', $stripsuffix = true) {
 }
 
 /**
- * Returns the fully qualified file name of the plugin file.
- *
- * Note: order of selection is:
- * 	1-theme folder file (if $inTheme is set)
- *  2-user plugin folder file
- *  3-zp-extensions file
- * first file found is used
+ * Returns the fully qualified file path of a plugin file.
+ * 
+ * Note: order of selection is if the file is named "something.php":
+ * 
+ * - 1-theme folder file (if $inTheme is set): /themes/currenthemefolder/something.php
+ * - 2-user plugin folder file: /plugins/something.php
+ * - 3-zp-extensions file /zp-core/zp-extensions/something.php
+ * 
+ * First file found is used. Returns false if no file is found.
  *
  * @param string $plugin is the name of the plugin file, typically something.php
  * @param bool $inTheme tells where to find the plugin.
- *   true means look in the current theme
+ *   true means look in the current theme. This for example can be also used to load a additional custom css file for theme customizations so the theme itself does not need to be modified.
  *   false means look in the zp-core/plugins folder.
  * @param bool $webpath return a WEBPATH rather than a SERVERPATH
  *
- * @return string
+ * @return string|false
  */
 function getPlugin($plugin, $inTheme = false, $webpath = false) {
 	global $_zp_gallery;
@@ -1778,6 +1779,21 @@ function dateTimeConvert($datetime, $raw = false) {
 	return date('Y-m-d H:i:s', $time);
 }
 
+/**
+ * Removes the time zone info from date formats like "2009-05-14T13:30:29+10:00" as stored for e.g. image meta data
+ * 
+ * @since 1.6.3
+ * 
+ * @param string $date
+ * @return string
+ */
+function removeDateTimeZone($date) {
+	if (!is_int($date) && strpos($date, 'T') !== false) {
+		$date = str_replace('T', ' ', substr($date, 0, 19));
+	}
+	return $date;
+}
+
 /* * * Context Manipulation Functions ****** */
 /* * *************************************** */
 
@@ -1817,6 +1833,36 @@ function save_context() {
 function restore_context() {
 	global $_zp_current_context, $_zp_current_context_stack;
 	$_zp_current_context = array_pop($_zp_current_context_stack);
+}
+
+/**
+ * Returns the current item object (image, album and Zenpage page, article, category) of the current theme context
+ * or false if no context is set or matches
+ *
+ * @since 1.6.3
+ * @global obj $_zp_current_album
+ * @global obj $_zp_current_image
+ * @global obj $_zp_current_zenpage_page
+ * @global obj $_zp_current_category
+ * @global obj $_zp_current_zenpage_news
+ * @return boolean|obj
+ */
+function getContextObject() {
+	global $_zp_current_album, $_zp_current_image, $_zp_current_zenpage_page, $_zp_current_category, $_zp_current_zenpage_news;
+	if (in_context(ZP_IMAGE)) {
+		$obj = $_zp_current_image;
+	} elseif (in_context(ZP_ALBUM)) {
+		$obj = $_zp_current_album;
+	} elseif (in_context(ZP_ZENPAGE_PAGE)) {
+		$obj = $_zp_current_zenpage_page;
+	} elseif (in_context(ZP_ZENPAGE_NEWS_ARTICLE) || in_context(ZP_ZENPAGE_SINGLE)) {
+		$obj = $_zp_current_zenpage_news;
+	} elseif (in_context(ZP_ZENPAGE_NEWS_CATEGORY)) {
+		$obj = $_zp_current_category;
+	}  else {
+		$obj = false;
+	}
+	return $obj;
 }
 
 /**
@@ -2445,19 +2491,23 @@ function zp_loggedin($rights = ALL_RIGHTS) {
  *
  */
 function read_exif_data_protected($path) {
-	if (DEBUG_EXIF) {
-		debugLog("Begin read_exif_data_protected($path)");
-		$start = microtime(true);
-	}
-	try {
-		$rslt = read_exif_data_raw($path, false);
-	} catch (Exception $e) {
-		debugLog("read_exif_data($path) exception: " . $e->getMessage());
-		$rslt = array();
-	}
-	if (DEBUG_EXIF) {
-		$time = microtime(true) - $start;
-		debugLog(sprintf("End read_exif_data_protected($path) [%f]", $time));
+	if (@exif_imagetype($path) !== false) {
+		if (DEBUG_EXIF) {
+			debugLog("Begin read_exif_data_protected($path)");
+			$start = microtime(true);
+		}
+		try {
+			$rslt = @exif_read_data($path);
+		} catch (Exception $e) {
+			if (DEBUG_EXIF) {
+				debugLog("read_exif_data($path) exception: " . $e->getMessage());
+			}
+			$rslt = array();
+		}
+		if (DEBUG_EXIF) {
+			$time = microtime(true) - $start;
+			debugLog(sprintf("End read_exif_data_protected($path) [%f]", $time));
+		}
 	}
 	return $rslt;
 }
@@ -2740,6 +2790,10 @@ function getNestedAlbumList($subalbum, $levels, $checkalbumrights = true, $level
 	return $list;
 }
 
+function getImageMetaDataFieldFormatted() {
+	
+}
+
 /**
  * initializes the $_zp_exifvars array display state
  *
@@ -2762,12 +2816,12 @@ function setexifvars() {
 			'IPTCImageHeadline' => array('IPTC', 'ImageHeadline', gettext('Image Headline'), false, 256, true, 'string'),
 			'IPTCImageCaption' => array('IPTC', 'ImageCaption', gettext('Image Caption'), false, 2000, true, 'string'),
 			'IPTCImageCaptionWriter' => array('IPTC', 'ImageCaptionWriter', gettext('Image Caption Writer'), false, 32, true, 'string'),
-			'EXIFDateTime' => array('SubIFD', 'DateTime', gettext('Time Taken'), true, 52, true, 'time'),
-			'EXIFDateTimeOriginal' => array('SubIFD', 'DateTimeOriginal', gettext('Original Time Taken'), true, 52, true, 'time'),
-			'EXIFDateTimeDigitized' => array('SubIFD', 'DateTimeDigitized', gettext('Time Digitized'), true, 52, true, 'time'),
-			'IPTCDateCreated' => array('IPTC', 'DateCreated', gettext('Date Created'), false, 8, true, 'time'),
+			'EXIFDateTime' => array('SubIFD', 'DateTime', gettext('Date and Time Taken'), true, 52, true, 'datetime'),
+			'EXIFDateTimeOriginal' => array('SubIFD', 'DateTimeOriginal', gettext('Original Date and Time Taken'), true, 52, true, 'datetime'),
+			'EXIFDateTimeDigitized' => array('SubIFD', 'DateTimeDigitized', gettext('Date and Time Digitized'), true, 52, true, 'datetime'),
+			'IPTCDateCreated' => array('IPTC', 'DateCreated', gettext('Date Created'), false, 8, true, 'date'),
 			'IPTCTimeCreated' => array('IPTC', 'TimeCreated', gettext('Time Created'), false, 11, true, 'time'),
-			'IPTCDigitizeDate' => array('IPTC', 'DigitizeDate', gettext('Digital Creation Date'), false, 8, true, 'time'),
+			'IPTCDigitizeDate' => array('IPTC', 'DigitizeDate', gettext('Digital Creation Date'), false, 8, true, 'date'),
 			'IPTCDigitizeTime' => array('IPTC', 'DigitizeTime', gettext('Digital Creation Time'), false, 11, true, 'time'),
 			'EXIFArtist' => array('IFD0', 'Artist', gettext('Artist'), false, 52, true, 'string'),
 			'IPTCImageCredit' => array('IPTC', 'ImageCredit', gettext('Image Credit'), false, 32, true, 'string'),
@@ -3061,7 +3115,7 @@ function printDataUsageNotice() {
  * 
  * @since 1.5.8
  * 
- * @param string $section Name of the section to get: 'authenticaion', 'search', 'admin', 'cookie', 'various' or null (default) for the full array
+ * @param string $section Name of the section to get: 'authentication', 'search', 'admin', 'cookie', 'various' or null (default) for the full array
  * @return array
  */
 function getCookieInfoData($section = null) {
@@ -3131,7 +3185,7 @@ function getCookieInfoData($section = null) {
  * 
  * @since 1.5.8
  * 
- * @param string $section Name of the section to get: 'authenticaion', 'search', 'admin', 'cookie', 'various' or null (default) for the full array
+ * @param string $section Name of the section to get: 'authentication', 'search', 'admin', 'cookie', 'various' or null (default) for the full array
  * @param string $sectionheadline Add h2 to h6 to print as the section headline, h2 default.
  * @return string
  */
@@ -3163,7 +3217,7 @@ function getCookieInfoHTML($section = null, $sectionheadline = 'h2') {
  * 
  * @since 1.5.8
  * 
- * @param string $section Name of the section to get: 'authenticaion', 'search', 'admin', 'cookie', 'various' or null (default) for the full array
+ * @param string $section Name of the section to get: 'authentication', 'search', 'admin', 'cookie', 'various' or null (default) for the full array
  * @param string $sectionheadline Add h2 to h6 to print as the section headline, h2 default.
  */
 function printCookieInfo($section = null, $sectionheadline = 'h2') {
@@ -3187,6 +3241,43 @@ function getCookieInfoMacro($macros) {
 	return $macros;
 }
 
+/**
+ * Gets a formatted metadata field value for display
+ * 
+ * @since 1.6.3
+ * 
+ * @param string $type The field type
+ * @param mixed $value The field value
+ * @param string $name The field name (Metadata Key)
+ */
+function getImageMetadataValue($type = '', $value = '', $name = '') {
+	switch ($type) {
+		case 'datetime':
+			return zpFormattedDate(DATETIME_FORMAT, removeDateTimeZone($value));
+		case 'date':
+			return zpFormattedDate(DATE_FORMAT, removeDateTimeZone($value));
+		case 'time':	
+			return zpFormattedDate(TIME_FORMAT, removeDateTimeZone($value));
+		default:
+			if ($name == 'IPTCImageCaption') {
+				return nl2br(html_decode($value));
+			} else {
+				return html_encode($value);
+			}
+	}
+}
 
+/**
+ * Prints a formatted metadata field value
+ * 
+ * @since 1.6.3
+ * 
+ * @param string $type The field type
+ * @param mixed $value The field value
+ * @param string $name The field name (Metadata Key)
+ */
+function printImageMetadataValue($type, $value = '', $name = '') {
+	echo getImageMetadataValue($type, $value, $name);
+}
 
 setexifvars();

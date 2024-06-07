@@ -656,7 +656,7 @@ function printCommentAuthorLink($title = NULL, $class = NULL, $id = NULL) {
  */
 function getCommentDateTime($format = NULL) {
 	if (is_null($format)) {
-		$format = DATE_FORMAT;
+		$format = DATETIME_DISPLAYFORMAT;
 	}
 	global $_zp_current_comment;
 	return myts_date($format, $_zp_current_comment['date']);
@@ -1092,4 +1092,128 @@ function getComments($number) {
 function fetchComments($number) {
 	deprecationNotice(gettext('Use getComments() instead.'));
 	return getComments($number);
+}
+
+/**
+ * Checks if a field is required
+ * 
+ * @since 1.6.3
+ * 
+ * @param string $option The field option name
+ * @return bool
+ */
+function isCommentFormRequiredField($option) {
+	if (getOption($option) == 'required') {
+		return true;
+	}
+	return false;
+}
+
+/**
+ * Gets the star to mark required field names
+ * 
+ * @since 1.6.3
+ * 
+ * @param string $option The field option name
+ * @return string
+ */
+function getCommentFormRequiredFieldMark($option) {
+	if (isCommentFormRequiredField($option)) {
+		return '<strong>*</strong>';
+	}
+}
+
+/**
+ * Returns the required attribute if the field is required
+ * 
+ * @since 1.6.3
+ * 
+ * @param string $option The field option name
+ * @return string
+ */
+function getCommentFormRequiredFieldAttr($option) {
+	if (isCommentFormRequiredField($option)) {
+		return ' required';
+	}
+}
+
+/**
+ * Checks if the field should be set to readonly
+ * 
+ * @since 1.6.3
+ * 
+ * @param bool $disabled 
+ * return bool
+ */
+function isCommentFormReadonlyField($disabled) {
+	if ($disabled) {
+		return true;
+	}
+	return false;
+}
+
+/**
+ * Gets the readonly attribute for disabled fields
+ * 
+ * @since 1.6.3
+ * 
+ * @param bool $disabled
+ * @return string
+ */
+function getCommentFormReadonlyFieldAttr($disabled) {
+	if(isCommentFormReadonlyField($disabled)) {
+		return ' readonly';
+	}
+}
+
+/**
+ * Prints the combined required and readonly attributes as needed
+ * @since 1.6.3
+ * @param string $option The field option name
+ * @param bool $disabled
+ */
+function printCommentFormFieldAttributes($option, $disabled) {
+	echo getCommentFormRequiredFieldAttr($option);
+	echo getCommentFormReadonlyFieldAttr($disabled);
+}
+
+/**
+ * Returns the autocomplete attribute for the form depending if autocomplete is enabled
+ *  
+ * @since 1.6.3
+ * 
+ * @return string
+ */
+function getCommentformFormAutocompleteAttr() {
+	if (getOption('comment_form_autocomplete')) {
+		return getCommentformAutocompleteAttr('on');
+	}
+	return getCommentformAutocompleteAttr('off');
+}
+
+/**
+ * Gets the autocomplete attribute with the value passed if autocomplete is enabled
+ * Note that the value is not validated. See See e.g. https://developer.mozilla.org/en-US/docs/Web/HTML/Attributes/autocomplete for valid values and tokens
+ *  
+ * @since 1.6.3
+ * 
+ * @param string $value 
+ * @return string
+ */
+function getCommentformAutocompleteAttr($value) {
+	if (getOption('comment_form_autocomplete')) {
+		return ' autocomplete="' . sanitize($value) . '"';
+	}
+}
+
+/**
+ * Prints the autocomplete attribute with the value passed if autocomplete is enabled
+ * Note that the value is not validated. See See e.g. https://developer.mozilla.org/en-US/docs/Web/HTML/Attributes/autocomplete for valid values and tokens
+ *  
+ * @since 1.6.3
+ * 
+ * @param string $value 
+ */
+function printCommentformAutocompleteAttr($value) {
+	echo getCommentformAutocompleteAttr($value);
 }

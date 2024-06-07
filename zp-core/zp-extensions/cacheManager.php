@@ -102,8 +102,10 @@ class cacheManager {
 
 	function __construct() {
 		self::deleteCacheSizes('admin');
-		self::addCacheSize('admin', 40, NULL, NULL, 40, 40, NULL, NULL, -1);
-		self::addCacheSize('admin', 80, NULL, NULL, 80, 80, NULL, NULL, -1);
+		self::addCacheSize('admin', 40, NULL, NULL, 40, 40, NULL, NULL, true);
+		self::addCacheSize('admin', 80, NULL, NULL, 80, 80, NULL, NULL, true);
+		self::addCacheSize('admin', 110, NULL, NULL, NULL, NULL, NULL, NULL, true);
+		self::addCacheSize('admin', 135, NULL, NULL, NULL, NULL, NULL, NULL, true);
 		setOptionDefault('cachemanager_defaultthumb', 1);
 		setOptionDefault('cachemanager_defaultsizedimage', 1);
 		setOptionDefault('cachemanager_generationmode', 'classic');
@@ -244,6 +246,7 @@ class cacheManager {
 	 */
 	static function getTitle($table, $row) {
 		global $_zp_db;
+		$title = '';
 		switch ($table) {
 			case 'images':
 				$album = $_zp_db->querySingleRow('SELECT `folder` FROM ' . $_zp_db->prefix('albums') . ' WHERE `id`=' . $row['albumid']);

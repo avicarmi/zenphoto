@@ -1425,33 +1425,41 @@ function printSearchBreadcrumb($between = NULL, $class = NULL, $search = NULL, $
 	if ($class) {
 		$class = ' class="' . $class . '"';
 	}
-	if ($d = $_zp_current_search->getSearchDate()) {
-		if (is_null($archive)) {
-			$text = gettext('Archive');
+	$searchmode = $_zp_current_search->getMode();
+	switch($searchmode) {
+		default:
+		case 'search':
+		case 'tag':
+			if (is_null($search)) {
+				$text = gettext('Search');
+				$textdecoration = true;
+			} else {
+				$text = getBare(html_encode($search));
+				$textdecoration = false;
+			}
+			$date = '';
+			$link = sprintf('%s' . $text . '%s', $textdecoration ? '<em>' : '', $textdecoration ? '</em>' : '');
+			break;
+		case 'archive':
+			if (is_null($archive)) {
+				$text = gettext('Archive');
+			} else {
+				$text = getBare(html_encode($archive));
+			}
+			if ($format) {
+				$date = zpFormattedDate($format, $_zp_current_search->getSearchDate());
+			} else {
+				$date = zpFormattedDate('F Y', $_zp_current_search->getSearchDate());
+			}
 			$textdecoration = true;
-		} else {
-			$text = getBare(html_encode($archive));
-			$textdecoration = false;
-		}
-		echo "<a href=\"" . html_encode(getCustomPageURL('archive', NULL)) . "\"$class title=\"" . $text . "\">";
-		printf('%s' . $text . '%s', $textdecoration ? '<em>' : '', $textdecoration ? '</em>' : '');
-		echo "</a>";
-		echo '<span class="betweentext">' . html_encode($between) . '</span>';
-		if ($format) {
-			echo zpFormattedDate($format, $d);
-		} else {
-			echo zpFormattedDate('F Y', $d);
-		}
-	} else {
-		if (is_null($search)) {
-			$text = gettext('Search');
-			$textdecoration = true;
-		} else {
-			$text = getBare(html_encode($search));
-			$textdecoration = false;
-		}
-		printf('%s' . $text . '%s', $textdecoration ? '<em>' : '', $textdecoration ? '</em>' : '');
+			$link = '<a href="' . html_encode(getCustomPageURL('archive', NULL)) . '"'.$class.' title="'. html_encode(strip_tags($text)) . '">';
+			$link .= sprintf('%s' . $text . '%s', $textdecoration ? '<em>' : '', $textdecoration ? '</em>' : '');
+			$link .= '</a>';
+			$link .= '<span class="betweentext">' . html_encode($between) . '</span>';
+			$link .= $date;
+			break;
 	}
+	echo $link;
 }
 
 /**
@@ -1461,7 +1469,7 @@ function printSearchBreadcrumb($between = NULL, $class = NULL, $search = NULL, $
  */
 function getParentBreadcrumb() {
 	global $_zp_gallery, $_zp_current_search, $_zp_current_album, $_zp_last_album;
-	$output = array();
+	$parents = $output = array();
 	if (in_context(ZP_SEARCH_LINKED)) {
 		$page = $_zp_current_search->page;
 		$searchwords = $_zp_current_search->getSearchWords();
@@ -1501,8 +1509,7 @@ function getParentBreadcrumb() {
 	} else {
 		$parents = getParentAlbums();
 	}
-	$n = count($parents);
-	if ($n > 0) {
+	if ($parents) {
 		array_push($parents, $_zp_current_album);
 		$index = -1;
 		foreach ($parents as $parent) {
@@ -1624,7 +1631,7 @@ function getAlbumDate($format = null) {
 function printAlbumDate($before = '', $format = NULL) {
 	global $_zp_current_album;
 	if (is_null($format)) {
-		$format = DATE_FORMAT;
+		$format = DATETIME_DISPLAYFORMAT;
 	}
 	$date = getAlbumDate($format);
 	if ($date) {
@@ -2367,7 +2374,7 @@ function getImageDate($format = null) {
 function printImageDate($before = '', $format = null) {
 	global $_zp_current_image;
 	if (is_null($format)) {
-		$format = DATE_FORMAT;
+		$format = DATETIME_DISPLAYFORMAT;
 	}
 	$date = getImageDate($format);
 	if ($date) {
@@ -2652,19 +2659,13 @@ function printImageURL($text, $title, $class = NULL, $id = NULL) {
  */
 function getImageMetaData($image = NULL, $displayonly = true) {
 	global $_zp_current_image, $_zp_exifvars;
-	if (is_null($image))
+	if (is_null($image)) {
 		$image = $_zp_current_image;
-	if (is_null($image) || !$image->get('hasMetadata')) {
+	}
+	if (is_null($image) || !$image->hasMetaData()) {
 		return false;
 	}
-	$data = $image->getMetaData();
-	if ($displayonly) {
-		foreach ($data as $field => $value) { //	remove the empty or not selected to display
-			if (!$value || !$_zp_exifvars[$field][3]) {
-				unset($data[$field]);
-			}
-		}
-	}
+	$data = $image->getMetaData($displayonly);
 	if (count($data) > 0) {
 		return $data;
 	}
@@ -2740,15 +2741,8 @@ function printImageMetadata($title = NULL, $toggle = true, $id = 'imagemetadata'
 				<?php
 				foreach ($exif as $field => $value) {
 					$label = $_zp_exifvars[$field][2];
-					echo "<tr><td class=\"label\">$label:</td><td class=\"value\">";
-					switch ($_zp_exifvars[$field][6]) {
-						case 'time':
-							echo zpFormattedDate(DATE_FORMAT, $value);
-							break;
-						default:
-							echo html_encode($value);
-							break;
-					}
+					echo '<tr><td class="label">' . $label . ':</td><td class="value">';
+					printImageMetadataValue($_zp_exifvars[$field][6], $value, $field);
 					echo "</td></tr>\n";
 				}
 				?>
@@ -3021,14 +3015,18 @@ function printDefaultSizedImage($alt, $class = null, $id = null, $title = null, 
 
 /**
  * Returns the url to the thumbnail of the current image.
- *
+ * @param obj $image optional image object, null means current image
  * @return string
  */
-function getImageThumb() {
+function getImageThumb($image = null) {
 	global $_zp_current_image;
-	if (is_null($_zp_current_image))
+	if (is_null($image)) {
+		$image = $_zp_current_image;
+	}
+	if (is_null($image)) {
 		return false;
-	return $_zp_current_image->getThumb();
+	}
+	return $image->getThumb();
 }
 
 /**

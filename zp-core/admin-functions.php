@@ -1,5 +1,5 @@
 <?php
-/** Has AVI CUSTOM getAdminThumb 120
+/**
  * support functions for Admin
  * @package zpcore\admin\functions
  */
@@ -2064,7 +2064,7 @@ function printAdminHeader($tab, $subtab = NULL) {
 			}
 			?>
 			<li><?php echo getStatusIcon('published') . getStatusIcon('unpublished') . getStatusIcon('unpublished_by_parent'); ?><?php echo gettext("Published/Unpublished/Unpublished by parent"); ?></li>
-			<li><?php echo getStatusIcon('publishschedule') . getStatusIcon('expiration') . getStatusIcon('expired'); ?>><?php echo gettext("Scheduled publishing/Scheduled expiration/Expired"); ?></li>
+			<li><?php echo getStatusIcon('publishschedule') . getStatusIcon('expiration') . getStatusIcon('expired'); ?><?php echo gettext("Scheduled publishing/Scheduled expiration/Expired"); ?></li>
 			<li><img src="images/comments-on.png" alt="" /><img src="images/comments-off.png" alt="" /><?php echo gettext("Comments on/off"); ?></li>
 			<li><img src="images/view.png" alt="" /><?php echo gettext("View the album"); ?></li>
 			<li><img src="images/refresh.png" alt="" /><?php echo gettext("Refresh metadata"); ?></li>
@@ -4678,6 +4678,8 @@ function printLogSelector($currentlogtab = '', $currentlogfile = '', $logfiles =
 	}
 }
 
+
+
 /**
  * Figures out which plugin tabs to display
  */
@@ -4747,46 +4749,85 @@ function getPluginTabs() {
 	return array($tabs, $default, $currentlist, $paths, $member);
 }
 
-/** Has AVI CUSTOM 120
+/**
+ * Gets an array with the size values for the admin thumb generation
+ * 
+ * @since 1.6.3
+ * 
+ * @param obj $imageobj The image object
+ * @param string $size Adminthumb sizeame: 'large', 'small', 'large-uncropped', 'small-uncropped'
+ * @return array
+ */
+function getAdminThumbSizes($imageobj, $size = 'small') {
+	$sizes = array(
+			'thumbsize' => null,
+			'width' => null,
+			'height' => null,
+			'cropwidth' => null,
+			'cropheight' => null
+	);
+	switch ($size) {
+		case 'large':
+			$sizes['thumbsize'] = 80;
+			$sizes['cropwidth'] = 80;
+			$sizes['cropheight'] = 80;
+			return $sizes;
+		case 'small':
+		default:
+			$sizes['thumbsize'] = 40;
+			$sizes['cropwidth'] = 40;
+			$sizes['cropheight'] = 40;
+			return $sizes;
+		case 'large-uncropped':
+		case 'small-uncropped':
+			switch ($size) {
+				case 'large-uncropped':
+					if ($imageobj->isSquare('thumb')) {
+						$sizes['thumbsize'] = 135;
+					} else if ($imageobj->isLandscape('thumb')) {
+						$sizes['width'] = 135;
+					} else if ($imageobj->isPortrait('thumb')) {
+						$sizes['height'] = 135;
+					}
+					return $sizes;
+				case 'small-uncropped':
+					if ($imageobj->isSquare('thumb')) {
+						$sizes['thumbsize'] = 110;
+					} else if ($imageobj->isLandscape('thumb')) {
+						$sizes['width'] = 110;
+					} else if ($imageobj->isPortrait('thumb')) {
+						$sizes['height'] = 110;
+					}
+					return $sizes;
+			}
+			break;
+	}
+}
+
+/**
  * Gets the URL of the adminthumb
  * 
- * @param obj $image The image object
+ * @param obj $imageobj The image object
  * @param string $size Adminthumb sizeame: 'large', 'small', 'large-uncropped', 'small-uncropped'
  * @return string
  */
 function getAdminThumb($imageobj, $size = 'small') {
-	switch ($size) {
-		case 'large':
-/* AVI CUSTOM 120 */
-			return $imageobj->getCustomImage(120, NULL, NULL, 120, 120, NULL, NULL, -1);  // AVI CUSTOM 120
-		case 'small':
-		default:
-			return $imageobj->getCustomImage(40, NULL, NULL, 40, 40, NULL, NULL, -1);
-		case 'large-uncropped':
-		case 'small-uncropped':
-			$thumbsize = $width = $height = null;
-			switch ($size) {
-				case 'large-uncropped':
-					if ($imageobj->isSquare('thumb')) {
-						$thumbsize = 135;
-					} else if ($imageobj->isLandscape('thumb')) {
-						$width = 135;
-					} else if ($imageobj->isPortrait('thumb')) {
-						$height = 135;
-					}
-					return $imageobj->getCustomImage($thumbsize, $width, $height, NULL, NULL, NULL, NULL, -1);
-				case 'small-uncropped':
-					if ($imageobj->isSquare('thumb')) {
-						$thumbsize = 110;
-					} else if ($imageobj->isLandscape('thumb')) {
-						$width = 110;
-					} else if ($imageobj->isPortrait('thumb')) {
-						$height = 110;
-					}
-					return $imageobj->getCustomImage($thumbsize, $width, $height, NULL, NULL, NULL, NULL, -1);
-			}
-			break;
-	}
+	$values = getAdminThumbSizes($imageobj, $size);
+	return $imageobj->getCustomImage($values['thumbsize'], $values['width'], $values['height'], $values['cropwidth'], $values['cropheight'], null, null, true);
+}
+
+/**
+ * Returns an array with width and height of the resized image
+ * 
+ * @since 1.6.3
+ * 
+ * @param obj  $imageobj The image object
+ * @param string $size Adminthumb sizeame: 'large', 'small', 'large-uncropped', 'small-uncropped'
+ * @return array
+ */
+function getSizeAdminThumb($imageobj, $size = 'small') {
+	$values = getAdminThumbSizes($imageobj, $size);
+	return getSizeCustomImage($values['thumbsize'], $values['width'], $values['height'], $values['cropwidth'], $values['cropheight'], null, null, $imageobj, 'thumb');
 }
 
 /**
@@ -4807,8 +4848,11 @@ function getAdminThumbHTML($imageobj, $size = 'small', $class = null, $id = null
 	if (empty($title)) {
 		$title = $alt;
 	}
+	$dimensions = getSizeAdminThumb($imageobj, $size);
 	$attr = array(
 			'src' => html_pathurlencode(getAdminThumb($imageobj, $size)),
+			'width' => $dimensions[0],
+			'height' => $dimensions[1],
 			'alt' => html_encode($alt),
 			'class' => $class,
 			'id' => $id,
@@ -5897,69 +5941,73 @@ function printImageRotationSelector($imageobj, $currentimage) {
  * @since 1.6.1
  */
 function printDatetimeFormatSelector() {
-	$formatlist = array();
 	$use_localized_date = getOption('date_format_localized');
 	
-	// date format
+	/*
+	 * date format
+	 */
 	$date_selector_id = 'date_format_list';
 	$date_currentformat_selector = $date_currentformat = getOption('date_format');
 	$date_formats = array_keys(getStandardDateFormats('date'));
 	$date_formatlist = getDatetimeFormatlistForSelector($date_formats, $use_localized_date);
-	if ($use_localized_date && extension_loaded('intl')) {
-		$date_formatlist[gettext('Preferred date representation with time')] = 'locale_preferreddate_time';
-		$date_formatlist[gettext('Preferred date representation without time')] = 'locale_preferreddate_notime';
-	}
 	$date_formatlist[gettext('Custom')] = 'custom';
-
-	// time format
-	$time_selector_id = 'time_format_list';
-	$time_currentformat = getOption('time_format');
-	$time_formats = array_keys(getStandardDateFormats('time'));
-	$time_formatlist = getDatetimeFormatlistForSelector($time_formats, $use_localized_date);	
-	$time_formatlist[gettext('None')] = '';
-	$time_formatlist_disabled = '';
 	
-	// custom format
-	$custom_format_id = 'custom_dateformat_box';
-	$custom_format_name = 'date_format';
-	$custom_format_label = gettext('Custom datetime format');
-	$custom_format_display = 'none';
-	
-	// special settings for custom datetime formats
+	// date custom format
+	$date_custom_format_id = 'custom_dateformat_box';
+	$date_custom_format_name = 'date_format';
+	$date_custom_format_label = gettext('Custom date format');
+	$date_custom_format_display = 'none';
 	if (!in_array($date_currentformat, $date_formatlist)) {
 		$date_currentformat_selector = 'custom';
-		$custom_format_display = 'block';
-		$time_formatlist_disabled = ' disabled="disabled"';
-		$time_currentformat = '';
+		$date_custom_format_display = 'block';
 	}
-	if (in_array($date_currentformat, array('locale_preferreddate_time','locale_preferreddate_notime'))) {
+	/*if (in_array($date_currentformat, array('locale_preferreddate_time','locale_preferreddate_notime'))) {
 		$time_formatlist_disabled = ' disabled="disabled"';
 		$time_currentformat = '';
+	} */
+	?>
+	<p>
+		<label><select id="<?php echo $date_selector_id; ?>" name="<?php echo $date_selector_id; ?>" onchange="showfield(this, '<?php echo $date_custom_format_id; ?>')">
+		<?php generateListFromArray(array($date_currentformat_selector), $date_formatlist, null, true); ?>
+		</select> <?php echo gettext('Date format'); ?></label>
+		<label id="<?php echo $date_custom_format_id; ?>" class="customText" style="display:<?php echo $date_custom_format_display; ?>">
+			<br />
+			<input type="text" size="30" name="<?php echo $date_custom_format_name; ?>" value="<?php echo html_encode($date_currentformat); ?>" />
+			<?php echo $date_custom_format_label; ?>
+		</label>
+	</p>
+	<?php
+	/*
+	 * time format
+	 */
+	$time_selector_id = 'time_format_list';
+	$time_currentformat_selector = $time_currentformat = getOption('time_format');
+	$time_formats = array_keys(getStandardDateFormats('time'));
+	$time_formatlist = getDatetimeFormatlistForSelector($time_formats, $use_localized_date);	
+	$time_formatlist[gettext('Custom')] = 'custom';
+
+	
+	// time custom format
+	$time_custom_format_id = 'custom_timeformat_box';
+	$time_custom_format_name = 'time_format';
+	$time_custom_format_label = gettext('Custom time format');
+	$time_custom_format_display = 'none';
+	if (!in_array($time_currentformat, $time_formatlist)) {
+		$time_currentformat_selector = 'custom';
+		$time_custom_format_display = 'block';
 	}
 	?>
-	<select id="<?php echo $date_selector_id; ?>" name="<?php echo $date_selector_id; ?>" onchange="showfield(this, '<?php echo $custom_format_id; ?>')">
-		<?php generateListFromArray(array($date_currentformat_selector), $date_formatlist, null, true); ?>
-	</select>
-	<select id="<?php echo $time_selector_id; ?>" name="<?php echo $time_selector_id; ?>"<?php echo $time_formatlist_disabled; ?>>
-		<?php generateListFromArray(array($time_currentformat), $time_formatlist, null, true); ?>
-	</select>
-	<br>
-	<label id="<?php echo $custom_format_id; ?>" class="customText" style="display:<?php echo $custom_format_display; ?>">
-		<br />
-		<input type="text" size="<?php echo TEXT_INPUT_SIZE; ?>" name="<?php echo $custom_format_name; ?>" value="<?php echo html_encode($date_currentformat); ?>" />
-		<?php echo $custom_format_label; ?>
-	</label>
-	<script>
-		$( "#<?php echo $date_selector_id; ?>" ).change(function() {
-			var date_format = $( "#<?php echo $date_selector_id; ?>" ).val();
-			if (date_format === "custom" || date_format === "locale_preferreddate_time" || date_format === "locale_preferreddate_notime") {
-				$( "#<?php echo $time_selector_id; ?>" ).prop( "disabled", true );
-				$( "#<?php echo $time_selector_id; ?>" ).val('');
-			} else {
-				$( "#<?php echo $time_selector_id; ?>" ).prop( "disabled", false );
-			}
-		});
-	</script>
+	<p>
+		<label><select id="<?php echo $time_selector_id; ?>" name="<?php echo $time_selector_id; ?>" onchange="showfield(this, '<?php echo $time_custom_format_id; ?>')">
+		<?php generateListFromArray(array($time_currentformat_selector), $time_formatlist, null, true); ?>
+		</select> <?php echo gettext('Time format'); ?></label>
+		<br>
+		<label id="<?php echo $time_custom_format_id; ?>" class="customText" style="display:<?php echo $time_custom_format_display; ?>">
+			<br />
+			<input type="text" size="30" name="<?php echo $time_custom_format_name; ?>" value="<?php echo html_encode($time_currentformat); ?>" />
+			<?php echo $time_custom_format_label; ?>
+		</label>
+	</p>
 	<?php
 }
 
