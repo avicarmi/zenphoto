@@ -1,5 +1,5 @@
 <?php
-/**
+/** Has AVI CUSTOM getAdminThumb 120
  * support functions for Admin
  * @package zpcore\admin\functions
  */
@@ -4749,7 +4749,7 @@ function getPluginTabs() {
 	return array($tabs, $default, $currentlist, $paths, $member);
 }
 
-/**
+/** Has AVI CUSTOM 120 80
  * Gets an array with the size values for the admin thumb generation
  * 
  * @since 1.6.3
@@ -4768,15 +4768,15 @@ function getAdminThumbSizes($imageobj, $size = 'small') {
 	);
 	switch ($size) {
 		case 'large':
-			$sizes['thumbsize'] = 80;
-			$sizes['cropwidth'] = 80;
-			$sizes['cropheight'] = 80;
+			$sizes['thumbsize'] = 120; /* AVI CUSTOM 120 */
+			$sizes['cropwidth'] = 120; /* AVI CUSTOM 120 */
+			$sizes['cropheight'] = 120; /* AVI CUSTOM 120 */
 			break;
 		case 'small':
 		default:
-			$sizes['thumbsize'] = 40;
-			$sizes['cropwidth'] = 40;
-			$sizes['cropheight'] = 40;
+			$sizes['thumbsize'] = 80; /* AVI CUSTOM 80 */
+			$sizes['cropwidth'] = 80; /* AVI CUSTOM 80 */
+			$sizes['cropheight'] = 80; /* AVI CUSTOM 80 */
 			break;
 		case 'large-uncropped':
 			if ($imageobj->isSquare('thumb')) {
