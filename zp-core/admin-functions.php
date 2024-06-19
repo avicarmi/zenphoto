@@ -4774,9 +4774,9 @@ function getAdminThumbSizes($imageobj, $size = 'small') {
 			break;
 		case 'small':
 		default:
-			$sizes['thumbsize'] = 80; /* AVI CUSTOM 80 */
-			$sizes['cropwidth'] = 80; /* AVI CUSTOM 80 */
-			$sizes['cropheight'] = 80; /* AVI CUSTOM 80 */
+			$sizes['thumbsize'] = 40;
+			$sizes['cropwidth'] = 40;
+			$sizes['cropheight'] = 40;
 			break;
 		case 'large-uncropped':
 			if ($imageobj->isSquare('thumb')) {
